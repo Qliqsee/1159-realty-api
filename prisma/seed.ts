@@ -9,16 +9,20 @@ async function main() {
   const hashedPassword = await bcrypt.hash('password123', 10);
 
   const customerPermissions = await Promise.all([
-    prisma.permission.create({
-      data: {
+    prisma.permission.upsert({
+      where: { name: 'properties:read' },
+      update: {},
+      create: {
         name: 'properties:read',
         resource: 'properties',
         action: 'read',
         description: 'View properties',
       },
     }),
-    prisma.permission.create({
-      data: {
+    prisma.permission.upsert({
+      where: { name: 'properties:create' },
+      update: {},
+      create: {
         name: 'properties:create',
         resource: 'properties',
         action: 'create',
@@ -28,32 +32,40 @@ async function main() {
   ]);
 
   const adminPermissions = await Promise.all([
-    prisma.permission.create({
-      data: {
+    prisma.permission.upsert({
+      where: { name: 'users:read' },
+      update: {},
+      create: {
         name: 'users:read',
         resource: 'users',
         action: 'read',
         description: 'View users',
       },
     }),
-    prisma.permission.create({
-      data: {
+    prisma.permission.upsert({
+      where: { name: 'users:write' },
+      update: {},
+      create: {
         name: 'users:write',
         resource: 'users',
         action: 'write',
         description: 'Create and update users',
       },
     }),
-    prisma.permission.create({
-      data: {
+    prisma.permission.upsert({
+      where: { name: 'users:delete' },
+      update: {},
+      create: {
         name: 'users:delete',
         resource: 'users',
         action: 'delete',
         description: 'Delete users',
       },
     }),
-    prisma.permission.create({
-      data: {
+    prisma.permission.upsert({
+      where: { name: 'roles:manage' },
+      update: {},
+      create: {
         name: 'roles:manage',
         resource: 'roles',
         action: 'manage',
@@ -62,24 +74,45 @@ async function main() {
     }),
   ]);
 
-  const customerRole = await prisma.role.create({
-    data: {
+  const customerRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'customer',
+        appContext: 'client',
+      },
+    },
+    update: {},
+    create: {
       name: 'customer',
       appContext: 'client',
       description: 'Regular customer in client app',
     },
   });
 
-  const adminRole = await prisma.role.create({
-    data: {
+  const adminRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'admin',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
       name: 'admin',
       appContext: 'crm',
       description: 'Administrator in CRM',
     },
   });
 
-  const supportRole = await prisma.role.create({
-    data: {
+  const supportRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'support',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
       name: 'support',
       appContext: 'crm',
       description: 'Support staff in CRM',
@@ -88,24 +121,45 @@ async function main() {
 
   await Promise.all([
     ...customerPermissions.map((permission) =>
-      prisma.rolePermission.create({
-        data: {
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: customerRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
           roleId: customerRole.id,
           permissionId: permission.id,
         },
       })
     ),
     ...adminPermissions.map((permission) =>
-      prisma.rolePermission.create({
-        data: {
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: adminRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
           roleId: adminRole.id,
           permissionId: permission.id,
         },
       })
     ),
     ...customerPermissions.map((permission) =>
-      prisma.rolePermission.create({
-        data: {
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: adminRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
           roleId: adminRole.id,
           permissionId: permission.id,
         },
@@ -113,15 +167,24 @@ async function main() {
     ),
   ]);
 
-  await prisma.rolePermission.create({
-    data: {
+  await prisma.rolePermission.upsert({
+    where: {
+      roleId_permissionId: {
+        roleId: supportRole.id,
+        permissionId: adminPermissions[0].id,
+      },
+    },
+    update: {},
+    create: {
       roleId: supportRole.id,
       permissionId: adminPermissions[0].id,
     },
   });
 
-  const testUser = await prisma.user.create({
-    data: {
+  const testUser = await prisma.user.upsert({
+    where: { email: 'admin@example.com' },
+    update: {},
+    create: {
       email: 'admin@example.com',
       password: hashedPassword,
       name: 'Admin User',
@@ -129,34 +192,80 @@ async function main() {
   });
 
   await Promise.all([
-    prisma.userRole.create({
-      data: {
+    prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: testUser.id,
+          roleId: customerRole.id,
+        },
+      },
+      update: {},
+      create: {
         userId: testUser.id,
         roleId: customerRole.id,
       },
     }),
-    prisma.userRole.create({
-      data: {
+    prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: testUser.id,
+          roleId: adminRole.id,
+        },
+      },
+      update: {},
+      create: {
         userId: testUser.id,
         roleId: adminRole.id,
       },
     }),
   ]);
 
-  const regularUser = await prisma.user.create({
-    data: {
+  const regularUser = await prisma.user.upsert({
+    where: { email: 'user@example.com' },
+    update: {},
+    create: {
       email: 'user@example.com',
       password: hashedPassword,
       name: 'Regular User',
     },
   });
 
-  await prisma.userRole.create({
-    data: {
+  await prisma.userRole.upsert({
+    where: {
+      userId_roleId: {
+        userId: regularUser.id,
+        roleId: customerRole.id,
+      },
+    },
+    update: {},
+    create: {
       userId: regularUser.id,
       roleId: customerRole.id,
     },
   });
+
+  const nigerianStates = [
+    'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa',
+    'Benue', 'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo',
+    'Ekiti', 'Enugu', 'Gombe', 'Imo', 'Jigawa', 'Kaduna',
+    'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos',
+    'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo',
+    'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara',
+    'Federal Capital Territory'
+  ];
+
+  await Promise.all(
+    nigerianStates.map((name, index) =>
+      prisma.state.upsert({
+        where: { id: index + 1 },
+        update: {},
+        create: {
+          id: index + 1,
+          name,
+        },
+      })
+    )
+  );
 
   console.log('Seed completed successfully!');
   console.log('Test users:');

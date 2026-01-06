@@ -11,6 +11,8 @@ import { EmailModule } from './email/email.module';
 import { PasswordResetModule } from './password-reset/password-reset.module';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { KycModule } from './kyc/kyc.module';
+import { PropertiesModule } from './properties/properties.module';
+import { UnitsModule } from './units/units.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { KycModule } from './kyc/kyc.module';
     PasswordResetModule,
     FileUploadModule,
     KycModule,
+    PropertiesModule,
+    UnitsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

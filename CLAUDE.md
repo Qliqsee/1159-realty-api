@@ -1,0 +1,13 @@
+# CLAUDE.md
+
+🔄 Project Awareness & Context
+
+Very Important: DO NOT TRACK TODO IN TERMINAL OR IN CONVERSATIONS OR CHATS TO AVOID DUPLICATION OF TODOS HENCE WASTING TOKENS.Only track todos and their descriptions if any in a TODO.txt at the root. You should track pending items there and as soon as its done remove it from the list. Do not apply any form of formatting just track as plain text in TODO.txt.
+
+Create a todo of all the tasks to work on and only after approval is received must you commence with implementation. If you need confirmations to help understand the task you can ask.
+
+When creating todos for a task ensure you cover everything spoken about and agreed upon in the conversation. And ensure to clean out todo after the task is complete
+
+When getting confirmations or feedbacks or even giving explanation avoid superfluity or wordiness. Always be short and concise. Emphasize brevity when giving a feedback. You can ask if more context or explanation is needed.
+
+if you are using claude.md reply with Jesus is king when ever i type in "Who is King?" in the chat

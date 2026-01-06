@@ -49,6 +49,33 @@ enum KycStep {
   BANK
 }
 
+enum PropertyType {
+  LAND
+  APARTMENT
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  PRE_LAUNCH
+  SOLD_OUT
+  RESERVED
+  ARCHIVED
+}
+
+enum UnitStatus {
+  AVAILABLE
+  SOLD
+  RESERVED
+  ARCHIVED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  YOUTUBE
+  INSTAGRAM
+}
+
 model User {
   id                     String   @id @default(uuid())
   email                  String   @unique
@@ -228,4 +255,131 @@ model KycHistory {
   reviewer User? @relation("KycHistoryReviewedBy", fields: [reviewedBy], references: [id])
 
   @@map("kyc_history")
+}
+
+model State {
+  id         Int      @id
+  name       String   @unique
+  createdAt  DateTime @default(now())
+
+  properties Property[]
+
+  @@map("states")
+}
+
+model Property {
+  id          String         @id @default(uuid())
+  name        String
+  type        PropertyType
+  subtype     String
+  status      PropertyStatus @default(AVAILABLE)
+  description String         @db.Text
+
+  agriculturalFeeAmount    Decimal? @db.Decimal(15, 2)
+  agriculturalFeeIsActive  Boolean  @default(false)
+  requiredDocuments        String[]
+
+  country         String
+  stateId         Int?
+  address         String  @db.Text
+  nearbyLandmark  String
+
+  overdueInterestRate Decimal @db.Decimal(5, 2)
+  paymentCycle        Int
+
+  salesDiscountPercentage Decimal? @db.Decimal(5, 2)
+  salesDiscountIsActive   Boolean  @default(false)
+
+  mapConfigSrc    String?
+  mapConfigWidth  String?
+  mapConfigHeight String?
+
+  views       Int @default(0)
+  interests   Int @default(0)
+  enrollments Int @default(0)
+  sold        Int @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String
+  lastUpdatedBy String
+
+  state           State?                 @relation(fields: [stateId], references: [id])
+  unitPricing     PropertyUnitPricing[]
+  paymentPlans    PropertyPaymentPlan[]
+  features        PropertyFeature[]
+  media           PropertyMedia[]
+  units           Unit[]
+
+  @@map("properties")
+}
+
+model PropertyUnitPricing {
+  id             String   @id @default(uuid())
+  propertyId     String
+  unit           String
+  regularPrice   Decimal  @db.Decimal(15, 2)
+  prelaunchPrice Decimal  @db.Decimal(15, 2)
+  createdAt      DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_unit_pricing")
+}
+
+model PropertyPaymentPlan {
+  id             String   @id @default(uuid())
+  propertyId     String
+  durationMonths Int
+  interestRate   Decimal  @db.Decimal(5, 2)
+  createdAt      DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_payment_plans")
+}
+
+model PropertyFeature {
+  id         String   @id @default(uuid())
+  propertyId String
+  name       String
+  icon       String
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_features")
+}
+
+model PropertyMedia {
+  id           String    @id @default(uuid())
+  propertyId   String
+  type         MediaType
+  url          String
+  isPrimary    Boolean   @default(false)
+  displayOrder Int       @default(0)
+  caption      String?
+  thumbnail    String?
+  createdAt    DateTime  @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_media")
+}
+
+model Unit {
+  id         String     @id @default(uuid())
+  propertyId String
+  unitId     String
+  unit       String
+  coordinate String
+  feature    String?
+  status     UnitStatus @default(AVAILABLE)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, unitId])
+  @@map("units")
 }
