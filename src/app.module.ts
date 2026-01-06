@@ -1,11 +1,16 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RolesModule } from './roles/roles.module';
+import { EmailModule } from './email/email.module';
+import { PasswordResetModule } from './password-reset/password-reset.module';
+import { FileUploadModule } from './file-upload/file-upload.module';
+import { KycModule } from './kyc/kyc.module';
 
 @Module({
   imports: [
@@ -13,10 +18,15 @@ import { RolesModule } from './roles/roles.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     UsersModule,
     RolesModule,
+    EmailModule,
+    PasswordResetModule,
+    FileUploadModule,
+    KycModule,
   ],
   controllers: [AppController],
   providers: [AppService],

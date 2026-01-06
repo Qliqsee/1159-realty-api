@@ -13,16 +13,66 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String?
-  googleId  String?  @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// Enums
+enum Gender {
+  MALE
+  FEMALE
+  PREFER_NOT_TO_SAY
+}
 
-  userRoles UserRole[]
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum EmploymentStatus {
+  EMPLOYED
+  SELF_EMPLOYED
+  UNEMPLOYED
+}
+
+enum KycStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum KycStep {
+  PERSONAL
+  ADDRESS
+  OCCUPATION
+  IDENTITY
+  NEXT_OF_KIN
+  BANK
+}
+
+model User {
+  id                     String   @id @default(uuid())
+  email                  String   @unique
+  password               String?
+  googleId               String?  @unique
+  name                   String?
+  isEmailVerified        Boolean  @default(false)
+  hasCompletedOnboarding Boolean  @default(false)
+  gender                 Gender?
+  referralSource         String?
+  country                String?
+  state                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  userRoles               UserRole[]
+  emailOtps               EmailOtp[]
+  passwordResetTokens     PasswordResetToken[]
+  kyc                     Kyc?
+  kycCreatedRecords       Kyc[]                @relation("KycCreatedBy")
+  kycUpdatedRecords       Kyc[]                @relation("KycUpdatedBy")
+  kycReviewedRecords      Kyc[]                @relation("KycReviewedBy")
+  rejectionReasonsCreated KycRejectionReason[] @relation("RejectionCreatedBy")
+  kycHistoryReviewed      KycHistory[]         @relation("KycHistoryReviewedBy")
 
   @@map("users")
 }
@@ -80,4 +130,102 @@ model RolePermission {
 
   @@unique([roleId, permissionId])
   @@map("role_permissions")
+}
+
+model EmailOtp {
+  id        String   @id @default(uuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("email_otps")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token, expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model Kyc {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  status      KycStatus @default(DRAFT)
+  currentStep KycStep   @default(PERSONAL)
+
+  personal   Json?
+  address    Json?
+  occupation Json?
+  identity   Json?
+  nextOfKin  Json?
+  bank       Json?
+
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  reviewedBy  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewer         User?                @relation("KycReviewedBy", fields: [reviewedBy], references: [id])
+  creator          User?                @relation("KycCreatedBy", fields: [createdBy], references: [id])
+  updater          User?                @relation("KycUpdatedBy", fields: [updatedBy], references: [id])
+  rejectionReasons KycRejectionReason[]
+  history          KycHistory[]
+
+  @@map("kyc")
+}
+
+model KycRejectionReason {
+  id        String   @id @default(uuid())
+  kycId     String
+  reason    String
+  createdAt DateTime @default(now())
+  createdBy String
+
+  kyc     Kyc  @relation(fields: [kycId], references: [id], onDelete: Cascade)
+  creator User @relation("RejectionCreatedBy", fields: [createdBy], references: [id])
+
+  @@map("kyc_rejection_reasons")
+}
+
+model KycHistory {
+  id     String    @id @default(uuid())
+  kycId  String
+  status KycStatus
+
+  personal   Json?
+  address    Json?
+  occupation Json?
+  identity   Json?
+  nextOfKin  Json?
+  bank       Json?
+
+  submittedAt      DateTime
+  reviewedAt       DateTime?
+  reviewedBy       String?
+  reviewAction     String?
+  rejectionReasons String[]
+
+  createdAt DateTime @default(now())
+
+  kyc      Kyc   @relation(fields: [kycId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("KycHistoryReviewedBy", fields: [reviewedBy], references: [id])
+
+  @@map("kyc_history")
 }
