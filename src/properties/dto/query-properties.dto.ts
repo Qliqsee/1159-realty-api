@@ -14,8 +14,6 @@ import { PropertyType, PropertyStatus } from './create-property.dto';
 export enum SortBy {
   NAME = 'name',
   CREATED_AT = 'createdAt',
-  VIEWS = 'views',
-  PRICE = 'price',
 }
 
 export enum SortOrder {

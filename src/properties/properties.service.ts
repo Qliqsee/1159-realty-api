@@ -109,8 +109,6 @@ export class PropertiesService {
     let orderBy: Prisma.PropertyOrderByWithRelationInput = {};
     if (sortBy === 'name') {
       orderBy = { name: sortOrder };
-    } else if (sortBy === 'views') {
-      orderBy = { views: sortOrder };
     } else {
       orderBy = { createdAt: sortOrder };
     }
@@ -128,7 +126,10 @@ export class PropertiesService {
           features: true,
           media: true,
           _count: {
-            select: { units: true },
+            select: {
+              units: true,
+              propertyInterests: true,
+            },
           },
         },
       }),
@@ -156,7 +157,10 @@ export class PropertiesService {
         features: true,
         media: true,
         _count: {
-          select: { units: true },
+          select: {
+            units: true,
+            propertyInterests: true,
+          },
         },
       },
     });
@@ -164,11 +168,6 @@ export class PropertiesService {
     if (!property) {
       throw new NotFoundException('Property not found');
     }
-
-    await this.prisma.property.update({
-      where: { id },
-      data: { views: { increment: 1 } },
-    });
 
     return property;
   }

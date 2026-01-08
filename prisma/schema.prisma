@@ -100,6 +100,7 @@ model User {
   kycReviewedRecords      Kyc[]                @relation("KycReviewedBy")
   rejectionReasonsCreated KycRejectionReason[] @relation("RejectionCreatedBy")
   kycHistoryReviewed      KycHistory[]         @relation("KycHistoryReviewedBy")
+  propertyInterests       PropertyInterest[]
 
   @@map("users")
 }
@@ -294,22 +295,18 @@ model Property {
   mapConfigWidth  String?
   mapConfigHeight String?
 
-  views       Int @default(0)
-  interests   Int @default(0)
-  enrollments Int @default(0)
-  sold        Int @default(0)
-
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   createdBy     String
   lastUpdatedBy String
 
-  state           State?                 @relation(fields: [stateId], references: [id])
-  unitPricing     PropertyUnitPricing[]
-  paymentPlans    PropertyPaymentPlan[]
-  features        PropertyFeature[]
-  media           PropertyMedia[]
-  units           Unit[]
+  state            State?                 @relation(fields: [stateId], references: [id])
+  unitPricing      PropertyUnitPricing[]
+  paymentPlans     PropertyPaymentPlan[]
+  features         PropertyFeature[]
+  media            PropertyMedia[]
+  units            Unit[]
+  propertyInterests PropertyInterest[]
 
   @@map("properties")
 }
@@ -382,4 +379,18 @@ model Unit {
 
   @@unique([propertyId, unitId])
   @@map("units")
+}
+
+model PropertyInterest {
+  id         String   @id @default(uuid())
+  propertyId String
+  userId     String
+  message    String?
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, userId])
+  @@map("property_interests")
 }
