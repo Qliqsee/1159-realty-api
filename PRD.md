@@ -192,6 +192,37 @@ Three-application ecosystem:
 
 ---
 
+### Property Units
+
+**Unit Structure:**
+
+- Units linked to properties (one unit belongs to one property only)
+- Optional addition to properties
+- CSV import via CRM with batch insert capability
+
+**Unit Fields:**
+
+- Unit ID: e.g., "A-101", "B-202"
+- Unit size: e.g., "500 sqm", "1000 sqm"
+- Coordinates: e.g., "6.5244, 3.3792"
+- Feature (optional): e.g., "Roadside", "River view", "Gym nearby"
+- Status: `AVAILABLE`, `SOLD`, `RESERVED`, `ARCHIVED`
+
+**CRM Features:**
+
+- Import units from CSV for batch creation
+- Create individual units
+- Edit existing units
+- Delete units
+
+**Client App Features:**
+
+- View units under property (read-only)
+- See available units and their details
+- View unit status
+
+---
+
 ### Enrollment Management
 
 **Access Levels:**

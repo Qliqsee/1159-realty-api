@@ -66,6 +66,7 @@ export class PropertiesService {
       limit,
       type,
       status,
+      subtype,
       stateId,
       priceMin,
       priceMax,
@@ -80,6 +81,7 @@ export class PropertiesService {
     const where: Prisma.PropertyWhereInput = {
       ...(type && { type }),
       ...(status && { status }),
+      ...(subtype && { subtype: { contains: subtype, mode: 'insensitive' } }),
       ...(stateId && { stateId }),
       ...(search && {
         OR: [
@@ -169,7 +171,16 @@ export class PropertiesService {
       throw new NotFoundException('Property not found');
     }
 
-    return property;
+    // Calculate next inspection date
+    const now = new Date();
+    const upcomingInspections = property.inspectionDates
+      .filter((date) => new Date(date) > now)
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+    return {
+      ...property,
+      nextInspectionDate: upcomingInspections[0] || null,
+    };
   }
 
   async update(
@@ -288,5 +299,205 @@ export class PropertiesService {
     });
 
     return units;
+  }
+
+  // Inspection dates management
+  async addInspectionDate(propertyId: string, inspectionDate: Date) {
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    // Check if inspection date already exists
+    const existingDate = property.inspectionDates.find(
+      (date) => new Date(date).getTime() === new Date(inspectionDate).getTime(),
+    );
+
+    if (existingDate) {
+      throw new BadRequestException('Inspection date already exists');
+    }
+
+    return this.prisma.property.update({
+      where: { id: propertyId },
+      data: {
+        inspectionDates: {
+          push: inspectionDate,
+        },
+      },
+      include: {
+        state: true,
+        unitPricing: true,
+        paymentPlans: true,
+        features: true,
+        media: true,
+      },
+    });
+  }
+
+  async getInspectionDates(propertyId: string) {
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { id: true, name: true, inspectionDates: true },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    return property;
+  }
+
+  async removeInspectionDate(propertyId: string, inspectionDate: Date) {
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    const updatedDates = property.inspectionDates.filter(
+      (date) => new Date(date).getTime() !== new Date(inspectionDate).getTime(),
+    );
+
+    return this.prisma.property.update({
+      where: { id: propertyId },
+      data: {
+        inspectionDates: updatedDates,
+      },
+      include: {
+        state: true,
+        unitPricing: true,
+        paymentPlans: true,
+        features: true,
+        media: true,
+      },
+    });
+  }
+
+  // Payment plans management
+  async addPaymentPlan(
+    propertyId: string,
+    durationMonths: number,
+    interestRate: number,
+  ) {
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+      include: { paymentPlans: true },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    // Check if payment plan already exists
+    const existingPlan = property.paymentPlans.find(
+      (plan) =>
+        plan.durationMonths === durationMonths &&
+        parseFloat(plan.interestRate.toString()) === interestRate,
+    );
+
+    if (existingPlan) {
+      throw new BadRequestException('Payment plan already exists');
+    }
+
+    return this.prisma.propertyPaymentPlan.create({
+      data: {
+        propertyId,
+        durationMonths,
+        interestRate,
+      },
+    });
+  }
+
+  // Property interests management
+  async updatePropertyInterest(
+    interestId: string,
+    status?: string,
+    agentId?: string,
+  ) {
+    const interest = await this.prisma.propertyInterest.findUnique({
+      where: { id: interestId },
+    });
+
+    if (!interest) {
+      throw new NotFoundException('Property interest not found');
+    }
+
+    const updateData: any = {};
+    if (status) {
+      updateData.status = status;
+      if (status === 'CLOSED') {
+        updateData.contactedAt = new Date();
+      }
+    }
+    if (agentId) {
+      updateData.agentId = agentId;
+    }
+
+    return this.prisma.propertyInterest.update({
+      where: { id: interestId },
+      data: updateData,
+      include: {
+        property: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
+
+  // Property stats
+  async getPropertyStats() {
+    const [
+      totalProperties,
+      totalLand,
+      totalApartments,
+      totalSoldOut,
+      totalAvailable,
+      totalInterests,
+    ] = await Promise.all([
+      this.prisma.property.count({
+        where: { status: { not: 'ARCHIVED' } },
+      }),
+      this.prisma.property.count({
+        where: { type: 'LAND', status: { not: 'ARCHIVED' } },
+      }),
+      this.prisma.property.count({
+        where: { type: 'APARTMENT', status: { not: 'ARCHIVED' } },
+      }),
+      this.prisma.property.count({
+        where: { status: 'SOLD_OUT' },
+      }),
+      this.prisma.property.count({
+        where: { status: 'AVAILABLE' },
+      }),
+      this.prisma.propertyInterest.count(),
+    ]);
+
+    // Note: mostSoldProperty and totalEnrollments will need Enrollment model
+    // For now, returning null and 0
+    return {
+      totalProperties,
+      totalLand,
+      totalApartments,
+      totalSoldOut,
+      totalAvailable,
+      mostSoldProperty: null,
+      totalInterests,
+      totalEnrollments: 0,
+    };
   }
 }

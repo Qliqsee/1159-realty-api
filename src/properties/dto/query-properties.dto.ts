@@ -47,6 +47,11 @@ export class QueryPropertiesDto {
   status?: PropertyStatus;
 
   @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  subtype?: string;
+
+  @ApiPropertyOptional()
   @Type(() => Number)
   @IsInt()
   @IsOptional()

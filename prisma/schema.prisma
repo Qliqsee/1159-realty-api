@@ -89,6 +89,11 @@ enum PartnershipStatus {
   REJECTED
 }
 
+enum InterestStatus {
+  OPEN
+  CLOSED
+}
+
 model User {
   id                     String   @id @default(uuid())
   email                  String   @unique
@@ -332,6 +337,8 @@ model Property {
   mapConfigWidth  String?
   mapConfigHeight String?
 
+  inspectionDates DateTime[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   createdBy     String
@@ -419,16 +426,22 @@ model Unit {
 }
 
 model PropertyInterest {
-  id         String   @id @default(uuid())
-  propertyId String
-  userId     String
-  message    String?
-  createdAt  DateTime @default(now())
+  id            String         @id @default(uuid())
+  propertyId    String
+  userId        String
+  message       String?
+  status        InterestStatus @default(OPEN)
+  agentId       String?
+  contactedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([propertyId, userId])
+  @@index([status])
+  @@index([agentId])
   @@map("property_interests")
 }
 
