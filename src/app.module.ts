@@ -14,6 +14,7 @@ import { KycModule } from './kyc/kyc.module';
 import { PropertiesModule } from './properties/properties.module';
 import { UnitsModule } from './units/units.module';
 import { LeadsModule } from './leads/leads.module';
+import { PartnershipModule } from './partnership/partnership.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { LeadsModule } from './leads/leads.module';
     PropertiesModule,
     UnitsModule,
     LeadsModule,
+    PartnershipModule,
   ],
   controllers: [AppController],
   providers: [AppService],

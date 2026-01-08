@@ -5,6 +5,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../email/email.service';
+import { ConfigService } from '@nestjs/config';
 import { Kyc, KycStatus, KycStep, Prisma } from '@prisma/client';
 import { SavePersonalStepDto } from './dto/save-personal-step.dto';
 import { SaveAddressStepDto } from './dto/save-address-step.dto';
@@ -27,7 +29,11 @@ import {
 export class KycService {
   private readonly logger = new Logger(KycService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+    private configService: ConfigService,
+  ) {}
 
   async savePersonalStep(
     userId: string,
@@ -285,6 +291,20 @@ export class KycService {
     });
 
     this.logger.log(`KYC ${kyc.id} submitted for review`);
+
+    // Send notification email to admin
+    const adminEmail = this.configService.get<string>('ADMIN_EMAIL');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (adminEmail && user) {
+      await this.emailService.sendKycSubmittedEmail(
+        adminEmail,
+        user.name || 'User',
+        user.email,
+        kyc.id,
+      );
+    }
+
     return updated;
   }
 
@@ -469,6 +489,18 @@ export class KycService {
     });
 
     this.logger.log(`KYC ${kycId} approved by admin ${adminId}`);
+
+    // Send approval email to client
+    const user = await this.prisma.user.findUnique({ where: { id: kyc.userId } });
+
+    if (user) {
+      await this.emailService.sendKycApprovedEmail(
+        user.email,
+        user.name || 'User',
+        feedback,
+      );
+    }
+
     return updated;
   }
 
@@ -528,6 +560,19 @@ export class KycService {
     });
 
     this.logger.log(`KYC ${kycId} rejected by admin ${adminId}`);
+
+    // Send rejection email to client
+    const user = await this.prisma.user.findUnique({ where: { id: kyc.userId } });
+
+    if (user) {
+      await this.emailService.sendKycRejectedEmail(
+        user.email,
+        user.name || 'User',
+        reason,
+        feedback,
+      );
+    }
+
     return updated;
   }
 

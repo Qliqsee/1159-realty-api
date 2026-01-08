@@ -20,6 +20,8 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { QueryPropertiesDto } from './dto/query-properties.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { EmailVerifiedGuard } from '../common/guards/email-verified.guard';
+import { KycCompletionGuard } from '../common/guards/kyc-completion.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Request } from 'express';
@@ -45,6 +47,34 @@ export class PropertiesController {
   @ApiResponse({ status: 404, description: 'Property not found' })
   findOne(@Param('id') id: string) {
     return this.propertiesService.findOne(id);
+  }
+
+  @Get(':id/map')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, EmailVerifiedGuard, KycCompletionGuard)
+  @ApiOperation({ summary: 'Get property map configuration (requires verified KYC)' })
+  @ApiResponse({ status: 200, description: 'Property map configuration retrieved' })
+  @ApiResponse({ status: 403, description: 'Forbidden - KYC verification required' })
+  @ApiResponse({ status: 404, description: 'Property not found' })
+  async getPropertyMap(@Param('id') id: string) {
+    const property = await this.propertiesService.findOne(id);
+    return {
+      mapConfigSrc: property.mapConfigSrc,
+      mapConfigWidth: property.mapConfigWidth,
+      mapConfigHeight: property.mapConfigHeight,
+    };
+  }
+
+  @Get(':id/plots')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, EmailVerifiedGuard, KycCompletionGuard)
+  @ApiOperation({ summary: 'Get property plots/units (requires verified KYC)' })
+  @ApiResponse({ status: 200, description: 'Property plots/units retrieved' })
+  @ApiResponse({ status: 403, description: 'Forbidden - KYC verification required' })
+  @ApiResponse({ status: 404, description: 'Property not found' })
+  async getPropertyPlots(@Param('id') id: string) {
+    const units = await this.propertiesService.getPropertyUnits(id);
+    return units;
   }
 
   @Post()

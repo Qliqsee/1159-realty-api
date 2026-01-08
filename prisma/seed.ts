@@ -29,6 +29,46 @@ async function main() {
         description: 'Create property listings',
       },
     }),
+    prisma.permission.upsert({
+      where: { name: 'kyc:view_own' },
+      update: {},
+      create: {
+        name: 'kyc:view_own',
+        resource: 'kyc',
+        action: 'view_own',
+        description: 'View own KYC information',
+      },
+    }),
+    prisma.permission.upsert({
+      where: { name: 'kyc:manage' },
+      update: {},
+      create: {
+        name: 'kyc:manage',
+        resource: 'kyc',
+        action: 'manage',
+        description: 'Create, update, and submit own KYC',
+      },
+    }),
+    prisma.permission.upsert({
+      where: { name: 'partnership:apply' },
+      update: {},
+      create: {
+        name: 'partnership:apply',
+        resource: 'partnership',
+        action: 'apply',
+        description: 'Apply for partnership',
+      },
+    }),
+    prisma.permission.upsert({
+      where: { name: 'partnership:view_own' },
+      update: {},
+      create: {
+        name: 'partnership:view_own',
+        resource: 'partnership',
+        action: 'view_own',
+        description: 'View own partnership status',
+      },
+    }),
   ]);
 
   const adminPermissions = await Promise.all([
@@ -70,6 +110,46 @@ async function main() {
         resource: 'roles',
         action: 'manage',
         description: 'Manage roles and permissions',
+      },
+    }),
+    prisma.permission.upsert({
+      where: { name: 'kyc:view_all' },
+      update: {},
+      create: {
+        name: 'kyc:view_all',
+        resource: 'kyc',
+        action: 'view_all',
+        description: 'View all KYC records',
+      },
+    }),
+    prisma.permission.upsert({
+      where: { name: 'kyc:review' },
+      update: {},
+      create: {
+        name: 'kyc:review',
+        resource: 'kyc',
+        action: 'review',
+        description: 'Approve or reject KYC submissions',
+      },
+    }),
+    prisma.permission.upsert({
+      where: { name: 'partnership:view_all' },
+      update: {},
+      create: {
+        name: 'partnership:view_all',
+        resource: 'partnership',
+        action: 'view_all',
+        description: 'View all partnership applications',
+      },
+    }),
+    prisma.permission.upsert({
+      where: { name: 'partnership:review' },
+      update: {},
+      create: {
+        name: 'partnership:review',
+        resource: 'partnership',
+        action: 'review',
+        description: 'Approve or reject partnership applications',
       },
     }),
   ]);

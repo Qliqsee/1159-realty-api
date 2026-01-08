@@ -270,4 +270,23 @@ export class PropertiesService {
       },
     });
   }
+
+  async getPropertyUnits(propertyId: string) {
+    // First verify property exists
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    // Get all units for this property
+    const units = await this.prisma.unit.findMany({
+      where: { propertyId },
+      orderBy: { unit: 'asc' },
+    });
+
+    return units;
+  }
 }

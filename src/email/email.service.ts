@@ -9,6 +9,9 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
 import { verificationOtpTemplate } from './templates/verification-otp.template';
 import { passwordResetTemplate } from './templates/password-reset.template';
+import { kycSubmittedTemplate } from './templates/kyc-submitted.template';
+import { kycApprovedTemplate } from './templates/kyc-approved.template';
+import { kycRejectedTemplate } from './templates/kyc-rejected.template';
 
 @Injectable()
 export class EmailService {
@@ -158,6 +161,52 @@ export class EmailService {
     );
 
     this.logger.log(`Password reset email sent to ${email}`);
+  }
+
+  async sendKycSubmittedEmail(
+    adminEmail: string,
+    clientName: string,
+    clientEmail: string,
+    kycId: string,
+  ): Promise<void> {
+    await this.sendEmail(
+      adminEmail,
+      'New KYC Submission - 1159 Realty',
+      kycSubmittedTemplate(clientName, clientEmail, kycId),
+    );
+
+    this.logger.log(
+      `KYC submission notification sent to admin ${adminEmail} for client ${clientEmail}`,
+    );
+  }
+
+  async sendKycApprovedEmail(
+    clientEmail: string,
+    clientName: string,
+    feedback?: string,
+  ): Promise<void> {
+    await this.sendEmail(
+      clientEmail,
+      'KYC Verification Approved - 1159 Realty',
+      kycApprovedTemplate(clientName, feedback),
+    );
+
+    this.logger.log(`KYC approval notification sent to client ${clientEmail}`);
+  }
+
+  async sendKycRejectedEmail(
+    clientEmail: string,
+    clientName: string,
+    reason: string,
+    feedback?: string,
+  ): Promise<void> {
+    await this.sendEmail(
+      clientEmail,
+      'KYC Verification Requires Attention - 1159 Realty',
+      kycRejectedTemplate(clientName, reason, feedback),
+    );
+
+    this.logger.log(`KYC rejection notification sent to client ${clientEmail}`);
   }
 
   private generateOtpCode(): string {

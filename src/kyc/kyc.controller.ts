@@ -21,6 +21,8 @@ import {
 import { KycService } from './kyc.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailVerifiedGuard } from '../common/guards/email-verified.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { SavePersonalStepDto } from './dto/save-personal-step.dto';
 import { SaveAddressStepDto } from './dto/save-address-step.dto';
 import { SaveOccupationStepDto } from './dto/save-occupation-step.dto';
@@ -49,7 +51,7 @@ import { KycDetailResponseDto } from './dto/kyc-detail-response.dto';
 
 @ApiTags('KYC')
 @Controller('kyc')
-@UseGuards(JwtAuthGuard, EmailVerifiedGuard)
+@UseGuards(JwtAuthGuard, EmailVerifiedGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class KycController {
   constructor(private readonly kycService: KycService) {}
@@ -57,6 +59,7 @@ export class KycController {
   // Client Endpoints
 
   @Post('personal')
+  @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update personal information step' })
   @ApiQuery({
@@ -81,6 +84,7 @@ export class KycController {
   }
 
   @Post('address')
+  @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update address information step' })
   @ApiQuery({
@@ -105,6 +109,7 @@ export class KycController {
   }
 
   @Post('occupation')
+  @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update occupation information step' })
   @ApiQuery({
@@ -129,6 +134,7 @@ export class KycController {
   }
 
   @Post('identity')
+  @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update identity information step' })
   @ApiQuery({
@@ -153,6 +159,7 @@ export class KycController {
   }
 
   @Post('next-of-kin')
+  @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update next of kin information step' })
   @ApiQuery({
@@ -177,6 +184,7 @@ export class KycController {
   }
 
   @Post('bank')
+  @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update bank information step' })
   @ApiQuery({
@@ -201,6 +209,7 @@ export class KycController {
   }
 
   @Post('submit')
+  @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Submit KYC for review' })
   @ApiResponse({
@@ -216,6 +225,7 @@ export class KycController {
   }
 
   @Get('me')
+  @RequirePermissions('kyc:view_own')
   @ApiOperation({ summary: 'Get current user KYC with draft changes' })
   @ApiResponse({
     status: 200,
@@ -228,6 +238,7 @@ export class KycController {
   }
 
   @Get('validate')
+  @RequirePermissions('kyc:view_own')
   @ApiOperation({ summary: 'Validate KYC completion before submission' })
   @ApiResponse({
     status: 200,
@@ -242,6 +253,7 @@ export class KycController {
   // Admin Endpoints
 
   @Get()
+  @RequirePermissions('kyc:view_all')
   @ApiOperation({ summary: 'List all KYCs with filters and search (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -264,6 +276,7 @@ export class KycController {
   }
 
   @Get(':id')
+  @RequirePermissions('kyc:view_all')
   @ApiOperation({ summary: 'Get KYC by ID with full details (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -278,6 +291,7 @@ export class KycController {
   }
 
   @Get(':id/history')
+  @RequirePermissions('kyc:view_all')
   @ApiOperation({ summary: 'Get KYC submission history (Admin only)' })
   @ApiResponse({ status: 200, description: 'KYC history' })
   @ApiResponse({ status: 404, description: 'KYC not found' })
@@ -288,6 +302,7 @@ export class KycController {
   }
 
   @Patch(':id/approve')
+  @RequirePermissions('kyc:review')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve KYC (Admin only)' })
   @ApiResponse({
@@ -313,6 +328,7 @@ export class KycController {
   }
 
   @Patch(':id/reject')
+  @RequirePermissions('kyc:review')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reject KYC (Admin only)' })
   @ApiResponse({
