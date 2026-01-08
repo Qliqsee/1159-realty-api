@@ -28,6 +28,7 @@ import { RequirementsModule } from './requirements/requirements.module';
 import { SupportModule } from './support/support.module';
 import { DisbursementsModule } from './disbursements/disbursements.module';
 import { DisbursementConfigModule } from './disbursement-config/disbursement-config.module';
+import { InterestsModule } from './interests/interests.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { DisbursementConfigModule } from './disbursement-config/disbursement-con
     CasesModule,
     RequirementsModule,
     SupportModule,
+    InterestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
