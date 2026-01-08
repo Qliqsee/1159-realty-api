@@ -8,11 +8,16 @@ import { PrismaService } from '../prisma.service';
 import { QueryInvoicesDto } from './dto/query-invoices.dto';
 import { ResolveInvoiceDto } from './dto/resolve-invoice.dto';
 import { InvoiceResponseDto, InvoiceDetailResponseDto } from './dto/invoice-response.dto';
+import { InvoiceStatsQueryDto, InvoiceStatsResponseDto } from './dto/invoice-stats.dto';
+import { InvoicePdfService } from './invoice-pdf.service';
 import { Prisma, InvoiceStatus, CommissionType, EnrollmentStatus, CommissionStatus } from '@prisma/client';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private invoicePdfService: InvoicePdfService,
+  ) {}
 
   async findAll(queryDto: QueryInvoicesDto, userId?: string, userRole?: string) {
     const {
@@ -21,6 +26,7 @@ export class InvoicesService {
       status,
       enrollmentId,
       agentId,
+      partnerId,
       dueDateFrom,
       dueDateTo,
       overdue,
@@ -47,6 +53,9 @@ export class InvoicesService {
           { enrollmentId: { contains: search, mode: 'insensitive' } },
           { enrollment: { client: { name: { contains: search, mode: 'insensitive' } } } },
           { enrollment: { client: { email: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { agent: { name: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { partner: { name: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { property: { name: { contains: search, mode: 'insensitive' } } } },
         ],
       }),
     };
@@ -57,6 +66,14 @@ export class InvoicesService {
         where.enrollment = {};
       }
       (where.enrollment as any).agentId = agentId;
+    }
+
+    // Apply partner filter
+    if (partnerId) {
+      if (!where.enrollment) {
+        where.enrollment = {};
+      }
+      (where.enrollment as any).partnerId = partnerId;
     }
 
     // Apply role-based filtering
@@ -70,6 +87,11 @@ export class InvoicesService {
         where.enrollment = {};
       }
       (where.enrollment as any).clientId = userId;
+    } else if (userRole === 'partner') {
+      if (!where.enrollment) {
+        where.enrollment = {};
+      }
+      (where.enrollment as any).partnerId = userId;
     }
 
     const [invoices, total] = await Promise.all([
@@ -167,6 +189,10 @@ export class InvoicesService {
     }
 
     if (userRole === 'client' && invoice.enrollment.clientId !== userId) {
+      throw new ForbiddenException('You do not have access to this invoice');
+    }
+
+    if (userRole === 'partner' && invoice.enrollment.partnerId !== userId) {
       throw new ForbiddenException('You do not have access to this invoice');
     }
 
@@ -489,5 +515,133 @@ export class InvoicesService {
         updatedAt: updatedInvoice.updatedAt,
       };
     });
+  }
+
+  async getStats(queryDto: InvoiceStatsQueryDto): Promise<InvoiceStatsResponseDto> {
+    const { dateFrom, dateTo, propertyId, agentId, partnerId } = queryDto;
+
+    // Build where clause for filtering
+    const where: Prisma.InvoiceWhereInput = {
+      ...(dateFrom && { createdAt: { gte: new Date(dateFrom) } }),
+      ...(dateTo && { createdAt: { lte: new Date(dateTo) } }),
+    };
+
+    // Apply filters through enrollment relation
+    if (propertyId || agentId || partnerId) {
+      where.enrollment = {
+        ...(propertyId && { propertyId }),
+        ...(agentId && { agentId }),
+        ...(partnerId && { partnerId }),
+      };
+    }
+
+    // Get counts for each status
+    const [
+      totalInvoices,
+      totalPending,
+      totalPaid,
+      totalOverdue,
+      totalCancelled,
+      amountAggregates,
+    ] = await Promise.all([
+      this.prisma.invoice.count({ where }),
+      this.prisma.invoice.count({ where: { ...where, status: InvoiceStatus.PENDING } }),
+      this.prisma.invoice.count({ where: { ...where, status: InvoiceStatus.PAID } }),
+      this.prisma.invoice.count({ where: { ...where, status: InvoiceStatus.OVERDUE } }),
+      this.prisma.invoice.count({ where: { ...where, status: InvoiceStatus.CANCELLED } }),
+      this.prisma.invoice.aggregate({
+        where,
+        _sum: {
+          amount: true,
+          amountPaid: true,
+        },
+      }),
+    ]);
+
+    // Calculate amounts
+    const totalAmountGenerated = Number(amountAggregates._sum.amount || 0);
+    const totalAmountPaid = Number(amountAggregates._sum.amountPaid || 0);
+
+    // Get pending amount (PENDING invoices)
+    const pendingAggregates = await this.prisma.invoice.aggregate({
+      where: { ...where, status: InvoiceStatus.PENDING },
+      _sum: { amount: true },
+    });
+    const totalAmountPending = Number(pendingAggregates._sum.amount || 0);
+
+    // Get overdue amount (OVERDUE invoices)
+    const overdueAggregates = await this.prisma.invoice.aggregate({
+      where: { ...where, status: InvoiceStatus.OVERDUE },
+      _sum: { amount: true },
+    });
+    const totalAmountOverdue = Number(overdueAggregates._sum.amount || 0);
+
+    return {
+      totalInvoices,
+      totalPending,
+      totalPaid,
+      totalOverdue,
+      totalCancelled,
+      totalAmountGenerated,
+      totalAmountPending,
+      totalAmountPaid,
+      totalAmountOverdue,
+    };
+  }
+
+  async downloadInvoice(id: string, userId?: string, userRole?: string): Promise<Buffer> {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        enrollment: {
+          include: {
+            property: { select: { name: true } },
+            agent: { select: { name: true } },
+            client: { select: { name: true, email: true } },
+            partner: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    // Check access rights
+    if (userRole === 'agent' && invoice.enrollment.agentId !== userId) {
+      throw new ForbiddenException('You do not have access to this invoice');
+    }
+
+    if (userRole === 'client' && invoice.enrollment.clientId !== userId) {
+      throw new ForbiddenException('You do not have access to this invoice');
+    }
+
+    if (userRole === 'partner' && invoice.enrollment.partnerId !== userId) {
+      throw new ForbiddenException('You do not have access to this invoice');
+    }
+
+    // Prepare PDF data
+    const pdfData = {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.installmentNumber,
+      invoiceDate: invoice.createdAt,
+      dueDate: invoice.dueDate,
+      status: invoice.status,
+      clientName: invoice.enrollment.client?.name,
+      clientEmail: invoice.enrollment.client?.email,
+      propertyName: invoice.enrollment.property.name,
+      agentName: invoice.enrollment.agent.name,
+      partnerName: invoice.enrollment.partner?.name,
+      installmentNumber: invoice.installmentNumber,
+      amount: Number(invoice.amount),
+      overdueFee: Number(invoice.overdueFee),
+      totalAmount: Number(invoice.amount) + Number(invoice.overdueFee),
+      amountPaid: Number(invoice.amountPaid),
+      paidAt: invoice.paidAt || undefined,
+      paymentReference: invoice.paymentReference || undefined,
+    };
+
+    return this.invoicePdfService.generateInvoicePdf(pdfData);
   }
 }

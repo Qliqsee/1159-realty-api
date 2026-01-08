@@ -18,6 +18,7 @@ import { InvoicesService } from './invoices.service';
 import { QueryInvoicesDto } from './dto/query-invoices.dto';
 import { ResolveInvoiceDto } from './dto/resolve-invoice.dto';
 import { InvoiceResponseDto, InvoiceDetailResponseDto } from './dto/invoice-response.dto';
+import { InvoiceStatsQueryDto, InvoiceStatsResponseDto } from './dto/invoice-stats.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -87,12 +88,51 @@ export class InvoicesController {
     return this.invoicesService.findAll(queryDto, userId, 'client');
   }
 
+  @Get('partner')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('partner')
+  @ApiOperation({
+    summary: 'List partner invoices (partner only)',
+    description: 'Returns paginated invoices for enrollments where the authenticated partner onboarded the client',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoices retrieved successfully',
+    type: [InvoiceResponseDto],
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  findPartnerInvoices(@Query() queryDto: QueryInvoicesDto, @Req() req: Request) {
+    const userId = (req.user as any).id;
+    return this.invoicesService.findAll(queryDto, userId, 'partner');
+  }
+
+  @Get('stats')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiOperation({
+    summary: 'Get invoice statistics (admin only)',
+    description: 'Returns invoice statistics including counts by status and revenue breakdown. Supports optional filtering by date range, property, agent, or partner.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice statistics retrieved successfully',
+    type: InvoiceStatsResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  getStats(@Query() queryDto: InvoiceStatsQueryDto) {
+    return this.invoicesService.getStats(queryDto);
+  }
+
   @Get(':id')
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent', 'client')
+  @Roles('admin', 'agent', 'client', 'partner')
   @ApiOperation({
-    summary: 'Get invoice by ID (admin/agent/client)',
+    summary: 'Get invoice by ID (admin/agent/client/partner)',
     description: 'Returns detailed invoice information with enrollment details and payment history. Access is role-based.',
   })
   @ApiResponse({
@@ -155,5 +195,42 @@ export class InvoicesController {
   undoPayment(@Param('id') id: string, @Req() req: Request) {
     const userId = (req.user as any).id;
     return this.invoicesService.undoPayment(id, userId);
+  }
+
+  @Get(':id/download')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'agent', 'client', 'partner')
+  @ApiOperation({
+    summary: 'Download invoice as PDF (admin/agent/client/partner)',
+    description: 'Generates and downloads a professional PDF invoice. Access is role-based: admin (all), agent (own), client (own), partner (onboarded clients).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice PDF generated successfully',
+    content: {
+      'application/pdf': {
+        schema: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - no access to this invoice' })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
+  async downloadInvoice(@Param('id') id: string, @Req() req: Request) {
+    const userId = (req.user as any).id;
+    const userRole = (req.user as any).role;
+    const pdfBuffer = await this.invoicesService.downloadInvoice(id, userId, userRole);
+
+    req.res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=invoice-${id}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    return req.res.send(pdfBuffer);
   }
 }

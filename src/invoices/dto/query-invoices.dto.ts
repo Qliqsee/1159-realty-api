@@ -60,6 +60,11 @@ export class QueryInvoicesDto {
   @IsOptional()
   agentId?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by partner ID' })
+  @IsUUID()
+  @IsOptional()
+  partnerId?: string;
+
   @ApiPropertyOptional({ description: 'Filter by due date from (ISO 8601)' })
   @IsDateString()
   @IsOptional()

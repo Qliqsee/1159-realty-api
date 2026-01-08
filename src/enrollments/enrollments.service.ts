@@ -525,6 +525,13 @@ export class EnrollmentsService {
   async cancel(id: string, userId: string) {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id },
+      include: {
+        invoices: {
+          include: {
+            commissions: true,
+          },
+        },
+      },
     });
 
     if (!enrollment) {
@@ -535,13 +542,47 @@ export class EnrollmentsService {
       throw new BadRequestException('Enrollment is already cancelled');
     }
 
-    return this.prisma.enrollment.update({
-      where: { id },
-      data: {
-        status: 'CANCELLED',
-        cancelledAt: new Date(),
-        cancelledBy: userId,
-      },
+    // Use transaction to ensure atomicity
+    return this.prisma.$transaction(async (prisma) => {
+      const now = new Date();
+
+      // Get all unpaid invoices (PENDING, OVERDUE)
+      const unpaidInvoices = enrollment.invoices.filter(
+        inv => inv.status === 'PENDING' || inv.status === 'OVERDUE'
+      );
+
+      // Cancel all unpaid invoices
+      if (unpaidInvoices.length > 0) {
+        await prisma.invoice.updateMany({
+          where: {
+            id: { in: unpaidInvoices.map(inv => inv.id) },
+          },
+          data: {
+            status: 'CANCELLED',
+          },
+        });
+
+        // Get all pending commissions from unpaid invoices
+        const unpaidInvoiceIds = unpaidInvoices.map(inv => inv.id);
+
+        // Delete all pending commissions linked to cancelled invoices
+        await prisma.commission.deleteMany({
+          where: {
+            invoiceId: { in: unpaidInvoiceIds },
+            status: 'PENDING',
+          },
+        });
+      }
+
+      // Update enrollment status
+      return prisma.enrollment.update({
+        where: { id },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: now,
+          cancelledBy: userId,
+        },
+      });
     });
   }
 
