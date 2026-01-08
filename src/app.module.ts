@@ -23,6 +23,8 @@ import { CronModule } from './cron/cron.module';
 import { SalesTargetsModule } from './sales-targets/sales-targets.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { AppointmentsModule } from './appointments/appointments.module';
+import { CasesModule } from './cases/cases.module';
+import { RequirementsModule } from './requirements/requirements.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { AppointmentsModule } from './appointments/appointments.module';
     SalesTargetsModule,
     SchedulesModule,
     AppointmentsModule,
+    CasesModule,
+    RequirementsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -49,6 +49,33 @@ export class FileUploadService {
     return { url };
   }
 
+  async uploadDocument(
+    file: Express.Multer.File,
+    folder: string,
+  ): Promise<{ url: string }> {
+    const allowedTypes = this.configService
+      .get<string>('ALLOWED_DOCUMENT_TYPES')
+      ?.split(',') || [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/jpg',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ];
+    const maxSizeMB = this.configService.get<number>('MAX_DOCUMENT_SIZE_MB') || 10;
+
+    // Validate file
+    FileTypeValidator.validate(file, { allowedTypes, maxSizeMB });
+
+    // Upload to DO Spaces (mocked)
+    const url = await this.uploadToSpaces(file, folder, randomUUID());
+
+    this.logger.log(`Document uploaded to ${folder}: ${url}`);
+
+    return { url };
+  }
+
   private async uploadToSpaces(
     file: Express.Multer.File,
     folder: string,

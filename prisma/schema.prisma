@@ -128,6 +128,18 @@ enum AppointmentStatus {
   CANCELLED
 }
 
+enum CaseStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id                     String   @id @default(uuid())
   email                  String   @unique
@@ -153,39 +165,42 @@ model User {
   emailOtps               EmailOtp[]
   passwordResetTokens     PasswordResetToken[]
   kyc                     Kyc?
-  kycCreatedRecords       Kyc[]                @relation("KycCreatedBy")
-  kycUpdatedRecords       Kyc[]                @relation("KycUpdatedBy")
-  kycReviewedRecords      Kyc[]                @relation("KycReviewedBy")
-  rejectionReasonsCreated KycRejectionReason[] @relation("RejectionCreatedBy")
-  kycHistoryReviewed      KycHistory[]         @relation("KycHistoryReviewedBy")
+  kycCreatedRecords       Kyc[]                 @relation("KycCreatedBy")
+  kycUpdatedRecords       Kyc[]                 @relation("KycUpdatedBy")
+  kycReviewedRecords      Kyc[]                 @relation("KycReviewedBy")
+  rejectionReasonsCreated KycRejectionReason[]  @relation("RejectionCreatedBy")
+  kycHistoryReviewed      KycHistory[]          @relation("KycHistoryReviewedBy")
   propertyInterests       PropertyInterest[]
-  lead                    Lead?                @relation("LeadToClient", fields: [leadId], references: [id])
-  closedByAgent           User?                @relation("ClosedByAgent", fields: [closedBy], references: [id])
-  closedClients           User[]               @relation("ClosedByAgent")
-  leadsCreated            Lead[]               @relation("LeadCreatedBy")
-  leadsClosed             Lead[]               @relation("LeadClosedBy")
-  leadsReserved           Lead[]               @relation("LeadReservedBy")
-  leadsStatusChanged      Lead[]               @relation("LeadStatusChangedBy")
+  lead                    Lead?                 @relation("LeadToClient", fields: [leadId], references: [id])
+  closedByAgent           User?                 @relation("ClosedByAgent", fields: [closedBy], references: [id])
+  closedClients           User[]                @relation("ClosedByAgent")
+  leadsCreated            Lead[]                @relation("LeadCreatedBy")
+  leadsClosed             Lead[]                @relation("LeadClosedBy")
+  leadsReserved           Lead[]                @relation("LeadReservedBy")
+  leadsStatusChanged      Lead[]                @relation("LeadStatusChangedBy")
   leadFeedbacks           LeadFeedback[]
   leadAgentHistory        LeadAgentHistory[]
   partnership             Partnership?
-  partnershipsReviewed    Partnership[]        @relation("PartnershipReviewedBy")
-  partnershipsSuspended   Partnership[]        @relation("PartnershipSuspendedBy")
-  referredByPartner       User?                @relation("ReferredByPartner", fields: [referredByPartnerId], references: [id])
-  referredClients         User[]               @relation("ReferredByPartner")
-  enrollmentsAsClient     Enrollment[]         @relation("EnrollmentClient")
-  enrollmentsAsAgent      Enrollment[]         @relation("EnrollmentAgent")
-  enrollmentsAsPartner    Enrollment[]         @relation("EnrollmentPartner")
-  enrollmentsCreated      Enrollment[]         @relation("EnrollmentCreatedBy")
-  enrollmentsCancelled    Enrollment[]         @relation("EnrollmentCancelledBy")
-  agentCommissions        Commission[]         @relation("CommissionAgent")
-  partnerCommissions      Commission[]         @relation("CommissionPartner")
-  paymentLinksCreated     PaymentLink[]        @relation("PaymentLinkCreatedBy")
-  salesTargets            SalesTarget[]        @relation("SalesTargetUser")
-  salesTargetsCreated     SalesTarget[]        @relation("SalesTargetCreatedBy")
-  achievements            Achievement[]        @relation("AchievementUser")
-  schedulesCreated        Schedule[]           @relation("ScheduleCreatedBy")
-  appointments            Appointment[]        @relation("AppointmentUser")
+  partnershipsReviewed    Partnership[]         @relation("PartnershipReviewedBy")
+  partnershipsSuspended   Partnership[]         @relation("PartnershipSuspendedBy")
+  referredByPartner       User?                 @relation("ReferredByPartner", fields: [referredByPartnerId], references: [id])
+  referredClients         User[]                @relation("ReferredByPartner")
+  enrollmentsAsClient     Enrollment[]          @relation("EnrollmentClient")
+  enrollmentsAsAgent      Enrollment[]          @relation("EnrollmentAgent")
+  enrollmentsAsPartner    Enrollment[]          @relation("EnrollmentPartner")
+  enrollmentsCreated      Enrollment[]          @relation("EnrollmentCreatedBy")
+  enrollmentsCancelled    Enrollment[]          @relation("EnrollmentCancelledBy")
+  agentCommissions        Commission[]          @relation("CommissionAgent")
+  partnerCommissions      Commission[]          @relation("CommissionPartner")
+  paymentLinksCreated     PaymentLink[]         @relation("PaymentLinkCreatedBy")
+  salesTargets            SalesTarget[]         @relation("SalesTargetUser")
+  salesTargetsCreated     SalesTarget[]         @relation("SalesTargetCreatedBy")
+  achievements            Achievement[]         @relation("AchievementUser")
+  schedulesCreated        Schedule[]            @relation("ScheduleCreatedBy")
+  appointments            Appointment[]         @relation("AppointmentUser")
+  cases                   Case[]                @relation("CaseUser")
+  documentsSubmitted      RequirementDocument[] @relation("DocumentUser")
+  documentsReviewed       RequirementDocument[] @relation("DocumentReviewer")
 
   @@map("users")
 }
@@ -787,4 +802,79 @@ model Appointment {
   @@index([userId])
   @@index([status])
   @@map("appointments")
+}
+
+model Case {
+  id         String     @id @default(uuid())
+  name       String
+  title      String
+  userId     String?
+  propertyId String?
+  status     CaseStatus @default(PENDING)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  user         User?             @relation("CaseUser", fields: [userId], references: [id], onDelete: SetNull)
+  requirements CaseRequirement[]
+
+  @@index([userId])
+  @@index([propertyId])
+  @@index([status])
+  @@map("cases")
+}
+
+model CaseRequirement {
+  id          String   @id @default(uuid())
+  caseId      String
+  title       String
+  description String   @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  case               Case                  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sampleDocuments    SampleDocument[]
+  submittedDocuments RequirementDocument[]
+
+  @@index([caseId])
+  @@map("case_requirements")
+}
+
+model SampleDocument {
+  id            String   @id @default(uuid())
+  requirementId String
+  fileUrl       String
+  fileName      String
+  fileType      String
+  createdAt     DateTime @default(now())
+
+  requirement CaseRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@index([requirementId])
+  @@map("sample_documents")
+}
+
+model RequirementDocument {
+  id              String         @id @default(uuid())
+  requirementId   String
+  userId          String
+  fileUrl         String
+  fileName        String
+  fileType        String
+  status          DocumentStatus @default(PENDING)
+  rejectionReason String?        @db.Text
+  submittedAt     DateTime       @default(now())
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  requirement CaseRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  user        User            @relation("DocumentUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer    User?           @relation("DocumentReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([requirementId])
+  @@index([userId])
+  @@index([status])
+  @@index([reviewedBy])
+  @@map("requirement_documents")
 }
