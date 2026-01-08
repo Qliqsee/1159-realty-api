@@ -1,29 +1,17 @@
 KYC MANAGEMENT AND APPROVAL TODO
 
-KYC SERVICE UPDATES
-Update all save step methods to save to both draft fields and main fields when saving
-Add getDraftChanges method to compare draft vs last submission by section showing old value current value
-Update submitKyc to copy all draft data to main fields create history snapshot and change status to SUBMITTED
-Update submitKyc validation to return detailed errors specifying which steps have issues with field level detail
-Add method to check KYC completion status for enforcing restrictions on other features
-Add getKycWithDraftChanges method for clients to see their draft vs submitted differences
-Add validateKyc method to return detailed validation errors for all steps
+COMPLETED
+Schema migration added draft fields feedback lastSubmittedAt
+All DTOs created for requests and responses
+Service methods updated with draft management continueToNext support
+All endpoints updated with proper response DTOs
+GET kyc validate endpoint added
+List endpoint with search and filters implemented
+Approve and Reject endpoints accept feedback
+Draft changes comparison implemented
+isKycComplete and isKycVerified helper methods added
 
-KYC CLIENT ENDPOINTS
-Update all save step endpoints to return proper SaveStepResponseDto with message status currentStep
-Add query param continueToNext boolean to save endpoints for Submit and continue behavior default false for Submit and skip
-Update GET me endpoint to include draftChanges field showing differences if status is DRAFT or REJECTED
-Add GET kyc validate endpoint to get detailed validation errors for all steps before submission returns ValidateKycResponseDto
-Ensure rejection reasons response includes full reason and truncatedReason for display
-
-KYC ADMIN ENDPOINTS
-Add search to GET kyc list endpoint search by client name email submission date querystring
-Add filters status submissionDateFrom submissionDateTo reviewDateFrom reviewDateTo to list endpoint
-Update list response to include client info name email submission date status feedback
-Update PATCH kyc id approve to accept ApproveKycDto with optional feedback
-Update PATCH kyc id reject to accept RejectKycDto with reason and optional feedback
-Update GET kyc id endpoint to return KycDetailResponseDto with all kyc data client info history preview
-Add RBAC guards PermissionsGuard to all admin endpoints
+PENDING TASKS
 
 KYC PERMISSIONS AND RBAC
 Create permission kyc view own for clients to view their own KYC
@@ -43,8 +31,6 @@ Test all permission guards work correctly for admin vs client access
 
 KYC RESTRICTIONS AND VALIDATIONS
 Create KycCompletionGuard to check if user has completed and verified KYC
-Add isKycComplete method to check if all 6 steps are filled
-Add isKycVerified method to check if status is APPROVED
 Apply KycCompletionGuard to property endpoints that require verified KYC per PRD
 Apply KycCompletionGuard to partnership application endpoint
 Update guards to throw proper error messages indicating KYC completion required
@@ -57,20 +43,6 @@ Implement sendKycSubmittedEmail to notify admin when client submits KYC
 Implement sendKycApprovedEmail to notify client when KYC is approved
 Implement sendKycRejectedEmail to notify client when KYC is rejected with reason
 Integrate email sending into submitKyc approveKyc rejectKyc service methods
-
-UPDATE EXISTING ENDPOINTS
-Update POST kyc personal to return SavePersonalStepResponseDto and accept continueToNext query param
-Update POST kyc address to return SaveAddressStepResponseDto and accept continueToNext query param
-Update POST kyc occupation to return SaveOccupationStepResponseDto and accept continueToNext query param
-Update POST kyc identity to return SaveIdentityStepResponseDto and accept continueToNext query param
-Update POST kyc next-of-kin to return SaveNextOfKinStepResponseDto and accept continueToNext query param
-Update POST kyc bank to return SaveBankStepResponseDto and accept continueToNext query param
-Update POST kyc submit to return SubmitKycResponseDto with proper fields
-Update GET kyc me to return GetMyKycResponseDto with draft changes
-Update GET kyc to accept ListKycsQueryDto and return ListKycsResponseDto with pagination metadata
-Update GET kyc id to return KycDetailResponseDto with all details
-Update PATCH kyc id approve to accept ApproveKycDto and return ApproveKycResponseDto
-Update PATCH kyc id reject to accept RejectKycDto and return RejectKycResponseDto
 
 TESTING AND VALIDATION
 Test client KYC flow save each step see draft save and skip vs save and continue submit view status view draft changes
