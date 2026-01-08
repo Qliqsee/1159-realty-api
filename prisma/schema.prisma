@@ -140,6 +140,21 @@ enum DocumentStatus {
   REJECTED
 }
 
+enum TicketStatus {
+  OPENED
+  CLOSED
+}
+
+enum TicketCategory {
+  TECHNICAL
+  BILLING
+  PROPERTY
+  ENROLLMENT
+  KYC
+  GENERAL
+  OTHER
+}
+
 model User {
   id                     String   @id @default(uuid())
   email                  String   @unique
@@ -201,6 +216,7 @@ model User {
   cases                   Case[]                @relation("CaseUser")
   documentsSubmitted      RequirementDocument[] @relation("DocumentUser")
   documentsReviewed       RequirementDocument[] @relation("DocumentReviewer")
+  supportTickets          SupportTicket[]       @relation("TicketUser")
 
   @@map("users")
 }
@@ -877,4 +893,22 @@ model RequirementDocument {
   @@index([status])
   @@index([reviewedBy])
   @@map("requirement_documents")
+}
+
+model SupportTicket {
+  id          String         @id @default(uuid())
+  userId      String
+  category    TicketCategory
+  reason      String         @db.Text
+  attachments String[]
+  status      TicketStatus   @default(OPENED)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user User @relation("TicketUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@map("support_tickets")
 }

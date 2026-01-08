@@ -25,6 +25,7 @@ import { SchedulesModule } from './schedules/schedules.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { CasesModule } from './cases/cases.module';
 import { RequirementsModule } from './requirements/requirements.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { RequirementsModule } from './requirements/requirements.module';
     AppointmentsModule,
     CasesModule,
     RequirementsModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [AppService],
