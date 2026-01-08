@@ -468,6 +468,11 @@ export class PropertiesService {
       totalSoldOut,
       totalAvailable,
       totalInterests,
+      enrollmentStats,
+      activeEnrollments,
+      completedEnrollments,
+      suspendedEnrollments,
+      cancelledEnrollments,
     ] = await Promise.all([
       this.prisma.property.count({
         where: { status: { not: 'ARCHIVED' } },
@@ -485,10 +490,22 @@ export class PropertiesService {
         where: { status: 'AVAILABLE' },
       }),
       this.prisma.propertyInterest.count(),
+      this.prisma.enrollment.aggregate({
+        _count: true,
+        _sum: { totalAmount: true, amountPaid: true },
+        _avg: { totalAmount: true },
+      }),
+      this.prisma.enrollment.count({ where: { status: 'ONGOING' } }),
+      this.prisma.enrollment.count({ where: { status: 'COMPLETED' } }),
+      this.prisma.enrollment.count({ where: { status: 'SUSPENDED' } }),
+      this.prisma.enrollment.count({ where: { status: 'CANCELLED' } }),
     ]);
 
-    // Note: mostSoldProperty and totalEnrollments will need Enrollment model
-    // For now, returning null and 0
+    const totalEnrollmentRevenue = Number(enrollmentStats._sum.totalAmount || 0);
+    const collectedRevenue = Number(enrollmentStats._sum.amountPaid || 0);
+    const pendingRevenue = totalEnrollmentRevenue - collectedRevenue;
+    const averageEnrollmentValue = Number(enrollmentStats._avg.totalAmount || 0);
+
     return {
       totalProperties,
       totalLand,
@@ -497,7 +514,15 @@ export class PropertiesService {
       totalAvailable,
       mostSoldProperty: null,
       totalInterests,
-      totalEnrollments: 0,
+      totalEnrollments: enrollmentStats._count,
+      activeEnrollments,
+      completedEnrollments,
+      suspendedEnrollments,
+      cancelledEnrollments,
+      totalEnrollmentRevenue,
+      collectedRevenue,
+      pendingRevenue,
+      averageEnrollmentValue,
     };
   }
 }

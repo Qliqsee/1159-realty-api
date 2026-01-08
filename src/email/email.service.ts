@@ -12,6 +12,8 @@ import { passwordResetTemplate } from './templates/password-reset.template';
 import { kycSubmittedTemplate } from './templates/kyc-submitted.template';
 import { kycApprovedTemplate } from './templates/kyc-approved.template';
 import { kycRejectedTemplate } from './templates/kyc-rejected.template';
+import { invoiceReminderTemplate } from './templates/invoice-reminder.template';
+import { invoiceOverdueTemplate } from './templates/invoice-overdue.template';
 
 @Injectable()
 export class EmailService {
@@ -207,6 +209,62 @@ export class EmailService {
     );
 
     this.logger.log(`KYC rejection notification sent to client ${clientEmail}`);
+  }
+
+  async sendInvoiceReminderEmail(
+    recipientEmail: string,
+    recipientName: string,
+    propertyName: string,
+    installmentNumber: number,
+    amount: number,
+    dueDate: Date,
+    daysUntilDue: number,
+  ): Promise<void> {
+    await this.sendEmail(
+      recipientEmail,
+      'Payment Reminder - 1159 Realty',
+      invoiceReminderTemplate(
+        recipientName,
+        propertyName,
+        installmentNumber,
+        amount,
+        dueDate,
+        daysUntilDue,
+      ),
+    );
+
+    this.logger.log(
+      `Invoice reminder sent to ${recipientEmail} for installment #${installmentNumber}`,
+    );
+  }
+
+  async sendInvoiceOverdueEmail(
+    recipientEmail: string,
+    recipientName: string,
+    propertyName: string,
+    installmentNumber: number,
+    amount: number,
+    dueDate: Date,
+    daysOverdue: number,
+    gracePeriodRemaining: number,
+  ): Promise<void> {
+    await this.sendEmail(
+      recipientEmail,
+      'Overdue Payment Notice - 1159 Realty',
+      invoiceOverdueTemplate(
+        recipientName,
+        propertyName,
+        installmentNumber,
+        amount,
+        dueDate,
+        daysOverdue,
+        gracePeriodRemaining,
+      ),
+    );
+
+    this.logger.log(
+      `Overdue invoice notification sent to ${recipientEmail} for installment #${installmentNumber}`,
+    );
   }
 
   private generateOtpCode(): string {

@@ -18,6 +18,8 @@ import { PartnershipModule } from './partnership/partnership.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { CommissionsModule } from './commissions/commissions.module';
+import { PaymentsModule } from './payments/payments.module';
+import { CronModule } from './cron/cron.module';
 
 @Module({
   imports: [
@@ -41,6 +43,8 @@ import { CommissionsModule } from './commissions/commissions.module';
     EnrollmentsModule,
     InvoicesModule,
     CommissionsModule,
+    PaymentsModule,
+    CronModule,
   ],
   controllers: [AppController],
   providers: [AppService],

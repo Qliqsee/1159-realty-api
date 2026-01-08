@@ -28,4 +28,28 @@ export class PropertyStatsDto {
 
   @ApiProperty()
   totalEnrollments: number;
+
+  @ApiProperty()
+  activeEnrollments: number;
+
+  @ApiProperty()
+  completedEnrollments: number;
+
+  @ApiProperty()
+  suspendedEnrollments: number;
+
+  @ApiProperty()
+  cancelledEnrollments: number;
+
+  @ApiProperty()
+  totalEnrollmentRevenue: number;
+
+  @ApiProperty()
+  collectedRevenue: number;
+
+  @ApiProperty()
+  pendingRevenue: number;
+
+  @ApiProperty()
+  averageEnrollmentValue: number;
 }

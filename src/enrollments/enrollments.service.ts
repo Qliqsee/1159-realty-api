@@ -11,6 +11,7 @@ import { LinkClientDto } from './dto/link-client.dto';
 import { GeneratePaymentLinkDto, PaymentLinkResponseDto } from './dto/generate-payment-link.dto';
 import { EnrollmentDetailDto } from './dto/enrollment-detail.dto';
 import { EnrollmentStatsDto } from './dto/enrollment-stats.dto';
+import { EnrollmentDashboardDto } from './dto/enrollment-dashboard.dto';
 import { Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
 
@@ -635,6 +636,7 @@ export class EnrollmentsService {
   async generatePaymentLink(
     id: string,
     generateDto: GeneratePaymentLinkDto,
+    userId: string,
   ): Promise<PaymentLinkResponseDto> {
     const { firstName, lastName, invoiceId } = generateDto;
 
@@ -697,6 +699,8 @@ export class EnrollmentsService {
         lastName: lastName || enrollment.client?.name.split(' ')[1] || '',
         token,
         expiresAt,
+        isActive: true,
+        createdBy: userId,
       },
     });
 
@@ -754,6 +758,174 @@ export class EnrollmentsService {
       totalRevenue,
       collectedRevenue,
       pendingRevenue,
+    };
+  }
+
+  async getDashboard(
+    userId: string,
+    userRole: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<EnrollmentDashboardDto> {
+    // Build where clause based on role
+    const where: Prisma.EnrollmentWhereInput = {};
+
+    if (userRole === 'agent') {
+      where.agentId = userId;
+    } else if (userRole === 'partner') {
+      where.partnerId = userId;
+    }
+    // Admin sees all
+
+    if (dateFrom && dateTo) {
+      where.enrollmentDate = {
+        gte: new Date(dateFrom),
+        lte: new Date(dateTo),
+      };
+    } else if (dateFrom) {
+      where.enrollmentDate = { gte: new Date(dateFrom) };
+    } else if (dateTo) {
+      where.enrollmentDate = { lte: new Date(dateTo) };
+    }
+
+    // Get enrollment stats
+    const [
+      totalEnrollments,
+      ongoingEnrollments,
+      completedEnrollments,
+      suspendedEnrollments,
+      cancelledEnrollments,
+      revenueData,
+      enrollments,
+    ] = await Promise.all([
+      this.prisma.enrollment.count({ where }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'ONGOING' } }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'COMPLETED' } }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'SUSPENDED' } }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'CANCELLED' } }),
+      this.prisma.enrollment.aggregate({
+        where,
+        _sum: {
+          totalAmount: true,
+          amountPaid: true,
+        },
+      }),
+      this.prisma.enrollment.findMany({
+        where,
+        select: {
+          enrollmentDate: true,
+          amountPaid: true,
+          commissions: {
+            select: {
+              amount: true,
+              status: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const totalRevenue = Number(revenueData._sum.totalAmount || 0);
+    const collectedRevenue = Number(revenueData._sum.amountPaid || 0);
+    const pendingRevenue = totalRevenue - collectedRevenue;
+
+    // Calculate commission stats
+    const commissionWhere: Prisma.CommissionWhereInput = {};
+    if (userRole === 'agent') {
+      commissionWhere.agentId = userId;
+    } else if (userRole === 'partner') {
+      commissionWhere.partnerId = userId;
+    }
+
+    if (dateFrom || dateTo) {
+      commissionWhere.createdAt = {};
+      if (dateFrom) commissionWhere.createdAt.gte = new Date(dateFrom);
+      if (dateTo) commissionWhere.createdAt.lte = new Date(dateTo);
+    }
+
+    const commissionData = await this.prisma.commission.aggregate({
+      where: commissionWhere,
+      _sum: {
+        amount: true,
+      },
+    });
+
+    const paidCommissionData = await this.prisma.commission.aggregate({
+      where: { ...commissionWhere, status: 'PAID' },
+      _sum: {
+        amount: true,
+      },
+    });
+
+    const totalCommissions = Number(commissionData._sum.amount || 0);
+    const paidCommissions = Number(paidCommissionData._sum.amount || 0);
+    const pendingCommissions = totalCommissions - paidCommissions;
+
+    // Calculate monthly trends (last 12 months or within date range)
+    const trendsStartDate = dateFrom
+      ? new Date(dateFrom)
+      : new Date(new Date().setMonth(new Date().getMonth() - 12));
+    const trendsEndDate = dateTo ? new Date(dateTo) : new Date();
+
+    const monthlyMap = new Map<string, { enrollments: number; revenue: number; commissions: number }>();
+
+    enrollments.forEach((enrollment) => {
+      const month = enrollment.enrollmentDate.toISOString().substring(0, 7); // YYYY-MM
+      if (!monthlyMap.has(month)) {
+        monthlyMap.set(month, { enrollments: 0, revenue: 0, commissions: 0 });
+      }
+      const data = monthlyMap.get(month)!;
+      data.enrollments += 1;
+      data.revenue += Number(enrollment.amountPaid);
+
+      // Sum commissions for this enrollment
+      enrollment.commissions.forEach((comm) => {
+        const commMonth = comm.createdAt.toISOString().substring(0, 7);
+        if (commMonth === month) {
+          data.commissions += Number(comm.amount);
+        }
+      });
+    });
+
+    const monthlyTrends = Array.from(monthlyMap.entries())
+      .map(([month, data]) => ({
+        month,
+        enrollments: data.enrollments,
+        revenue: data.revenue,
+        commissions: data.commissions,
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    // Calculate average enrollment value
+    const averageEnrollmentValue = totalEnrollments > 0 ? totalRevenue / totalEnrollments : 0;
+
+    // Conversion rate from property interests (if agent)
+    let conversionRate: number | undefined;
+    if (userRole === 'agent') {
+      const interestsCount = await this.prisma.propertyInterest.count({
+        where: { agentId: userId },
+      });
+      if (interestsCount > 0) {
+        conversionRate = (totalEnrollments / interestsCount) * 100;
+      }
+    }
+
+    return {
+      totalEnrollments,
+      ongoingEnrollments,
+      completedEnrollments,
+      suspendedEnrollments,
+      cancelledEnrollments,
+      totalRevenue,
+      collectedRevenue,
+      pendingRevenue,
+      totalCommissions,
+      paidCommissions,
+      pendingCommissions,
+      monthlyTrends,
+      conversionRate,
+      averageEnrollmentValue,
     };
   }
 }

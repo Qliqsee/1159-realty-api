@@ -96,6 +96,27 @@ export class EnrollmentsController {
     return this.enrollmentsService.findAll(queryDto, userId, 'client');
   }
 
+  @Get('dashboard')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'agent', 'partner')
+  @ApiOperation({
+    summary: 'Get enrollment dashboard with metrics and trends',
+    description: 'Returns comprehensive dashboard data including enrollments, revenue, commissions, monthly trends, and conversion rates. Role-based: agents/partners see only their own data.',
+  })
+  @ApiResponse({ status: 200, description: 'Dashboard data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  getDashboard(
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Req() req?: Request,
+  ) {
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role || 'admin';
+    return this.enrollmentsService.getDashboard(userId, userRole, dateFrom, dateTo);
+  }
+
   @Get('stats')
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -214,7 +235,9 @@ export class EnrollmentsController {
   generatePaymentLink(
     @Param('id') id: string,
     @Body() generateDto: GeneratePaymentLinkDto,
+    @Req() req: Request,
   ) {
-    return this.enrollmentsService.generatePaymentLink(id, generateDto);
+    const userId = (req.user as any).id;
+    return this.enrollmentsService.generatePaymentLink(id, generateDto, userId);
   }
 }

@@ -169,6 +169,7 @@ model User {
   enrollmentsCancelled    Enrollment[]         @relation("EnrollmentCancelledBy")
   agentCommissions        Commission[]         @relation("CommissionAgent")
   partnerCommissions      Commission[]         @relation("CommissionPartner")
+  paymentLinksCreated     PaymentLink[]        @relation("PaymentLinkCreatedBy")
 
   @@map("users")
 }
@@ -663,19 +664,25 @@ model Commission {
 }
 
 model PaymentLink {
-  id           String   @id @default(uuid())
-  enrollmentId String
-  invoiceId    String
-  firstName    String
-  lastName     String
-  token        String   @unique
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  expiresAt    DateTime
+  id                 String    @id @default(uuid())
+  enrollmentId       String
+  invoiceId          String
+  firstName          String
+  lastName           String
+  token              String    @unique
+  paystackReference  String?
+  paymentUrl         String?   @db.Text
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  expiresAt          DateTime?
+  usedAt             DateTime?
+  createdBy          String
 
   enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   invoice    Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  creator    User       @relation("PaymentLinkCreatedBy", fields: [createdBy], references: [id])
 
+  @@unique([invoiceId, isActive])
   @@index([token])
   @@index([enrollmentId])
   @@map("payment_links")
