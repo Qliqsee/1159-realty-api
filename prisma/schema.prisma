@@ -76,6 +76,12 @@ enum MediaType {
   INSTAGRAM
 }
 
+enum LeadStatus {
+  AVAILABLE
+  RESERVED
+  CLOSED
+}
+
 model User {
   id                     String   @id @default(uuid())
   email                  String   @unique
@@ -88,6 +94,9 @@ model User {
   referralSource         String?
   country                String?
   state                  String?
+  leadId                 String?  @unique
+  closedBy               String?
+  isSuspended            Boolean  @default(false)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -101,6 +110,15 @@ model User {
   rejectionReasonsCreated KycRejectionReason[] @relation("RejectionCreatedBy")
   kycHistoryReviewed      KycHistory[]         @relation("KycHistoryReviewedBy")
   propertyInterests       PropertyInterest[]
+  lead                    Lead?                @relation("LeadToClient", fields: [leadId], references: [id])
+  closedByAgent           User?                @relation("ClosedByAgent", fields: [closedBy], references: [id])
+  closedClients           User[]               @relation("ClosedByAgent")
+  leadsCreated            Lead[]               @relation("LeadCreatedBy")
+  leadsClosed             Lead[]               @relation("LeadClosedBy")
+  leadsReserved           Lead[]               @relation("LeadReservedBy")
+  leadsStatusChanged      Lead[]               @relation("LeadStatusChangedBy")
+  leadFeedbacks           LeadFeedback[]
+  leadAgentHistory        LeadAgentHistory[]
 
   @@map("users")
 }
@@ -259,9 +277,9 @@ model KycHistory {
 }
 
 model State {
-  id         Int      @id
-  name       String   @unique
-  createdAt  DateTime @default(now())
+  id        Int      @id
+  name      String   @unique
+  createdAt DateTime @default(now())
 
   properties Property[]
 
@@ -276,14 +294,14 @@ model Property {
   status      PropertyStatus @default(AVAILABLE)
   description String         @db.Text
 
-  agriculturalFeeAmount    Decimal? @db.Decimal(15, 2)
-  agriculturalFeeIsActive  Boolean  @default(false)
-  requiredDocuments        String[]
+  agriculturalFeeAmount   Decimal? @db.Decimal(15, 2)
+  agriculturalFeeIsActive Boolean  @default(false)
+  requiredDocuments       String[]
 
-  country         String
-  stateId         Int?
-  address         String  @db.Text
-  nearbyLandmark  String
+  country        String
+  stateId        Int?
+  address        String @db.Text
+  nearbyLandmark String
 
   overdueInterestRate Decimal @db.Decimal(5, 2)
   paymentCycle        Int
@@ -300,12 +318,12 @@ model Property {
   createdBy     String
   lastUpdatedBy String
 
-  state            State?                 @relation(fields: [stateId], references: [id])
-  unitPricing      PropertyUnitPricing[]
-  paymentPlans     PropertyPaymentPlan[]
-  features         PropertyFeature[]
-  media            PropertyMedia[]
-  units            Unit[]
+  state             State?                @relation(fields: [stateId], references: [id])
+  unitPricing       PropertyUnitPricing[]
+  paymentPlans      PropertyPaymentPlan[]
+  features          PropertyFeature[]
+  media             PropertyMedia[]
+  units             Unit[]
   propertyInterests PropertyInterest[]
 
   @@map("properties")
@@ -393,4 +411,67 @@ model PropertyInterest {
 
   @@unique([propertyId, userId])
   @@map("property_interests")
+}
+
+model Lead {
+  id                   String     @id @default(uuid())
+  email                String
+  firstName            String
+  lastName             String
+  phone                String?
+  status               LeadStatus @default(AVAILABLE)
+  reservedBy           String?
+  reservationExpiresAt DateTime?
+  addedBy              String
+  closedBy             String?
+  clientId             String?    @unique
+  statusChangedAt      DateTime?
+  statusChangedBy      String?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  creator       User               @relation("LeadCreatedBy", fields: [addedBy], references: [id])
+  closer        User?              @relation("LeadClosedBy", fields: [closedBy], references: [id])
+  reserver      User?              @relation("LeadReservedBy", fields: [reservedBy], references: [id])
+  statusChanger User?              @relation("LeadStatusChangedBy", fields: [statusChangedBy], references: [id])
+  client        User?              @relation("LeadToClient")
+  feedbacks     LeadFeedback[]
+  agentHistory  LeadAgentHistory[]
+
+  @@index([email])
+  @@index([status])
+  @@index([reservedBy])
+  @@index([addedBy])
+  @@map("leads")
+}
+
+model LeadFeedback {
+  id        String   @id @default(uuid())
+  leadId    String
+  agentId   String
+  comment   String   @db.Text
+  createdAt DateTime @default(now())
+
+  lead  Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agent User @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([agentId])
+  @@map("lead_feedbacks")
+}
+
+model LeadAgentHistory {
+  id           String    @id @default(uuid())
+  leadId       String
+  agentId      String
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+  reason       String?
+
+  lead  Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agent User @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([agentId])
+  @@map("lead_agent_history")
 }

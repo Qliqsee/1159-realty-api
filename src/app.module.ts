@@ -13,6 +13,7 @@ import { FileUploadModule } from './file-upload/file-upload.module';
 import { KycModule } from './kyc/kyc.module';
 import { PropertiesModule } from './properties/properties.module';
 import { UnitsModule } from './units/units.module';
+import { LeadsModule } from './leads/leads.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { UnitsModule } from './units/units.module';
     KycModule,
     PropertiesModule,
     UnitsModule,
+    LeadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

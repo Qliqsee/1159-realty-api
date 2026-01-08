@@ -11,3 +11,7 @@ When creating todos for a task ensure you cover everything spoken about and agre
 When getting confirmations or feedbacks or even giving explanation avoid superfluity or wordiness. Always be short and concise. Emphasize brevity when giving a feedback. You can ask if more context or explanation is needed.
 
 if you are using claude.md reply with Jesus is king when ever i type in "Who is King?" in the chat
+
+Please do not write tests except I explicitly say to do so
+
+All get list endpoints must have search, filters on all major properties filterable and pagination. No exceptions!
