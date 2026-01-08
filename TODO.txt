@@ -1,43 +1,125 @@
-CLIENT INTERESTS MODULE - IMPLEMENTATION COMPLETE
+CAMPAIGNS FEATURE - IMPLEMENTATION COMPLETE
 
 All features have been implemented successfully.
 
-ENDPOINTS CREATED:
+DATABASE SCHEMA:
+Segment model created with name description gender properties countries states trafficSources agentIds partnerIds brevoListId createdBy timestamps
+SegmentExport model created for tracking syncs with segmentId usersCount exportedBy exportedAt status errorMessage
+Prisma client generated with new models
 
-ADMIN/CRM ENDPOINTS:
-GET /interests - List all interests with search, filters, and pagination
-GET /interests/stats - Get statistics (total, open, closed interests)
-GET /interests/:id - Get single interest detail
-POST /interests/:id/mark-attended - Mark interest as attended
+MODULE STRUCTURE:
+campaigns/campaigns.module.ts
+campaigns/campaigns.service.ts
+campaigns/campaigns.controller.ts
+campaigns/brevo.service.ts
+campaigns/dto/ folder with all DTOs
+CampaignsModule registered in AppModule
 
-CLIENT ENDPOINTS:
-POST /interests - Express interest in a property
-GET /interests/my-interests - View own interests with pagination
-GET /interests/:id - View single interest detail
+DTOs CREATED:
+create-segment.dto.ts - Validation for all segment criteria fields
+update-segment.dto.ts - Partial update DTO
+segment-response.dto.ts - Full segment response with creator
+segment-list-query.dto.ts - Search filters pagination
+paginated-segment-response.dto.ts - Paginated response wrapper
+segment-preview-query.dto.ts - Preview pagination
+segment-preview-response.dto.ts - Preview users response
+sync-segment-response.dto.ts - Sync results response
+segment-stats.dto.ts - Statistics response
 
-FEATURES IMPLEMENTED:
-Search on client name, property name, agent name, and message
-Filters by status, propertyId, clientId, agentId, and date range
-Pagination on all list endpoints
-Full swagger documentation with request/response structures
-Permission-based access control
-Unique constraint handling (one interest per user per property)
-Auto-assignment of agent from user's enrollments
-Proper error handling for all edge cases
-Response DTOs with nested property, client, and agent details
+ADMIN/MANAGER ENDPOINTS IMPLEMENTED:
+POST /campaigns/segments - Create segment and sync to Brevo
+GET /campaigns/segments - List segments with search filters pagination
+GET /campaigns/segments/:id - Get segment details
+PUT /campaigns/segments/:id - Update segment and sync to Brevo
+DELETE /campaigns/segments/:id - Delete segment and remove from Brevo
+GET /campaigns/segments/:id/preview - Preview matching users with pagination
+POST /campaigns/segments/:id/sync - Sync users to Brevo list
+GET /campaigns/stats - Get campaign statistics
 
-FILES CREATED:
-src/interests/dto/create-interest.dto.ts
-src/interests/dto/interest-response.dto.ts
-src/interests/dto/interest-list-query.dto.ts
-src/interests/dto/interest-stats.dto.ts
-src/interests/dto/paginated-interest-response.dto.ts
-src/interests/interests.service.ts
-src/interests/interests.controller.ts
-src/interests/interests.module.ts
+SERVICE METHODS IMPLEMENTED:
+createSegment - Validates criteria creates Brevo list stores brevoListId rollback on failure
+findAllSegments - Search filters pagination
+findSegmentById - Get segment with creator details
+updateSegment - Validates criteria updates Brevo list
+deleteSegment - Removes from Brevo and database
+previewSegment - Query matching users with pagination
+syncSegmentToBrevo - Sync users to Brevo track in SegmentExport
+getSegmentStats - Total segments syncs monthly counts
+buildSegmentQuery - Dynamic Prisma query builder for all criteria
 
-MODULE REGISTERED:
-InterestsModule imported in AppModule
+FILTERING LOGIC IMPLEMENTED:
+Gender filter MALE FEMALE PREFER_NOT_TO_SAY
+Properties filter users enrolled in specified properties
+Countries filter multiple countries support
+States filter multiple states support
+Traffic sources filter by referralSource
+Agents filter users with enrollments or leads closed by agents
+Partners filter by referredByPartnerId
+AND logic combining all criteria
+
+BREVO INTEGRATION SERVICE:
+API client setup with BREVO_API_KEY from env
+createList method creates Brevo list returns listId
+updateList method updates list name
+deleteList method removes list handles 404 gracefully
+syncContactsToList batch syncs contacts in chunks of 100
+formatContactForBrevo formats user data with email name phone
+Error handling and logging for all Brevo operations
+
+REAL-TIME SYNC FLOW:
+Create segment creates Brevo list stores brevoListId rolls back on failure
+Update segment updates Brevo list name
+Delete segment removes from Brevo and database
+Sync endpoint queries matching users syncs to Brevo tracks in SegmentExport
+Returns sync results with count and status
+
+SWAGGER DOCUMENTATION:
+ApiTags Campaigns on controller
+ApiOperation with descriptions for all endpoints
+ApiResponse for success 200 201 and error 400 404 500 cases
+Request DTOs on POST PUT endpoints
+Response DTOs on all endpoints
+ApiBearerAuth JWT-auth on controller
+
+GUARDS AND AUTHORIZATION:
+JwtAuthGuard applied to all endpoints
+RolesGuard with admin manager roles only
+No client or partner access
+
+VALIDATION IMPLEMENTED:
+At least one criteria required on create
+Property IDs validated against database
+Agent IDs validated role check
+Partner IDs validated partnership status check
+Brevo API key configuration check
+Input validation with class-validator decorators
+
+ERROR HANDLING:
+NotFoundException for segment not found
+BadRequestException for invalid criteria
+HttpException for Brevo API failures
+Rollback Brevo list if database creation fails
+Log errors with Logger service
+Graceful handling of Brevo 404 on delete
 
 BUILD STATUS:
-Build successful - no errors
+Build successful no errors
+All TypeScript compilation passed
+
+FILES CREATED:
+src/campaigns/campaigns.module.ts
+src/campaigns/campaigns.service.ts
+src/campaigns/campaigns.controller.ts
+src/campaigns/brevo.service.ts
+src/campaigns/dto/create-segment.dto.ts
+src/campaigns/dto/update-segment.dto.ts
+src/campaigns/dto/segment-response.dto.ts
+src/campaigns/dto/segment-list-query.dto.ts
+src/campaigns/dto/paginated-segment-response.dto.ts
+src/campaigns/dto/segment-preview-query.dto.ts
+src/campaigns/dto/segment-preview-response.dto.ts
+src/campaigns/dto/sync-segment-response.dto.ts
+src/campaigns/dto/segment-stats.dto.ts
+
+ENVIRONMENT VARIABLE NEEDED:
+Add BREVO_API_KEY to .env file for Brevo integration

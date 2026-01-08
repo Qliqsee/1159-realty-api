@@ -29,6 +29,7 @@ import { SupportModule } from './support/support.module';
 import { DisbursementsModule } from './disbursements/disbursements.module';
 import { DisbursementConfigModule } from './disbursement-config/disbursement-config.module';
 import { InterestsModule } from './interests/interests.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { InterestsModule } from './interests/interests.module';
     RequirementsModule,
     SupportModule,
     InterestsModule,
+    CampaignsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
