@@ -1,0 +1,759 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma.service';
+import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
+import { QueryEnrollmentsDto } from './dto/query-enrollments.dto';
+import { LinkClientDto } from './dto/link-client.dto';
+import { GeneratePaymentLinkDto, PaymentLinkResponseDto } from './dto/generate-payment-link.dto';
+import { EnrollmentDetailDto } from './dto/enrollment-detail.dto';
+import { EnrollmentStatsDto } from './dto/enrollment-stats.dto';
+import { Prisma } from '@prisma/client';
+import * as crypto from 'crypto';
+
+@Injectable()
+export class EnrollmentsService {
+  constructor(private prisma: PrismaService) {}
+
+  async create(createEnrollmentDto: CreateEnrollmentDto, userId: string, userRole: string) {
+    const {
+      propertyId,
+      unitId,
+      agentId,
+      clientId,
+      paymentType,
+      selectedPaymentPlanId,
+      outrightInstallments,
+      selectedUnit,
+      enrollmentDate,
+    } = createEnrollmentDto;
+
+    // Validate property exists and is available
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+      include: {
+        unitPricing: true,
+        paymentPlans: true,
+      },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    if (property.status === 'ARCHIVED' || property.status === 'SOLD_OUT') {
+      throw new BadRequestException(`Property is ${property.status.toLowerCase()} and cannot be enrolled`);
+    }
+
+    // Validate unit if provided
+    if (unitId) {
+      const unit = await this.prisma.unit.findUnique({
+        where: { id: unitId },
+      });
+
+      if (!unit || unit.propertyId !== propertyId) {
+        throw new BadRequestException('Unit does not belong to the specified property');
+      }
+
+      if (unit.status !== 'AVAILABLE') {
+        throw new BadRequestException('Unit is not available');
+      }
+    }
+
+    // Determine agent ID
+    let finalAgentId = agentId;
+    if (userRole === 'agent') {
+      finalAgentId = userId;
+    } else if (!agentId) {
+      throw new BadRequestException('Agent ID is required');
+    }
+
+    // Validate agent exists and is not suspended
+    const agent = await this.prisma.user.findUnique({
+      where: { id: finalAgentId },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+
+    if (agent.isSuspended) {
+      throw new BadRequestException('Agent is suspended and cannot create enrollments');
+    }
+
+    // Validate client if provided
+    let partnerId: string | undefined;
+    if (clientId) {
+      const client = await this.prisma.user.findUnique({
+        where: { id: clientId },
+        include: {
+          kyc: true,
+          partnership: true,
+        },
+      });
+
+      if (!client) {
+        throw new NotFoundException('Client not found');
+      }
+
+      // Check if client has completed KYC step 1
+      if (!client.hasCompletedOnboarding) {
+        throw new BadRequestException('Client has not completed onboarding (KYC Step 1)');
+      }
+
+      // Check for duplicate enrollment
+      const existingEnrollment = await this.prisma.enrollment.findFirst({
+        where: {
+          clientId,
+          propertyId,
+          status: {
+            notIn: ['CANCELLED'],
+          },
+        },
+      });
+
+      if (existingEnrollment) {
+        throw new BadRequestException('Client already has an enrollment for this property');
+      }
+
+      // Auto-populate partner ID if client has approved partner
+      if (client.partnership?.status === 'APPROVED') {
+        partnerId = client.id;
+      }
+    }
+
+    // Find unit pricing
+    const unitPricing = property.unitPricing.find(up => up.unit === selectedUnit);
+    if (!unitPricing) {
+      throw new BadRequestException('Selected unit pricing not found');
+    }
+
+    // Calculate total amount and validate payment plan
+    let totalAmount: number;
+    let paymentPlan: any;
+    let numberOfInstallments: number;
+    let interestRate = 0;
+
+    if (paymentType === 'INSTALLMENT') {
+      if (!selectedPaymentPlanId) {
+        throw new BadRequestException('Payment plan ID is required for installment payment');
+      }
+
+      paymentPlan = property.paymentPlans.find(pp => pp.id === selectedPaymentPlanId);
+      if (!paymentPlan) {
+        throw new BadRequestException('Selected payment plan does not belong to this property');
+      }
+
+      interestRate = Number(paymentPlan.interestRate);
+      numberOfInstallments = paymentPlan.durationMonths / property.paymentCycle;
+
+      // Apply sales discount if active
+      let basePrice = property.status === 'PRE_LAUNCH'
+        ? Number(unitPricing.prelaunchPrice)
+        : Number(unitPricing.regularPrice);
+
+      if (property.salesDiscountIsActive && property.salesDiscountPercentage) {
+        const discount = (basePrice * Number(property.salesDiscountPercentage)) / 100;
+        basePrice = basePrice - discount;
+      }
+
+      // Calculate with interest
+      totalAmount = basePrice * (1 + interestRate / 100);
+    } else {
+      // Outright payment
+      const installments = outrightInstallments || 1;
+      if (installments > 3) {
+        throw new BadRequestException('Outright payment can only be split into maximum 3 installments');
+      }
+
+      numberOfInstallments = installments;
+
+      // Apply sales discount if active
+      let basePrice = property.status === 'PRE_LAUNCH'
+        ? Number(unitPricing.prelaunchPrice)
+        : Number(unitPricing.regularPrice);
+
+      if (property.salesDiscountIsActive && property.salesDiscountPercentage) {
+        const discount = (basePrice * Number(property.salesDiscountPercentage)) / 100;
+        basePrice = basePrice - discount;
+      }
+
+      totalAmount = basePrice;
+    }
+
+    // Create enrollment and invoices in a transaction
+    const enrollment = await this.prisma.$transaction(async (prisma) => {
+      const newEnrollment = await prisma.enrollment.create({
+        data: {
+          propertyId,
+          unitId,
+          agentId: finalAgentId,
+          clientId,
+          partnerId,
+          paymentType,
+          selectedPaymentPlanId,
+          totalAmount,
+          enrollmentDate: enrollmentDate ? new Date(enrollmentDate) : new Date(),
+          createdBy: userId,
+        },
+        include: {
+          property: true,
+          agent: true,
+          client: true,
+          partner: true,
+        },
+      });
+
+      // Calculate installment amount
+      const installmentAmount = totalAmount / numberOfInstallments;
+      const paymentCycleDays = property.paymentCycle * 30; // Convert months to days
+
+      // Generate invoices
+      const invoices = [];
+      for (let i = 0; i < numberOfInstallments; i++) {
+        const dueDate = new Date(newEnrollment.enrollmentDate);
+        dueDate.setDate(dueDate.getDate() + (i * paymentCycleDays));
+
+        invoices.push({
+          enrollmentId: newEnrollment.id,
+          installmentNumber: i + 1,
+          dueDate,
+          amount: installmentAmount,
+        });
+      }
+
+      await prisma.invoice.createMany({
+        data: invoices,
+      });
+
+      // Update unit status if unit is selected
+      if (unitId) {
+        await prisma.unit.update({
+          where: { id: unitId },
+          data: { status: 'SOLD' },
+        });
+      }
+
+      return newEnrollment;
+    });
+
+    return enrollment;
+  }
+
+  async findAll(queryDto: QueryEnrollmentsDto, userId?: string, userRole?: string) {
+    const {
+      page,
+      limit,
+      status,
+      propertyId,
+      agentId,
+      clientId,
+      paymentType,
+      enrollmentDateFrom,
+      enrollmentDateTo,
+      search,
+      sortBy,
+      sortOrder,
+    } = queryDto;
+
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.EnrollmentWhereInput = {
+      ...(status && { status }),
+      ...(propertyId && { propertyId }),
+      ...(agentId && { agentId }),
+      ...(clientId && { clientId }),
+      ...(paymentType && { paymentType }),
+      ...(enrollmentDateFrom && {
+        enrollmentDate: { gte: new Date(enrollmentDateFrom) },
+      }),
+      ...(enrollmentDateTo && {
+        enrollmentDate: { lte: new Date(enrollmentDateTo) },
+      }),
+      ...(search && {
+        OR: [
+          { id: { contains: search, mode: 'insensitive' } },
+          { property: { name: { contains: search, mode: 'insensitive' } } },
+          { client: { name: { contains: search, mode: 'insensitive' } } },
+          { client: { email: { contains: search, mode: 'insensitive' } } },
+        ],
+      }),
+    };
+
+    // Apply role-based filtering
+    if (userRole === 'agent') {
+      where.agentId = userId;
+    } else if (userRole === 'client') {
+      where.clientId = userId;
+    }
+
+    const [enrollments, total] = await Promise.all([
+      this.prisma.enrollment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
+        include: {
+          property: { select: { name: true } },
+          agent: { select: { name: true } },
+          client: { select: { name: true, email: true } },
+          partner: { select: { name: true } },
+          unit: { select: { unitId: true } },
+          invoices: {
+            select: {
+              status: true,
+            },
+          },
+        },
+      }),
+      this.prisma.enrollment.count({ where }),
+    ]);
+
+    const formattedEnrollments = enrollments.map(enrollment => {
+      const totalInstallments = enrollment.invoices.length;
+      const paidInstallments = enrollment.invoices.filter(
+        inv => inv.status === 'PAID',
+      ).length;
+      const overdueInstallments = enrollment.invoices.filter(
+        inv => inv.status === 'OVERDUE',
+      ).length;
+      const pendingInstallments = enrollment.invoices.filter(
+        inv => inv.status === 'PENDING',
+      ).length;
+
+      return {
+        id: enrollment.id,
+        propertyId: enrollment.propertyId,
+        propertyName: enrollment.property.name,
+        unitId: enrollment.unitId,
+        unitNumber: enrollment.unit?.unitId,
+        agentId: enrollment.agentId,
+        agentName: enrollment.agent.name,
+        clientId: enrollment.clientId,
+        clientName: enrollment.client?.name,
+        clientEmail: enrollment.client?.email,
+        partnerId: enrollment.partnerId,
+        partnerName: enrollment.partner?.name,
+        paymentType: enrollment.paymentType,
+        selectedPaymentPlanId: enrollment.selectedPaymentPlanId,
+        totalAmount: Number(enrollment.totalAmount),
+        amountPaid: Number(enrollment.amountPaid),
+        status: enrollment.status,
+        gracePeriodDaysUsed: enrollment.gracePeriodDaysUsed,
+        enrollmentDate: enrollment.enrollmentDate,
+        totalInstallments,
+        paidInstallments,
+        overdueInstallments,
+        pendingInstallments,
+        createdAt: enrollment.createdAt,
+        updatedAt: enrollment.updatedAt,
+      };
+    });
+
+    return {
+      data: formattedEnrollments,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findOne(id: string, userId?: string, userRole?: string): Promise<EnrollmentDetailDto> {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id },
+      include: {
+        property: true,
+        unit: true,
+        agent: true,
+        client: true,
+        partner: true,
+        paymentPlan: true,
+        invoices: {
+          orderBy: { installmentNumber: 'asc' },
+        },
+        commissions: {
+          where: userRole === 'agent' ? { agentId: userId } : userRole === 'partner' ? { partnerId: userId } : {},
+        },
+      },
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('Enrollment not found');
+    }
+
+    // Check access rights
+    if (userRole === 'agent' && enrollment.agentId !== userId) {
+      throw new ForbiddenException('You do not have access to this enrollment');
+    }
+
+    if (userRole === 'client' && enrollment.clientId !== userId) {
+      throw new ForbiddenException('You do not have access to this enrollment');
+    }
+
+    // Calculate stats
+    const totalInstallments = enrollment.invoices.length;
+    const completedInstallments = enrollment.invoices.filter(
+      inv => inv.status === 'PAID',
+    ).length;
+    const overdueInstallments = enrollment.invoices.filter(
+      inv => inv.status === 'OVERDUE',
+    ).length;
+    const pendingInstallments = enrollment.invoices.filter(
+      inv => inv.status === 'PENDING',
+    ).length;
+
+    // Find next installment
+    const nextInstallment = enrollment.invoices.find(
+      inv => inv.status === 'PENDING' || inv.status === 'OVERDUE',
+    );
+
+    const now = new Date();
+    const daysUntilNextDue = nextInstallment
+      ? Math.ceil((nextInstallment.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+
+    // Format invoices with overdue days
+    const formattedInvoices = enrollment.invoices.map(invoice => {
+      const overdueDays =
+        invoice.status === 'OVERDUE' && invoice.dueDate
+          ? Math.floor((now.getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24))
+          : 0;
+
+      return {
+        id: invoice.id,
+        installmentNumber: invoice.installmentNumber,
+        dueDate: invoice.dueDate,
+        amount: Number(invoice.amount),
+        amountPaid: Number(invoice.amountPaid),
+        status: invoice.status,
+        overdueDate: invoice.overdueDate,
+        overdueFee: Number(invoice.overdueFee),
+        overdueDays,
+        paidAt: invoice.paidAt,
+        paymentReference: invoice.paymentReference,
+      };
+    });
+
+    // Format commissions (only show to agents/admins)
+    const formattedCommissions =
+      userRole !== 'client'
+        ? enrollment.commissions.map(commission => ({
+            id: commission.id,
+            type: commission.type,
+            percentage: Number(commission.percentage),
+            amount: Number(commission.amount),
+            status: commission.status,
+            dueDate: commission.dueDate,
+            paidAt: commission.paidAt,
+          }))
+        : undefined;
+
+    return {
+      id: enrollment.id,
+      property: {
+        id: enrollment.property.id,
+        name: enrollment.property.name,
+        type: enrollment.property.type,
+        address: enrollment.property.address,
+      },
+      unit: enrollment.unit
+        ? {
+            id: enrollment.unit.id,
+            unitId: enrollment.unit.unitId,
+            unit: enrollment.unit.unit,
+            feature: enrollment.unit.feature,
+          }
+        : undefined,
+      agent: {
+        id: enrollment.agent.id,
+        name: enrollment.agent.name,
+        email: enrollment.agent.email,
+      },
+      client: enrollment.client
+        ? {
+            id: enrollment.client.id,
+            name: enrollment.client.name,
+            email: enrollment.client.email,
+          }
+        : undefined,
+      partner: enrollment.partner
+        ? {
+            id: enrollment.partner.id,
+            name: enrollment.partner.name,
+            email: enrollment.partner.email,
+          }
+        : undefined,
+      paymentType: enrollment.paymentType,
+      paymentPlan: enrollment.paymentPlan
+        ? {
+            id: enrollment.paymentPlan.id,
+            durationMonths: enrollment.paymentPlan.durationMonths,
+            interestRate: Number(enrollment.paymentPlan.interestRate),
+          }
+        : undefined,
+      totalAmount: Number(enrollment.totalAmount),
+      amountPaid: Number(enrollment.amountPaid),
+      status: enrollment.status,
+      gracePeriodDaysUsed: enrollment.gracePeriodDaysUsed,
+      gracePeriodRemaining: Math.max(0, 32 - enrollment.gracePeriodDaysUsed),
+      enrollmentDate: enrollment.enrollmentDate,
+      invoices: formattedInvoices,
+      commissions: formattedCommissions,
+      totalInstallments,
+      completedInstallments,
+      overdueInstallments,
+      pendingInstallments,
+      nextInstallmentDueDate: nextInstallment?.dueDate,
+      nextInstallmentAmount: nextInstallment ? Number(nextInstallment.amount) : undefined,
+      daysUntilNextDue,
+      createdAt: enrollment.createdAt,
+      updatedAt: enrollment.updatedAt,
+      cancelledAt: enrollment.cancelledAt,
+      cancelledBy: enrollment.cancelledBy,
+      suspendedAt: enrollment.suspendedAt,
+      resumedAt: enrollment.resumedAt,
+    };
+  }
+
+  async cancel(id: string, userId: string) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id },
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('Enrollment not found');
+    }
+
+    if (enrollment.status === 'CANCELLED') {
+      throw new BadRequestException('Enrollment is already cancelled');
+    }
+
+    return this.prisma.enrollment.update({
+      where: { id },
+      data: {
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+        cancelledBy: userId,
+      },
+    });
+  }
+
+  async resume(id: string) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id },
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('Enrollment not found');
+    }
+
+    if (enrollment.status !== 'SUSPENDED') {
+      throw new BadRequestException('Only suspended enrollments can be resumed');
+    }
+
+    return this.prisma.enrollment.update({
+      where: { id },
+      data: {
+        status: 'ONGOING',
+        gracePeriodDaysUsed: 0,
+        resumedAt: new Date(),
+      },
+    });
+  }
+
+  async linkClient(id: string, linkClientDto: LinkClientDto) {
+    const { clientId } = linkClientDto;
+
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id },
+      include: { property: true },
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('Enrollment not found');
+    }
+
+    if (enrollment.clientId) {
+      throw new BadRequestException('Enrollment already has a client linked');
+    }
+
+    // Validate client exists
+    const client = await this.prisma.user.findUnique({
+      where: { id: clientId },
+      include: { partnership: true },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+
+    // Check for duplicate enrollment
+    const existingEnrollment = await this.prisma.enrollment.findFirst({
+      where: {
+        clientId,
+        propertyId: enrollment.propertyId,
+        status: { notIn: ['CANCELLED'] },
+        id: { not: id },
+      },
+    });
+
+    if (existingEnrollment) {
+      throw new BadRequestException('Client already has an enrollment for this property');
+    }
+
+    // Update enrollment and disable payment links
+    return this.prisma.$transaction(async (prisma) => {
+      const updated = await prisma.enrollment.update({
+        where: { id },
+        data: {
+          clientId,
+          partnerId: client.partnership?.status === 'APPROVED' ? client.id : null,
+        },
+      });
+
+      // Disable all active payment links
+      await prisma.paymentLink.updateMany({
+        where: {
+          enrollmentId: id,
+          isActive: true,
+        },
+        data: {
+          isActive: false,
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  async generatePaymentLink(
+    id: string,
+    generateDto: GeneratePaymentLinkDto,
+  ): Promise<PaymentLinkResponseDto> {
+    const { firstName, lastName, invoiceId } = generateDto;
+
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id },
+      include: {
+        client: true,
+        invoices: {
+          orderBy: { installmentNumber: 'asc' },
+        },
+      },
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('Enrollment not found');
+    }
+
+    // If no client, require firstName and lastName
+    if (!enrollment.clientId && (!firstName || !lastName)) {
+      throw new BadRequestException('First name and last name are required when no client is linked');
+    }
+
+    // Find the invoice to generate link for
+    let targetInvoice;
+    if (invoiceId) {
+      targetInvoice = enrollment.invoices.find(inv => inv.id === invoiceId);
+      if (!targetInvoice) {
+        throw new NotFoundException('Invoice not found');
+      }
+    } else {
+      // Default to first unpaid invoice
+      targetInvoice = enrollment.invoices.find(
+        inv => inv.status === 'PENDING' || inv.status === 'OVERDUE',
+      );
+      if (!targetInvoice) {
+        throw new BadRequestException('No unpaid invoices found');
+      }
+    }
+
+    // Check if previous invoices are paid (sequential payment validation)
+    if (targetInvoice.installmentNumber > 1) {
+      const previousInvoice = enrollment.invoices.find(
+        inv => inv.installmentNumber === targetInvoice.installmentNumber - 1,
+      );
+      if (previousInvoice && previousInvoice.status !== 'PAID') {
+        throw new BadRequestException('Previous invoices must be paid first');
+      }
+    }
+
+    // Generate token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // Link expires in 30 days
+
+    const paymentLink = await this.prisma.paymentLink.create({
+      data: {
+        enrollmentId: id,
+        invoiceId: targetInvoice.id,
+        firstName: firstName || enrollment.client?.name.split(' ')[0] || 'Client',
+        lastName: lastName || enrollment.client?.name.split(' ')[1] || '',
+        token,
+        expiresAt,
+      },
+    });
+
+    const paymentUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/${token}`;
+
+    return {
+      token,
+      paymentUrl,
+      expiresAt,
+      enrollmentId: id,
+      invoiceId: targetInvoice.id,
+    };
+  }
+
+  async getStats(dateFrom?: string, dateTo?: string, agentId?: string, propertyId?: string): Promise<EnrollmentStatsDto> {
+    const where: Prisma.EnrollmentWhereInput = {
+      ...(dateFrom && { enrollmentDate: { gte: new Date(dateFrom) } }),
+      ...(dateTo && { enrollmentDate: { lte: new Date(dateTo) } }),
+      ...(agentId && { agentId }),
+      ...(propertyId && { propertyId }),
+    };
+
+    const [
+      totalEnrollments,
+      ongoingEnrollments,
+      completedEnrollments,
+      suspendedEnrollments,
+      cancelledEnrollments,
+      revenueData,
+    ] = await Promise.all([
+      this.prisma.enrollment.count({ where }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'ONGOING' } }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'COMPLETED' } }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'SUSPENDED' } }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'CANCELLED' } }),
+      this.prisma.enrollment.aggregate({
+        where,
+        _sum: {
+          totalAmount: true,
+          amountPaid: true,
+        },
+      }),
+    ]);
+
+    const totalRevenue = Number(revenueData._sum.totalAmount || 0);
+    const collectedRevenue = Number(revenueData._sum.amountPaid || 0);
+    const pendingRevenue = totalRevenue - collectedRevenue;
+
+    return {
+      totalEnrollments,
+      ongoingEnrollments,
+      completedEnrollments,
+      suspendedEnrollments,
+      cancelledEnrollments,
+      totalRevenue,
+      collectedRevenue,
+      pendingRevenue,
+    };
+  }
+}

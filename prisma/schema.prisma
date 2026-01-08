@@ -94,6 +94,35 @@ enum InterestStatus {
   CLOSED
 }
 
+enum EnrollmentStatus {
+  ONGOING
+  COMPLETED
+  SUSPENDED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentType {
+  INSTALLMENT
+  OUTRIGHT
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+}
+
+enum CommissionType {
+  AGENT
+  PARTNER
+}
+
 model User {
   id                     String   @id @default(uuid())
   email                  String   @unique
@@ -133,6 +162,13 @@ model User {
   leadAgentHistory        LeadAgentHistory[]
   partnership             Partnership?
   partnershipsReviewed    Partnership[]        @relation("PartnershipReviewedBy")
+  enrollmentsAsClient     Enrollment[]         @relation("EnrollmentClient")
+  enrollmentsAsAgent      Enrollment[]         @relation("EnrollmentAgent")
+  enrollmentsAsPartner    Enrollment[]         @relation("EnrollmentPartner")
+  enrollmentsCreated      Enrollment[]         @relation("EnrollmentCreatedBy")
+  enrollmentsCancelled    Enrollment[]         @relation("EnrollmentCancelledBy")
+  agentCommissions        Commission[]         @relation("CommissionAgent")
+  partnerCommissions      Commission[]         @relation("CommissionPartner")
 
   @@map("users")
 }
@@ -351,6 +387,7 @@ model Property {
   media             PropertyMedia[]
   units             Unit[]
   propertyInterests PropertyInterest[]
+  enrollments       Enrollment[]
 
   @@map("properties")
 }
@@ -375,7 +412,8 @@ model PropertyPaymentPlan {
   interestRate   Decimal  @db.Decimal(5, 2)
   createdAt      DateTime @default(now())
 
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
 
   @@map("property_payment_plans")
 }
@@ -419,7 +457,8 @@ model Unit {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
 
   @@unique([propertyId, unitId])
   @@map("units")
@@ -524,4 +563,120 @@ model Partnership {
   reviewer User? @relation("PartnershipReviewedBy", fields: [reviewedBy], references: [id])
 
   @@map("partnerships")
+}
+
+model Enrollment {
+  id                    String           @id @default(uuid())
+  propertyId            String
+  unitId                String?
+  agentId               String
+  clientId              String?
+  partnerId             String?
+  paymentType           PaymentType
+  selectedPaymentPlanId String?
+  totalAmount           Decimal          @db.Decimal(15, 2)
+  amountPaid            Decimal          @default(0) @db.Decimal(15, 2)
+  status                EnrollmentStatus @default(ONGOING)
+  gracePeriodDaysUsed   Int              @default(0)
+  enrollmentDate        DateTime         @default(now())
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  createdBy             String
+  cancelledAt           DateTime?
+  cancelledBy           String?
+  suspendedAt           DateTime?
+  resumedAt             DateTime?
+
+  property      Property              @relation(fields: [propertyId], references: [id])
+  unit          Unit?                 @relation(fields: [unitId], references: [id])
+  agent         User                  @relation("EnrollmentAgent", fields: [agentId], references: [id])
+  client        User?                 @relation("EnrollmentClient", fields: [clientId], references: [id])
+  partner       User?                 @relation("EnrollmentPartner", fields: [partnerId], references: [id])
+  creator       User                  @relation("EnrollmentCreatedBy", fields: [createdBy], references: [id])
+  canceller     User?                 @relation("EnrollmentCancelledBy", fields: [cancelledBy], references: [id])
+  paymentPlan   PropertyPaymentPlan?  @relation(fields: [selectedPaymentPlanId], references: [id])
+  invoices      Invoice[]
+  commissions   Commission[]
+  paymentLinks  PaymentLink[]
+
+  @@index([propertyId])
+  @@index([agentId])
+  @@index([clientId])
+  @@index([partnerId])
+  @@index([status])
+  @@index([enrollmentDate])
+  @@map("enrollments")
+}
+
+model Invoice {
+  id               String        @id @default(uuid())
+  enrollmentId     String
+  installmentNumber Int
+  dueDate          DateTime
+  amount           Decimal       @db.Decimal(15, 2)
+  amountPaid       Decimal       @default(0) @db.Decimal(15, 2)
+  status           InvoiceStatus @default(PENDING)
+  overdueDate      DateTime?
+  overdueFee       Decimal       @default(0) @db.Decimal(15, 2)
+  paidAt           DateTime?
+  paymentReference String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  enrollment   Enrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  commissions  Commission[]
+  paymentLinks PaymentLink[]
+
+  @@index([enrollmentId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model Commission {
+  id           String           @id @default(uuid())
+  enrollmentId String
+  invoiceId    String
+  agentId      String?
+  partnerId    String?
+  type         CommissionType
+  percentage   Decimal          @db.Decimal(5, 2)
+  amount       Decimal          @db.Decimal(15, 2)
+  status       CommissionStatus @default(PENDING)
+  dueDate      DateTime?
+  paidAt       DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  invoice    Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  agent      User?      @relation("CommissionAgent", fields: [agentId], references: [id])
+  partner    User?      @relation("CommissionPartner", fields: [partnerId], references: [id])
+
+  @@index([enrollmentId])
+  @@index([invoiceId])
+  @@index([agentId])
+  @@index([partnerId])
+  @@index([status])
+  @@index([type])
+  @@map("commissions")
+}
+
+model PaymentLink {
+  id           String   @id @default(uuid())
+  enrollmentId String
+  invoiceId    String
+  firstName    String
+  lastName     String
+  token        String   @unique
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  invoice    Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([enrollmentId])
+  @@map("payment_links")
 }

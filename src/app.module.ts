@@ -15,6 +15,9 @@ import { PropertiesModule } from './properties/properties.module';
 import { UnitsModule } from './units/units.module';
 import { LeadsModule } from './leads/leads.module';
 import { PartnershipModule } from './partnership/partnership.module';
+import { EnrollmentsModule } from './enrollments/enrollments.module';
+import { InvoicesModule } from './invoices/invoices.module';
+import { CommissionsModule } from './commissions/commissions.module';
 
 @Module({
   imports: [
@@ -35,6 +38,9 @@ import { PartnershipModule } from './partnership/partnership.module';
     UnitsModule,
     LeadsModule,
     PartnershipModule,
+    EnrollmentsModule,
+    InvoicesModule,
+    CommissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
