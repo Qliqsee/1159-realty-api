@@ -123,6 +123,11 @@ enum CommissionType {
   PARTNER
 }
 
+enum AppointmentStatus {
+  BOOKED
+  CANCELLED
+}
+
 model User {
   id                     String   @id @default(uuid())
   email                  String   @unique
@@ -170,6 +175,11 @@ model User {
   agentCommissions        Commission[]         @relation("CommissionAgent")
   partnerCommissions      Commission[]         @relation("CommissionPartner")
   paymentLinksCreated     PaymentLink[]        @relation("PaymentLinkCreatedBy")
+  salesTargets            SalesTarget[]        @relation("SalesTargetUser")
+  salesTargetsCreated     SalesTarget[]        @relation("SalesTargetCreatedBy")
+  achievements            Achievement[]        @relation("AchievementUser")
+  schedulesCreated        Schedule[]           @relation("ScheduleCreatedBy")
+  appointments            Appointment[]        @relation("AppointmentUser")
 
   @@map("users")
 }
@@ -686,4 +696,41 @@ model PaymentLink {
   @@index([token])
   @@index([enrollmentId])
   @@map("payment_links")
+}
+
+model SalesTarget {
+  id              String   @id @default(uuid())
+  userId          String
+  targetAmount    Decimal  @db.Decimal(15, 2)
+  achievedAmount  Decimal  @default(0) @db.Decimal(15, 2)
+  startDate       DateTime
+  endDate         DateTime
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user    User @relation("SalesTargetUser", fields: [userId], references: [id], onDelete: Cascade)
+  creator User @relation("SalesTargetCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([userId])
+  @@index([startDate, endDate])
+  @@index([createdBy])
+  @@map("sales_targets")
+}
+
+model Achievement {
+  id             String   @id @default(uuid())
+  userId         String
+  targetAmount   Decimal  @db.Decimal(15, 2)
+  achievedAmount Decimal  @db.Decimal(15, 2)
+  startDate      DateTime
+  endDate        DateTime
+  achievedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  user User @relation("AchievementUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([startDate, endDate])
+  @@map("achievements")
 }

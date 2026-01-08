@@ -1,51 +1,42 @@
-INVOICE FEATURES TODO
+Appointments/Schedules Feature Implementation
 
-BUSINESS RULES (CRITICAL - MUST BE ENFORCED):
-1. Invoices CANNOT be manually cancelled - they can only be resolved (paid) or unresolved (unpaid)
-2. When an enrollment is cancelled, ALL unpaid invoices linked to that enrollment are AUTOMATICALLY cancelled
-3. When invoices are cancelled due to enrollment cancellation, their associated pending commissions are also cancelled/deleted
-4. No email notifications for invoice cancellation - only enrollment cancellation emails are sent
-5. Invoice cancellation ONLY happens as a result of enrollment cancellation, never independently
-6. Relationships: Invoice -> Enrollment -> Property (invoices are always linked to an enrollment)
+DATABASE SCHEMA
+Add AppointmentStatus enum to schema.prisma
+Create Schedule model in schema.prisma
+Create Appointment model in schema.prisma
+Run prisma migration to apply schema changes
 
-EXISTING FEATURES (Already Implemented):
-- Invoice model with all necessary fields
-- GET /invoices - List all invoices with pagination, search, and filters (admin only)
-- GET /invoices/my-invoices - List agent's own invoices (agent only)
-- GET /invoices/client - List client's own invoices (client only)
-- GET /invoices/:id - Get invoice detail with role-based access (admin/agent/client)
-- POST /invoices/:id/resolve - Manually resolve invoice payment (admin only)
-- POST /invoices/:id/undo - Undo invoice payment (admin only)
-- POST /payments/initialize - Initialize Paystack payment for invoice
-- GET /payments/verify/:reference - Verify payment status
-- GET /payments/payment-links/:token - Get payment link details (public)
-- POST /payments/webhook - Paystack webhook for payment updates
-- Cron job for daily overdue invoice check and auto-suspend
-- Cron job for hourly upcoming invoice reminders
-- Email templates for invoice overdue and reminders
-- Sequential payment validation
-- Overdue fee calculation
-- Commission creation on payment
-- Grace period tracking (32 days total)
+SCHEDULES MODULE (Admin Side)
+Create schedules module folder and files
+Create schedule DTOs - create, update, list, query
+Create schedules service with CRUD operations
+Create schedules controller with endpoints
+Add delete schedule auto-cancel appointments logic
+Add permission guards for admin-only access
+Add search filters and pagination to list endpoint
+Add Swagger documentation for all schedule endpoints
 
-COMPLETED FEATURES:
-✓ 0. Fixed enrollment cancellation to handle invoice and commission cancellation
-✓ 1. Added partnerId filter to QueryInvoicesDto
-✓ 2. Created GET /invoices/partner endpoint for partners
-✓ 3. Created GET /invoices/stats endpoint for admin statistics
-✓ 4. Created GET /invoices/:id/download endpoint - Download invoice as PDF
-✓ 5. Enhanced search to include partnerName, agentName, and propertyName
-✓ 6. Updated Swagger documentation for all invoice endpoints
-✓ 7. Created invoice PDF generation service with professional template using pdfkit
-✓ 8. Ensured proper role-based access control for all invoice endpoints
+APPOINTMENTS MODULE (Admin & Client Side)
+Create appointments module folder and files
+Create appointment DTOs - create, update, list, query
+Create appointments service with booking and cancellation logic
+Create appointments controller with endpoints for admin
+Create client appointments controller with endpoints
+Add permission guards for role-based access
+Add search filters and pagination to list endpoints
+Add business logic - book appointment from property page
+Add business logic - client can cancel own appointments
+Add Swagger documentation for all appointment endpoints
 
-MISSING FEATURES TO IMPLEMENT:
-None - All invoice features completed!
+EMAIL REMINDER SYSTEM
+Create appointment reminder email template
+Create cron job to check appointments 24 hours before
+Add email sending logic for reminders
+Test reminder system
 
-VERIFIED IMPLEMENTATION NOTES:
-- Schema has proper cascade deletes: Invoice -> Enrollment (onDelete: Cascade), Commission -> Invoice (onDelete: Cascade)
-- However, business rules require CANCELLING invoices (status update), NOT deleting them
-- The cancel logic must preserve paid invoices and their commissions
-- Only unpaid invoices (PENDING, OVERDUE) should be cancelled
-- Only PENDING commissions should be deleted when invoice is cancelled
-- PAID commissions must remain intact even if enrollment is cancelled
+PERMISSIONS & RBAC
+Create permissions for schedules management
+Create permissions for appointments management
+Assign permissions to appropriate roles
+Test permission enforcement
+
