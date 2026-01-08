@@ -1,13 +1,87 @@
-LEADS MANAGEMENT - FULLY COMPLETED
+KYC MANAGEMENT AND APPROVAL TODO
 
-✅ Swagger API Documentation added to all endpoints
-✅ Pagination added to ALL list endpoints including feedbacks and history
-✅ Migration applied successfully to database
-✅ All tables created: leads, lead_feedbacks, lead_agent_history
-✅ User table updated with leadId, closedBy, isSuspended fields
+KYC SERVICE UPDATES
+Update all save step methods to save to both draft fields and main fields when saving
+Add getDraftChanges method to compare draft vs last submission by section showing old value current value
+Update submitKyc to copy all draft data to main fields create history snapshot and change status to SUBMITTED
+Update submitKyc validation to return detailed errors specifying which steps have issues with field level detail
+Add method to check KYC completion status for enforcing restrictions on other features
+Add getKycWithDraftChanges method for clients to see their draft vs submitted differences
+Add validateKyc method to return detailed validation errors for all steps
 
-READY TO USE
+KYC CLIENT ENDPOINTS
+Update all save step endpoints to return proper SaveStepResponseDto with message status currentStep
+Add query param continueToNext boolean to save endpoints for Submit and continue behavior default false for Submit and skip
+Update GET me endpoint to include draftChanges field showing differences if status is DRAFT or REJECTED
+Add GET kyc validate endpoint to get detailed validation errors for all steps before submission returns ValidateKycResponseDto
+Ensure rejection reasons response includes full reason and truncatedReason for display
 
-Access Swagger docs at: http://localhost:3000/api/docs
-All 17 endpoints are live with full request/response documentation
-Search, filters, and pagination on all list endpoints
+KYC ADMIN ENDPOINTS
+Add search to GET kyc list endpoint search by client name email submission date querystring
+Add filters status submissionDateFrom submissionDateTo reviewDateFrom reviewDateTo to list endpoint
+Update list response to include client info name email submission date status feedback
+Update PATCH kyc id approve to accept ApproveKycDto with optional feedback
+Update PATCH kyc id reject to accept RejectKycDto with reason and optional feedback
+Update GET kyc id endpoint to return KycDetailResponseDto with all kyc data client info history preview
+Add RBAC guards PermissionsGuard to all admin endpoints
+
+KYC PERMISSIONS AND RBAC
+Create permission kyc view own for clients to view their own KYC
+Create permission kyc manage for clients to create update submit their KYC
+Create permission kyc view all for admins to list and view all KYCs
+Create permission kyc review for admins to approve or reject KYCs
+Seed all KYC permissions in database via migration or seed script
+Apply Permissions decorator with kyc view all to GET kyc list endpoint
+Apply Permissions decorator with kyc view all to GET kyc id endpoint
+Apply Permissions decorator with kyc review to PATCH kyc id approve endpoint
+Apply Permissions decorator with kyc review to PATCH kyc id reject endpoint
+Apply Permissions decorator with kyc view all to GET kyc id history endpoint
+Apply Permissions decorator with kyc view own to GET kyc me endpoint
+Apply Permissions decorator with kyc manage to all save step POST endpoints
+Apply Permissions decorator with kyc manage to POST kyc submit endpoint
+Test all permission guards work correctly for admin vs client access
+
+KYC RESTRICTIONS AND VALIDATIONS
+Create KycCompletionGuard to check if user has completed and verified KYC
+Add isKycComplete method to check if all 6 steps are filled
+Add isKycVerified method to check if status is APPROVED
+Apply KycCompletionGuard to property endpoints that require verified KYC per PRD
+Apply KycCompletionGuard to partnership application endpoint
+Update guards to throw proper error messages indicating KYC completion required
+
+KYC NOTIFICATIONS
+Create email template for KYC submission notification to admin
+Create email template for KYC approval notification to client
+Create email template for KYC rejection notification to client with reason
+Implement sendKycSubmittedEmail to notify admin when client submits KYC
+Implement sendKycApprovedEmail to notify client when KYC is approved
+Implement sendKycRejectedEmail to notify client when KYC is rejected with reason
+Integrate email sending into submitKyc approveKyc rejectKyc service methods
+
+UPDATE EXISTING ENDPOINTS
+Update POST kyc personal to return SavePersonalStepResponseDto and accept continueToNext query param
+Update POST kyc address to return SaveAddressStepResponseDto and accept continueToNext query param
+Update POST kyc occupation to return SaveOccupationStepResponseDto and accept continueToNext query param
+Update POST kyc identity to return SaveIdentityStepResponseDto and accept continueToNext query param
+Update POST kyc next-of-kin to return SaveNextOfKinStepResponseDto and accept continueToNext query param
+Update POST kyc bank to return SaveBankStepResponseDto and accept continueToNext query param
+Update POST kyc submit to return SubmitKycResponseDto with proper fields
+Update GET kyc me to return GetMyKycResponseDto with draft changes
+Update GET kyc to accept ListKycsQueryDto and return ListKycsResponseDto with pagination metadata
+Update GET kyc id to return KycDetailResponseDto with all details
+Update PATCH kyc id approve to accept ApproveKycDto and return ApproveKycResponseDto
+Update PATCH kyc id reject to accept RejectKycDto and return RejectKycResponseDto
+
+TESTING AND VALIDATION
+Test client KYC flow save each step see draft save and skip vs save and continue submit view status view draft changes
+Test admin approval flow list KYCs with filters and search view details approve with feedback reject with reason
+Test RBAC all endpoints ensure admins can access admin endpoints clients cannot
+Test clients can only access their own KYC not others
+Test KYC restrictions incomplete KYC users cannot access restricted property features
+Test partnership application blocked for users without verified KYC
+Test email notifications sent correctly for submission approval rejection
+Test draft management save steps navigate between steps see unsaved changes compared to last submission
+Test validation endpoint returns detailed field level errors before submission
+Test pagination on list endpoint with different page sizes
+Test search on list endpoint by client name email
+Test filters by status and date ranges on list endpoint

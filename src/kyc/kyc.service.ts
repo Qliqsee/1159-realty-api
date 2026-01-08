@@ -12,6 +12,16 @@ import { SaveOccupationStepDto } from './dto/save-occupation-step.dto';
 import { SaveIdentityStepDto } from './dto/save-identity-step.dto';
 import { SaveNextOfKinStepDto } from './dto/save-next-of-kin-step.dto';
 import { SaveBankStepDto } from './dto/save-bank-step.dto';
+import { DraftChangeDto } from './dto/draft-change.dto';
+import { ValidationErrorDto } from './dto/validate-kyc.dto';
+import {
+  SavePersonalStepResponseDto,
+  SaveAddressStepResponseDto,
+  SaveOccupationStepResponseDto,
+  SaveIdentityStepResponseDto,
+  SaveNextOfKinStepResponseDto,
+  SaveBankStepResponseDto,
+} from './dto/save-step-response.dto';
 
 @Injectable()
 export class KycService {
@@ -22,15 +32,19 @@ export class KycService {
   async savePersonalStep(
     userId: string,
     data: SavePersonalStepDto,
-  ): Promise<Kyc> {
+    continueToNext: boolean = false,
+  ): Promise<SavePersonalStepResponseDto> {
     const kyc = await this.getOrCreateKyc(userId, userId);
 
-    // Save step data
+    // Save to draft field
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
-        personal: data as any,
-        currentStep: this.advanceStep(kyc.currentStep, KycStep.PERSONAL),
+        personalDraft: data as any,
+        personal: data as any, // Also update main field for immediate use
+        currentStep: continueToNext
+          ? this.getNextStep(KycStep.PERSONAL)
+          : kyc.currentStep,
         updatedBy: userId,
       },
     });
@@ -46,20 +60,30 @@ export class KycService {
     });
 
     this.logger.log(`Personal step saved for KYC ${kyc.id}`);
-    return updated;
+
+    return {
+      message: 'Personal information saved successfully',
+      status: updated.status,
+      currentStep: updated.currentStep,
+      hasCompletedOnboarding: true,
+    };
   }
 
   async saveAddressStep(
     userId: string,
     data: SaveAddressStepDto,
-  ): Promise<Kyc> {
+    continueToNext: boolean = false,
+  ): Promise<SaveAddressStepResponseDto> {
     const kyc = await this.getOrCreateKyc(userId, userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
+        addressDraft: data as any,
         address: data as any,
-        currentStep: this.advanceStep(kyc.currentStep, KycStep.ADDRESS),
+        currentStep: continueToNext
+          ? this.getNextStep(KycStep.ADDRESS)
+          : kyc.currentStep,
         updatedBy: userId,
       },
     });
@@ -74,80 +98,124 @@ export class KycService {
     });
 
     this.logger.log(`Address step saved for KYC ${kyc.id}`);
-    return updated;
+
+    return {
+      message: 'Address information saved successfully',
+      status: updated.status,
+      currentStep: updated.currentStep,
+    };
   }
 
   async saveOccupationStep(
     userId: string,
     data: SaveOccupationStepDto,
-  ): Promise<Kyc> {
+    continueToNext: boolean = false,
+  ): Promise<SaveOccupationStepResponseDto> {
     const kyc = await this.getOrCreateKyc(userId, userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
+        occupationDraft: data as any,
         occupation: data as any,
-        currentStep: this.advanceStep(kyc.currentStep, KycStep.OCCUPATION),
+        currentStep: continueToNext
+          ? this.getNextStep(KycStep.OCCUPATION)
+          : kyc.currentStep,
         updatedBy: userId,
       },
     });
 
     this.logger.log(`Occupation step saved for KYC ${kyc.id}`);
-    return updated;
+
+    return {
+      message: 'Occupation information saved successfully',
+      status: updated.status,
+      currentStep: updated.currentStep,
+    };
   }
 
   async saveIdentityStep(
     userId: string,
     data: SaveIdentityStepDto,
-  ): Promise<Kyc> {
+    continueToNext: boolean = false,
+  ): Promise<SaveIdentityStepResponseDto> {
     const kyc = await this.getOrCreateKyc(userId, userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
+        identityDraft: data as any,
         identity: data as any,
-        currentStep: this.advanceStep(kyc.currentStep, KycStep.IDENTITY),
+        currentStep: continueToNext
+          ? this.getNextStep(KycStep.IDENTITY)
+          : kyc.currentStep,
         updatedBy: userId,
       },
     });
 
     this.logger.log(`Identity step saved for KYC ${kyc.id}`);
-    return updated;
+
+    return {
+      message: 'Identity information saved successfully',
+      status: updated.status,
+      currentStep: updated.currentStep,
+    };
   }
 
   async saveNextOfKinStep(
     userId: string,
     data: SaveNextOfKinStepDto,
-  ): Promise<Kyc> {
+    continueToNext: boolean = false,
+  ): Promise<SaveNextOfKinStepResponseDto> {
     const kyc = await this.getOrCreateKyc(userId, userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
+        nextOfKinDraft: data as any,
         nextOfKin: data as any,
-        currentStep: this.advanceStep(kyc.currentStep, KycStep.NEXT_OF_KIN),
+        currentStep: continueToNext
+          ? this.getNextStep(KycStep.NEXT_OF_KIN)
+          : kyc.currentStep,
         updatedBy: userId,
       },
     });
 
     this.logger.log(`Next of kin step saved for KYC ${kyc.id}`);
-    return updated;
+
+    return {
+      message: 'Next of kin information saved successfully',
+      status: updated.status,
+      currentStep: updated.currentStep,
+    };
   }
 
-  async saveBankStep(userId: string, data: SaveBankStepDto): Promise<Kyc> {
+  async saveBankStep(
+    userId: string,
+    data: SaveBankStepDto,
+    continueToNext: boolean = false,
+  ): Promise<SaveBankStepResponseDto> {
     const kyc = await this.getOrCreateKyc(userId, userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
+        bankDraft: data as any,
         bank: data as any,
-        currentStep: this.advanceStep(kyc.currentStep, KycStep.BANK),
+        currentStep: continueToNext
+          ? this.getNextStep(KycStep.BANK)
+          : kyc.currentStep,
         updatedBy: userId,
       },
     });
 
     this.logger.log(`Bank step saved for KYC ${kyc.id}`);
-    return updated;
+
+    return {
+      message: 'Bank information saved successfully',
+      status: updated.status,
+      currentStep: updated.currentStep,
+    };
   }
 
   async submitKyc(userId: string): Promise<Kyc> {
@@ -159,19 +227,42 @@ export class KycService {
       throw new NotFoundException('KYC not found');
     }
 
-    // Validate all steps are completed
-    if (!kyc.personal || !kyc.address || !kyc.occupation || !kyc.identity || !kyc.nextOfKin || !kyc.bank) {
-      throw new BadRequestException('All KYC steps must be completed before submission');
+    // Validate all steps are completed using draft or main fields
+    const personalData = kyc.personalDraft || kyc.personal;
+    const addressData = kyc.addressDraft || kyc.address;
+    const occupationData = kyc.occupationDraft || kyc.occupation;
+    const identityData = kyc.identityDraft || kyc.identity;
+    const nextOfKinData = kyc.nextOfKinDraft || kyc.nextOfKin;
+    const bankData = kyc.bankDraft || kyc.bank;
+
+    if (
+      !personalData ||
+      !addressData ||
+      !occupationData ||
+      !identityData ||
+      !nextOfKinData ||
+      !bankData
+    ) {
+      throw new BadRequestException(
+        'All KYC steps must be completed before submission',
+      );
     }
 
     // Update KYC status to SUBMITTED and create history snapshot
     const updated = await this.prisma.$transaction(async (tx) => {
-      // Update KYC
+      // Copy draft data to main fields and update status
       const updatedKyc = await tx.kyc.update({
         where: { id: kyc.id },
         data: {
           status: KycStatus.SUBMITTED,
+          personal: personalData,
+          address: addressData,
+          occupation: occupationData,
+          identity: identityData,
+          nextOfKin: nextOfKinData,
+          bank: bankData,
           submittedAt: new Date(),
+          lastSubmittedAt: new Date(),
         },
       });
 
@@ -180,12 +271,12 @@ export class KycService {
         data: {
           kycId: kyc.id,
           status: KycStatus.SUBMITTED,
-          personal: kyc.personal,
-          address: kyc.address,
-          occupation: kyc.occupation,
-          identity: kyc.identity,
-          nextOfKin: kyc.nextOfKin,
-          bank: kyc.bank,
+          personal: personalData,
+          address: addressData,
+          occupation: occupationData,
+          identity: identityData,
+          nextOfKin: nextOfKinData,
+          bank: bankData,
           submittedAt: new Date(),
         },
       });
@@ -197,23 +288,60 @@ export class KycService {
     return updated;
   }
 
-  async getMyKyc(userId: string): Promise<Kyc | null> {
-    return this.prisma.kyc.findUnique({
+  async getMyKyc(userId: string) {
+    const kyc = await this.prisma.kyc.findUnique({
       where: { userId },
       include: {
-        rejectionReasons: true,
+        rejectionReasons: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
+
+    if (!kyc) {
+      return null;
+    }
+
+    // Get draft changes if applicable
+    const draftChanges = this.getDraftChanges(kyc);
+
+    // Format rejection reasons with truncated version
+    const rejectionReasons = kyc.rejectionReasons.map((r) => ({
+      id: r.id,
+      reason: r.reason,
+      truncatedReason:
+        r.reason.length > 100 ? r.reason.substring(0, 100) + '...' : r.reason,
+      createdAt: r.createdAt,
+    }));
+
+    return {
+      ...kyc,
+      draftChanges,
+      rejectionReasons,
+    };
   }
 
-  async getKycById(id: string): Promise<Kyc> {
+  async getKycById(id: string) {
     const kyc = await this.prisma.kyc.findUnique({
       where: { id },
       include: {
         user: {
           select: { id: true, email: true, name: true },
         },
-        rejectionReasons: true,
+        reviewer: {
+          select: { id: true, email: true, name: true },
+        },
+        rejectionReasons: {
+          orderBy: { createdAt: 'desc' },
+        },
+        history: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            reviewer: {
+              select: { id: true, email: true, name: true },
+            },
+          },
+        },
       },
     });
 
@@ -221,15 +349,64 @@ export class KycService {
       throw new NotFoundException('KYC not found');
     }
 
-    return kyc;
+    // Format rejection reasons with truncated version
+    const rejectionReasons = kyc.rejectionReasons.map((r) => ({
+      id: r.id,
+      reason: r.reason,
+      truncatedReason:
+        r.reason.length > 100 ? r.reason.substring(0, 100) + '...' : r.reason,
+      createdAt: r.createdAt,
+    }));
+
+    return {
+      ...kyc,
+      rejectionReasons,
+    };
   }
 
   async listKycs(
+    search?: string,
     status?: KycStatus,
+    submissionDateFrom?: string,
+    submissionDateTo?: string,
+    reviewDateFrom?: string,
+    reviewDateTo?: string,
     page: number = 1,
     limit: number = 20,
-  ): Promise<{ data: Kyc[]; total: number; page: number; limit: number }> {
-    const where: Prisma.KycWhereInput = status ? { status } : {};
+  ) {
+    const where: Prisma.KycWhereInput = {};
+
+    // Apply filters
+    if (status) {
+      where.status = status;
+    }
+
+    if (search) {
+      where.OR = [
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    if (submissionDateFrom || submissionDateTo) {
+      where.submittedAt = {};
+      if (submissionDateFrom) {
+        where.submittedAt.gte = new Date(submissionDateFrom);
+      }
+      if (submissionDateTo) {
+        where.submittedAt.lte = new Date(submissionDateTo);
+      }
+    }
+
+    if (reviewDateFrom || reviewDateTo) {
+      where.reviewedAt = {};
+      if (reviewDateFrom) {
+        where.reviewedAt.gte = new Date(reviewDateFrom);
+      }
+      if (reviewDateTo) {
+        where.reviewedAt.lte = new Date(reviewDateTo);
+      }
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.kyc.findMany({
@@ -246,10 +423,12 @@ export class KycService {
       this.prisma.kyc.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    const hasMore = page * limit < total;
+
+    return { data, total, page, limit, hasMore };
   }
 
-  async approveKyc(kycId: string, adminId: string): Promise<Kyc> {
+  async approveKyc(kycId: string, adminId: string, feedback?: string): Promise<Kyc> {
     const kyc = await this.prisma.kyc.findUnique({ where: { id: kycId } });
 
     if (!kyc) {
@@ -268,6 +447,7 @@ export class KycService {
           status: KycStatus.APPROVED,
           reviewedAt: new Date(),
           reviewedBy: adminId,
+          feedback: feedback || null,
         },
       });
 
@@ -281,6 +461,7 @@ export class KycService {
           reviewedAt: new Date(),
           reviewedBy: adminId,
           reviewAction: 'APPROVED',
+          feedback: feedback || null,
         },
       });
 
@@ -291,7 +472,12 @@ export class KycService {
     return updated;
   }
 
-  async rejectKyc(kycId: string, adminId: string, reason: string): Promise<Kyc> {
+  async rejectKyc(
+    kycId: string,
+    adminId: string,
+    reason: string,
+    feedback?: string,
+  ): Promise<Kyc> {
     const kyc = await this.prisma.kyc.findUnique({ where: { id: kycId } });
 
     if (!kyc) {
@@ -310,6 +496,7 @@ export class KycService {
           status: KycStatus.REJECTED,
           reviewedAt: new Date(),
           reviewedBy: adminId,
+          feedback: feedback || null,
         },
       });
 
@@ -333,6 +520,7 @@ export class KycService {
           reviewedBy: adminId,
           reviewAction: 'REJECTED',
           rejectionReasons: [reason],
+          feedback: feedback || null,
         },
       });
 
@@ -361,7 +549,174 @@ export class KycService {
     });
   }
 
-  private async getOrCreateKyc(userId: string, createdBy?: string): Promise<Kyc> {
+  async validateKyc(userId: string): Promise<{
+    isValid: boolean;
+    errors: ValidationErrorDto[];
+  }> {
+    const kyc = await this.prisma.kyc.findUnique({
+      where: { userId },
+    });
+
+    const errors: ValidationErrorDto[] = [];
+
+    if (!kyc) {
+      return {
+        isValid: false,
+        errors: [
+          {
+            step: KycStep.PERSONAL,
+            field: 'kyc',
+            message: 'KYC not found. Please start by completing personal information.',
+          },
+        ],
+      };
+    }
+
+    // Check each step using draft or main fields
+    const personalData = kyc.personalDraft || kyc.personal;
+    const addressData = kyc.addressDraft || kyc.address;
+    const occupationData = kyc.occupationDraft || kyc.occupation;
+    const identityData = kyc.identityDraft || kyc.identity;
+    const nextOfKinData = kyc.nextOfKinDraft || kyc.nextOfKin;
+    const bankData = kyc.bankDraft || kyc.bank;
+
+    if (!personalData) {
+      errors.push({
+        step: KycStep.PERSONAL,
+        field: 'personal',
+        message: 'Personal information is required',
+      });
+    }
+
+    if (!addressData) {
+      errors.push({
+        step: KycStep.ADDRESS,
+        field: 'address',
+        message: 'Address information is required',
+      });
+    }
+
+    if (!occupationData) {
+      errors.push({
+        step: KycStep.OCCUPATION,
+        field: 'occupation',
+        message: 'Occupation information is required',
+      });
+    }
+
+    if (!identityData) {
+      errors.push({
+        step: KycStep.IDENTITY,
+        field: 'identity',
+        message: 'Identity information is required',
+      });
+    }
+
+    if (!nextOfKinData) {
+      errors.push({
+        step: KycStep.NEXT_OF_KIN,
+        field: 'nextOfKin',
+        message: 'Next of kin information is required',
+      });
+    }
+
+    if (!bankData) {
+      errors.push({
+        step: KycStep.BANK,
+        field: 'bank',
+        message: 'Bank information is required',
+      });
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  }
+
+  isKycComplete(kyc: Kyc | null): boolean {
+    if (!kyc) return false;
+    return !!(
+      kyc.personal &&
+      kyc.address &&
+      kyc.occupation &&
+      kyc.identity &&
+      kyc.nextOfKin &&
+      kyc.bank
+    );
+  }
+
+  isKycVerified(kyc: Kyc | null): boolean {
+    if (!kyc) return false;
+    return kyc.status === KycStatus.APPROVED;
+  }
+
+  getDraftChanges(kyc: Kyc): DraftChangeDto[] {
+    const changes: DraftChangeDto[] = [];
+
+    // Compare each step's draft vs submitted version
+    this.compareStepData(
+      'personal',
+      kyc.personal,
+      kyc.personalDraft,
+      changes,
+    );
+    this.compareStepData('address', kyc.address, kyc.addressDraft, changes);
+    this.compareStepData(
+      'occupation',
+      kyc.occupation,
+      kyc.occupationDraft,
+      changes,
+    );
+    this.compareStepData('identity', kyc.identity, kyc.identityDraft, changes);
+    this.compareStepData(
+      'nextOfKin',
+      kyc.nextOfKin,
+      kyc.nextOfKinDraft,
+      changes,
+    );
+    this.compareStepData('bank', kyc.bank, kyc.bankDraft, changes);
+
+    return changes;
+  }
+
+  private compareStepData(
+    section: string,
+    submitted: any,
+    draft: any,
+    changes: DraftChangeDto[],
+  ) {
+    if (!draft) return; // No draft data means no changes
+
+    const submittedData = submitted || {};
+    const draftData = draft;
+
+    // Compare each field
+    for (const field of Object.keys(draftData)) {
+      const oldValue = submittedData[field];
+      const newValue = draftData[field];
+
+      // Only add if values are different (trim strings for comparison)
+      const oldValueStr =
+        typeof oldValue === 'string' ? oldValue.trim() : oldValue;
+      const newValueStr =
+        typeof newValue === 'string' ? newValue.trim() : newValue;
+
+      if (JSON.stringify(oldValueStr) !== JSON.stringify(newValueStr)) {
+        changes.push({
+          section,
+          field,
+          oldValue: oldValue ?? null,
+          newValue,
+        });
+      }
+    }
+  }
+
+  private async getOrCreateKyc(
+    userId: string,
+    createdBy?: string,
+  ): Promise<Kyc> {
     let kyc = await this.prisma.kyc.findUnique({ where: { userId } });
 
     if (!kyc) {
@@ -377,6 +732,23 @@ export class KycService {
     }
 
     return kyc;
+  }
+
+  private getNextStep(currentStep: KycStep): KycStep {
+    const stepOrder = [
+      KycStep.PERSONAL,
+      KycStep.ADDRESS,
+      KycStep.OCCUPATION,
+      KycStep.IDENTITY,
+      KycStep.NEXT_OF_KIN,
+      KycStep.BANK,
+    ];
+
+    const currentIndex = stepOrder.indexOf(currentStep);
+    if (currentIndex < stepOrder.length - 1) {
+      return stepOrder[currentIndex + 1];
+    }
+    return currentStep; // Stay on last step
   }
 
   private advanceStep(currentStep: KycStep, savedStep: KycStep): KycStep {

@@ -218,9 +218,18 @@ model Kyc {
   nextOfKin  Json?
   bank       Json?
 
-  submittedAt DateTime?
-  reviewedAt  DateTime?
-  reviewedBy  String?
+  personalDraft   Json?
+  addressDraft    Json?
+  occupationDraft Json?
+  identityDraft   Json?
+  nextOfKinDraft  Json?
+  bankDraft       Json?
+
+  submittedAt     DateTime?
+  lastSubmittedAt DateTime?
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  feedback        String?   @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -267,6 +276,7 @@ model KycHistory {
   reviewedBy       String?
   reviewAction     String?
   rejectionReasons String[]
+  feedback         String?   @db.Text
 
   createdAt DateTime @default(now())
 

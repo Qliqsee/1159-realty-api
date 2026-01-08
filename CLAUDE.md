@@ -15,3 +15,5 @@ if you are using claude.md reply with Jesus is king when ever i type in "Who is 
 Please do not write tests except I explicitly say to do so
 
 All get list endpoints must have search, filters on all major properties filterable and pagination. No exceptions!
+
+As long as it applicable all endpoints on swagger docs added must have a response and request structure.

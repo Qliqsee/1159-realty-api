@@ -24,16 +24,52 @@ export class RolesService {
     });
   }
 
-  async findAll() {
-    return this.prisma.role.findMany({
-      include: {
-        rolePermissions: {
-          include: {
-            permission: true,
+  async findAll(query?: {
+    search?: string;
+    appContext?: string;
+    page?: string;
+    limit?: string;
+  }) {
+    const page = query?.page ? parseInt(query.page, 10) : 1;
+    const limit = query?.limit ? parseInt(query.limit, 10) : 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (query?.search) {
+      where.name = { contains: query.search, mode: 'insensitive' };
+    }
+
+    if (query?.appContext) {
+      where.appContext = query.appContext;
+    }
+
+    const [roles, total] = await Promise.all([
+      this.prisma.role.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          rolePermissions: {
+            include: {
+              permission: true,
+            },
           },
         },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.role.count({ where }),
+    ]);
+
+    return {
+      data: roles,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-    });
+    };
   }
 
   async findOne(id: string) {
@@ -156,7 +192,42 @@ export class RolesService {
     });
   }
 
-  async findAllPermissions() {
-    return this.prisma.permission.findMany();
+  async findAllPermissions(query?: {
+    search?: string;
+    page?: string;
+    limit?: string;
+  }) {
+    const page = query?.page ? parseInt(query.page, 10) : 1;
+    const limit = query?.limit ? parseInt(query.limit, 10) : 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (query?.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { resource: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [permissions, total] = await Promise.all([
+      this.prisma.permission.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.permission.count({ where }),
+    ]);
+
+    return {
+      data: permissions,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

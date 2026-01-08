@@ -5,20 +5,69 @@ import { PrismaService } from '../prisma.service';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
-    return this.prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-        userRoles: {
-          include: {
-            role: true,
+  async findAll(query?: {
+    search?: string;
+    roleId?: string;
+    emailVerified?: string;
+    page?: string;
+    limit?: string;
+  }) {
+    const page = query?.page ? parseInt(query.page, 10) : 1;
+    const limit = query?.limit ? parseInt(query.limit, 10) : 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (query?.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (query?.roleId) {
+      where.userRoles = {
+        some: {
+          roleId: query.roleId,
+        },
+      };
+    }
+
+    if (query?.emailVerified) {
+      where.isEmailVerified = query.emailVerified === 'true';
+    }
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          isEmailVerified: true,
+          userRoles: {
+            include: {
+              role: true,
+            },
           },
         },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      data: users,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-    });
+    };
   }
 
   async findOne(id: string) {

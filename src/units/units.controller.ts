@@ -8,7 +8,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { UnitsService } from './units.service';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { UpdateUnitDto } from './dto/update-unit.dto';
@@ -24,6 +29,12 @@ export class UnitsController {
   constructor(private unitsService: UnitsService) {}
 
   @Get('properties/:propertyId/units')
+  @ApiOperation({ summary: 'List units by property with pagination and filters' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns paginated units list with filters',
+  })
+  @ApiResponse({ status: 404, description: 'Property not found' })
   findAllByProperty(
     @Param('propertyId') propertyId: string,
     @Query() queryDto: QueryUnitsDto,
@@ -32,6 +43,9 @@ export class UnitsController {
   }
 
   @Get('units/:id')
+  @ApiOperation({ summary: 'Get unit by ID with full details' })
+  @ApiResponse({ status: 200, description: 'Unit details retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Unit not found' })
   findOne(@Param('id') id: string) {
     return this.unitsService.findOne(id);
   }
@@ -40,6 +54,11 @@ export class UnitsController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiOperation({ summary: 'Create a new unit for property (admin only)' })
+  @ApiResponse({ status: 201, description: 'Unit created successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Property not found' })
   create(
     @Param('propertyId') propertyId: string,
     @Body() createUnitDto: CreateUnitDto,
@@ -52,6 +71,11 @@ export class UnitsController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiOperation({ summary: 'Batch create units for property (admin only)' })
+  @ApiResponse({ status: 201, description: 'Units batch created successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Property not found' })
   batchCreate(
     @Param('propertyId') propertyId: string,
     @Body() batchDto: BatchCreateUnitsDto,
@@ -63,6 +87,11 @@ export class UnitsController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiOperation({ summary: 'Update unit details (admin only)' })
+  @ApiResponse({ status: 200, description: 'Unit updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Unit not found' })
   update(@Param('id') id: string, @Body() updateUnitDto: UpdateUnitDto) {
     return this.unitsService.update(id, updateUnitDto);
   }
@@ -71,6 +100,11 @@ export class UnitsController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @ApiOperation({ summary: 'Archive unit (admin only)' })
+  @ApiResponse({ status: 200, description: 'Unit archived successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Unit not found' })
   archive(@Param('id') id: string) {
     return this.unitsService.archive(id);
   }
