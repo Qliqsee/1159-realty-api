@@ -37,6 +37,20 @@ import {
   ListPartnershipsQueryDto,
   ListPartnershipsResponseDto,
 } from './dto/list-partnerships.dto';
+import {
+  SuspendPartnershipResponseDto,
+  UnsuspendPartnershipResponseDto,
+} from './dto/suspend-partnership.dto';
+import {
+  ListPartnerClientsQueryDto,
+} from './dto/list-partner-clients.dto';
+import {
+  ListPartnerClientsResponseDto,
+  PartnerClientDetailDto,
+} from './dto/partner-client-response.dto';
+import {
+  PartnerDashboardDto,
+} from './dto/partner-dashboard.dto';
 
 @ApiTags('Partnership')
 @Controller('partnership')
@@ -177,5 +191,119 @@ export class PartnershipController {
       status: partnership.status,
       rejectionCooldown: partnership.rejectionCooldown,
     };
+  }
+
+  @Patch(':id/suspend')
+  @RequirePermissions('partnership:suspend')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Suspend approved partnership (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Partnership suspended successfully',
+    type: SuspendPartnershipResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Only approved partnerships can be suspended or already suspended' })
+  @ApiResponse({ status: 404, description: 'Partnership not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async suspendPartnership(
+    @Param('id') id: string,
+    @Req() req,
+  ): Promise<SuspendPartnershipResponseDto> {
+    const partnership = await this.partnershipService.suspendPartnership(
+      id,
+      req.user.userId,
+    );
+    return {
+      message: 'Partnership suspended successfully',
+      partnershipId: partnership.id,
+      status: partnership.status,
+      suspendedAt: partnership.suspendedAt,
+    };
+  }
+
+  @Patch(':id/unsuspend')
+  @RequirePermissions('partnership:suspend')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Unsuspend partnership (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Partnership unsuspended successfully',
+    type: UnsuspendPartnershipResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Partnership is not suspended' })
+  @ApiResponse({ status: 404, description: 'Partnership not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async unsuspendPartnership(
+    @Param('id') id: string,
+    @Req() req,
+  ): Promise<UnsuspendPartnershipResponseDto> {
+    const partnership = await this.partnershipService.unsuspendPartnership(
+      id,
+      req.user.userId,
+    );
+    return {
+      message: 'Partnership unsuspended successfully',
+      partnershipId: partnership.id,
+      status: partnership.status,
+    };
+  }
+
+  // Partner Endpoints
+
+  @Get('my-clients')
+  @RequirePermissions('partnership:view_clients')
+  @ApiOperation({ summary: 'Get clients onboarded by partner (Partner only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of clients with pagination',
+    type: ListPartnerClientsResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getPartnerClients(
+    @Query() query: ListPartnerClientsQueryDto,
+    @Req() req,
+  ): Promise<ListPartnerClientsResponseDto> {
+    return this.partnershipService.getPartnerClients(
+      req.user.userId,
+      query.search,
+      query.enrollmentStatus,
+      query.page ? parseInt(query.page) : 1,
+      query.limit ? parseInt(query.limit) : 20,
+    );
+  }
+
+  @Get('my-clients/:clientId')
+  @RequirePermissions('partnership:view_clients')
+  @ApiOperation({ summary: 'Get client details with enrollments and commissions (Partner only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Client details retrieved',
+    type: PartnerClientDetailDto,
+  })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getPartnerClientDetail(
+    @Param('clientId') clientId: string,
+    @Req() req,
+  ): Promise<PartnerClientDetailDto> {
+    return this.partnershipService.getPartnerClientDetail(req.user.userId, clientId);
+  }
+
+  @Get('dashboard')
+  @RequirePermissions('partnership:view_clients')
+  @ApiOperation({ summary: 'Get partner dashboard with stats and revenue (Partner only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard data retrieved',
+    type: PartnerDashboardDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getPartnerDashboard(@Req() req): Promise<PartnerDashboardDto> {
+    return this.partnershipService.getPartnerDashboard(req.user.userId);
   }
 }

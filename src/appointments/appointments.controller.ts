@@ -24,6 +24,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('Appointments')
+@Controller('appointments')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 export class AppointmentsController {

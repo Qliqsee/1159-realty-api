@@ -418,6 +418,26 @@ async function main() {
         description: 'Approve or reject partnership applications',
       },
     }),
+    prisma.permission.upsert({
+      where: { name: 'partnership:view_clients' },
+      update: {},
+      create: {
+        name: 'partnership:view_clients',
+        resource: 'partnership',
+        action: 'view_clients',
+        description: 'View clients onboarded by partner',
+      },
+    }),
+    prisma.permission.upsert({
+      where: { name: 'partnership:suspend' },
+      update: {},
+      create: {
+        name: 'partnership:suspend',
+        resource: 'partnership',
+        action: 'suspend',
+        description: 'Suspend or unsuspend partnerships',
+      },
+    }),
   ]);
 
   const customerRole = await prisma.role.upsert({
@@ -712,10 +732,13 @@ async function main() {
     'commission:read-own',
     'commission:read-detail',
     'commission:stats',
+    'partnership:view_own',
+    'partnership:view_clients',
   ];
-  const partnerPerms = commissionPermissions.filter((p) =>
-    partnerPermissionNames.includes(p.name)
-  );
+  const partnerPerms = [
+    ...commissionPermissions,
+    ...customerPermissions,
+  ].filter((p) => partnerPermissionNames.includes(p.name));
 
   await Promise.all(
     partnerPerms.map((permission) =>

@@ -92,7 +92,11 @@ export class EnrollmentsService {
         where: { id: clientId },
         include: {
           kyc: true,
-          partnership: true,
+          referredByPartner: {
+            include: {
+              partnership: true,
+            },
+          },
         },
       });
 
@@ -120,9 +124,13 @@ export class EnrollmentsService {
         throw new BadRequestException('Client already has an enrollment for this property');
       }
 
-      // Auto-populate partner ID if client has approved partner
-      if (client.partnership?.status === 'APPROVED') {
-        partnerId = client.id;
+      // Auto-populate partner ID if client was referred by an approved partner
+      if (client.referredByPartnerId && client.referredByPartner?.partnership?.status === 'APPROVED') {
+        // Check if partner is not suspended
+        const partnerSuspended = !!client.referredByPartner.partnership.suspendedAt;
+        if (!partnerSuspended) {
+          partnerId = client.referredByPartnerId;
+        }
       }
     }
 
@@ -628,7 +636,13 @@ export class EnrollmentsService {
     // Validate client exists
     const client = await this.prisma.user.findUnique({
       where: { id: clientId },
-      include: { partnership: true },
+      include: {
+        referredByPartner: {
+          include: {
+            partnership: true,
+          },
+        },
+      },
     });
 
     if (!client) {
@@ -649,13 +663,22 @@ export class EnrollmentsService {
       throw new BadRequestException('Client already has an enrollment for this property');
     }
 
+    // Determine partner ID based on who referred the client
+    let partnerId: string | null = null;
+    if (client.referredByPartnerId && client.referredByPartner?.partnership?.status === 'APPROVED') {
+      const partnerSuspended = !!client.referredByPartner.partnership.suspendedAt;
+      if (!partnerSuspended) {
+        partnerId = client.referredByPartnerId;
+      }
+    }
+
     // Update enrollment and disable payment links
     return this.prisma.$transaction(async (prisma) => {
       const updated = await prisma.enrollment.update({
         where: { id },
         data: {
           clientId,
-          partnerId: client.partnership?.status === 'APPROVED' ? client.id : null,
+          partnerId,
         },
       });
 

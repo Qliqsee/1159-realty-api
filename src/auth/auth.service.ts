@@ -14,7 +14,7 @@ export class AuthService {
   ) {}
 
   async signUp(signUpDto: SignUpDto) {
-    const { email, password, name } = signUpDto;
+    const { email, password, name, partnerRefCode } = signUpDto;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -26,11 +26,30 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Validate partner referral code if provided
+    let referredByPartnerId: string | undefined;
+    if (partnerRefCode) {
+      const referringPartner = await this.prisma.user.findFirst({
+        where: {
+          partnerLink: partnerRefCode,
+          partnership: {
+            status: 'APPROVED',
+            suspendedAt: null,
+          },
+        },
+      });
+
+      if (referringPartner) {
+        referredByPartnerId = referringPartner.id;
+      }
+    }
+
     const user = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
+        referredByPartnerId,
       },
     });
 

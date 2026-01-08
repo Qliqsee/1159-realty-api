@@ -4,14 +4,28 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
-import { Partnership, PartnershipStatus } from '@prisma/client';
+import { Partnership, PartnershipStatus, EnrollmentStatus } from '@prisma/client';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class PartnershipService {
   private readonly logger = new Logger(PartnershipService.name);
+  private readonly clientAppUrl: string;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {
+    this.clientAppUrl = this.configService.get<string>('CLIENT_APP_URL') || 'https://app.example.com';
+  }
+
+  private generatePartnerLink(userId: string): string {
+    // Generate unique partner link token
+    const token = crypto.randomBytes(16).toString('hex');
+    return `${token}-${userId.substring(0, 8)}`;
+  }
 
   async applyForPartnership(userId: string): Promise<Partnership> {
     // Check if user has approved KYC
@@ -88,10 +102,35 @@ export class PartnershipService {
     return partnership;
   }
 
-  async getMyPartnership(userId: string): Promise<Partnership | null> {
-    return this.prisma.partnership.findUnique({
+  async getMyPartnership(userId: string): Promise<any> {
+    const partnership = await this.prisma.partnership.findUnique({
       where: { userId },
+      include: {
+        user: {
+          select: {
+            partnerLink: true,
+          },
+        },
+      },
     });
+
+    if (!partnership) {
+      return null;
+    }
+
+    const isSuspended = !!partnership.suspendedAt;
+    const isLinkActive = partnership.status === PartnershipStatus.APPROVED && !isSuspended;
+    const partnerLink = isLinkActive && partnership.user.partnerLink
+      ? `${this.clientAppUrl}/signup?ref=${partnership.user.partnerLink}`
+      : null;
+
+    return {
+      ...partnership,
+      user: undefined,
+      partnerLink,
+      isSuspended,
+      isLinkActive,
+    };
   }
 
   async listPartnerships(
@@ -188,14 +227,26 @@ export class PartnershipService {
       );
     }
 
-    const updated = await this.prisma.partnership.update({
-      where: { id },
-      data: {
-        status: PartnershipStatus.APPROVED,
-        reviewedAt: new Date(),
-        reviewedBy: adminId,
-      },
-    });
+    // Generate unique partner link
+    const partnerLink = this.generatePartnerLink(partnership.userId);
+
+    // Update both partnership and user
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.partnership.update({
+        where: { id },
+        data: {
+          status: PartnershipStatus.APPROVED,
+          reviewedAt: new Date(),
+          reviewedBy: adminId,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: partnership.userId },
+        data: {
+          partnerLink,
+        },
+      }),
+    ]);
 
     this.logger.log(`Partnership ${id} approved by admin ${adminId}`);
     return updated;
@@ -233,5 +284,359 @@ export class PartnershipService {
 
     this.logger.log(`Partnership ${id} rejected by admin ${adminId}`);
     return updated;
+  }
+
+  async suspendPartnership(id: string, adminId: string): Promise<Partnership> {
+    const partnership = await this.prisma.partnership.findUnique({
+      where: { id },
+    });
+
+    if (!partnership) {
+      throw new NotFoundException('Partnership not found');
+    }
+
+    if (partnership.status !== PartnershipStatus.APPROVED) {
+      throw new BadRequestException('Only approved partnerships can be suspended');
+    }
+
+    if (partnership.suspendedAt) {
+      throw new BadRequestException('Partnership is already suspended');
+    }
+
+    const updated = await this.prisma.partnership.update({
+      where: { id },
+      data: {
+        suspendedAt: new Date(),
+        suspendedBy: adminId,
+      },
+    });
+
+    this.logger.log(`Partnership ${id} suspended by admin ${adminId}`);
+    return updated;
+  }
+
+  async unsuspendPartnership(id: string, adminId: string): Promise<Partnership> {
+    const partnership = await this.prisma.partnership.findUnique({
+      where: { id },
+    });
+
+    if (!partnership) {
+      throw new NotFoundException('Partnership not found');
+    }
+
+    if (!partnership.suspendedAt) {
+      throw new BadRequestException('Partnership is not suspended');
+    }
+
+    const updated = await this.prisma.partnership.update({
+      where: { id },
+      data: {
+        suspendedAt: null,
+        suspendedBy: null,
+      },
+    });
+
+    this.logger.log(`Partnership ${id} unsuspended by admin ${adminId}`);
+    return updated;
+  }
+
+  async getPartnerClients(
+    partnerId: string,
+    search?: string,
+    enrollmentStatus?: EnrollmentStatus,
+    page: number = 1,
+    limit: number = 20,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      referredByPartnerId: partnerId,
+    };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [clients, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          enrollmentsAsClient: {
+            where: enrollmentStatus ? { status: enrollmentStatus } : {},
+            select: {
+              id: true,
+              status: true,
+              totalAmount: true,
+              amountPaid: true,
+            },
+          },
+          agentCommissions: {
+            where: {
+              partnerId,
+            },
+            select: {
+              amount: true,
+              status: true,
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    const data = clients.map((client) => {
+      const totalEnrollments = client.enrollmentsAsClient.length;
+      const activeEnrollments = client.enrollmentsAsClient.filter(
+        (e) => e.status === EnrollmentStatus.ONGOING,
+      ).length;
+      const totalRevenue = client.enrollmentsAsClient.reduce(
+        (sum, e) => sum + Number(e.amountPaid),
+        0,
+      );
+      const totalCommissions = client.agentCommissions.reduce(
+        (sum, c) => sum + Number(c.amount),
+        0,
+      );
+      const paidCommissions = client.agentCommissions
+        .filter((c) => c.status === 'PAID')
+        .reduce((sum, c) => sum + Number(c.amount), 0);
+      const pendingCommissions = totalCommissions - paidCommissions;
+
+      return {
+        id: client.id,
+        email: client.email,
+        name: client.name,
+        createdAt: client.createdAt,
+        totalEnrollments,
+        activeEnrollments,
+        totalRevenue,
+        totalCommissions,
+        paidCommissions,
+        pendingCommissions,
+      };
+    });
+
+    return {
+      data,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getPartnerClientDetail(partnerId: string, clientId: string) {
+    const client = await this.prisma.user.findFirst({
+      where: {
+        id: clientId,
+        referredByPartnerId: partnerId,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        enrollmentsAsClient: {
+          select: {
+            id: true,
+            status: true,
+            totalAmount: true,
+            amountPaid: true,
+            enrollmentDate: true,
+            property: {
+              select: {
+                name: true,
+              },
+            },
+          },
+          orderBy: { enrollmentDate: 'desc' },
+        },
+      },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client not found or not referred by this partner');
+    }
+
+    const commissions = await this.prisma.commission.findMany({
+      where: {
+        partnerId,
+        enrollment: {
+          clientId,
+        },
+      },
+      select: {
+        id: true,
+        enrollmentId: true,
+        amount: true,
+        status: true,
+        createdAt: true,
+        paidAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const totalRevenue = client.enrollmentsAsClient.reduce(
+      (sum, e) => sum + Number(e.amountPaid),
+      0,
+    );
+    const totalCommissions = commissions.reduce(
+      (sum, c) => sum + Number(c.amount),
+      0,
+    );
+    const paidCommissions = commissions
+      .filter((c) => c.status === 'PAID')
+      .reduce((sum, c) => sum + Number(c.amount), 0);
+    const pendingCommissions = totalCommissions - paidCommissions;
+
+    return {
+      id: client.id,
+      email: client.email,
+      name: client.name,
+      createdAt: client.createdAt,
+      enrollments: client.enrollmentsAsClient.map((e) => ({
+        id: e.id,
+        propertyName: e.property.name,
+        status: e.status,
+        totalAmount: Number(e.totalAmount),
+        amountPaid: Number(e.amountPaid),
+        enrollmentDate: e.enrollmentDate,
+      })),
+      commissions: commissions.map((c) => ({
+        id: c.id,
+        enrollmentId: c.enrollmentId,
+        amount: Number(c.amount),
+        status: c.status,
+        createdAt: c.createdAt,
+        paidAt: c.paidAt,
+      })),
+      totalRevenue,
+      totalCommissions,
+      paidCommissions,
+      pendingCommissions,
+    };
+  }
+
+  async getPartnerDashboard(partnerId: string) {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last6Months = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    // Get total clients referred by partner
+    const totalClients = await this.prisma.user.count({
+      where: { referredByPartnerId: partnerId },
+    });
+
+    // Get new clients this month
+    const newClientsThisMonth = await this.prisma.user.count({
+      where: {
+        referredByPartnerId: partnerId,
+        createdAt: { gte: startOfMonth },
+      },
+    });
+
+    // Get enrollments for referred clients
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        client: {
+          referredByPartnerId: partnerId,
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        amountPaid: true,
+        enrollmentDate: true,
+      },
+    });
+
+    const totalEnrollments = enrollments.length;
+    const activeEnrollments = enrollments.filter(
+      (e) => e.status === EnrollmentStatus.ONGOING,
+    ).length;
+    const completedEnrollments = enrollments.filter(
+      (e) => e.status === EnrollmentStatus.COMPLETED,
+    ).length;
+    const newEnrollmentsThisMonth = enrollments.filter(
+      (e) => e.enrollmentDate >= startOfMonth,
+    ).length;
+    const totalRevenue = enrollments.reduce(
+      (sum, e) => sum + Number(e.amountPaid),
+      0,
+    );
+
+    // Get commissions
+    const commissions = await this.prisma.commission.findMany({
+      where: {
+        partnerId,
+      },
+      select: {
+        amount: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    const totalCommissionsEarned = commissions.reduce(
+      (sum, c) => sum + Number(c.amount),
+      0,
+    );
+    const paidCommissions = commissions
+      .filter((c) => c.status === 'PAID')
+      .reduce((sum, c) => sum + Number(c.amount), 0);
+    const pendingCommissions = totalCommissionsEarned - paidCommissions;
+
+    // Calculate monthly revenue for last 6 months
+    const monthlyRevenueMap = new Map<string, { revenue: number; commissions: number }>();
+
+    enrollments.forEach((e) => {
+      const monthKey = `${e.enrollmentDate.getFullYear()}-${String(e.enrollmentDate.getMonth() + 1).padStart(2, '0')}`;
+      if (e.enrollmentDate >= last6Months) {
+        const existing = monthlyRevenueMap.get(monthKey) || { revenue: 0, commissions: 0 };
+        existing.revenue += Number(e.amountPaid);
+        monthlyRevenueMap.set(monthKey, existing);
+      }
+    });
+
+    commissions.forEach((c) => {
+      const monthKey = `${c.createdAt.getFullYear()}-${String(c.createdAt.getMonth() + 1).padStart(2, '0')}`;
+      if (c.createdAt >= last6Months) {
+        const existing = monthlyRevenueMap.get(monthKey) || { revenue: 0, commissions: 0 };
+        existing.commissions += Number(c.amount);
+        monthlyRevenueMap.set(monthKey, existing);
+      }
+    });
+
+    const monthlyRevenue = Array.from(monthlyRevenueMap.entries())
+      .map(([month, data]) => ({
+        month,
+        revenue: data.revenue,
+        commissions: data.commissions,
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    return {
+      totalClients,
+      totalEnrollments,
+      activeEnrollments,
+      completedEnrollments,
+      totalRevenue,
+      totalCommissionsEarned,
+      paidCommissions,
+      pendingCommissions,
+      monthlyRevenue,
+      newClientsThisMonth,
+      newEnrollmentsThisMonth,
+    };
   }
 }

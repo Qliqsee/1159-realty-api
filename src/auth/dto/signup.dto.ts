@@ -15,4 +15,9 @@ export class SignUpDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @ApiPropertyOptional({ example: 'ABC123XYZ', description: 'Partner referral code' })
+  @IsOptional()
+  @IsString()
+  partnerRefCode?: string;
 }

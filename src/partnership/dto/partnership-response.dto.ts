@@ -26,6 +26,18 @@ export class PartnershipResponseDto {
   @ApiPropertyOptional({ example: '2024-04-09T10:00:00.000Z', description: '90 days after rejection' })
   rejectionCooldown?: Date;
 
+  @ApiPropertyOptional({ example: '2024-01-09T10:00:00.000Z' })
+  suspendedAt?: Date;
+
+  @ApiPropertyOptional({ example: 'https://app.example.com/signup?ref=ABC123XYZ' })
+  partnerLink?: string;
+
+  @ApiPropertyOptional({ example: true })
+  isSuspended?: boolean;
+
+  @ApiPropertyOptional({ example: true })
+  isLinkActive?: boolean;
+
   @ApiProperty({ example: '2024-01-08T10:00:00.000Z' })
   createdAt: Date;
 
