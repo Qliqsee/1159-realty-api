@@ -1,10 +1,8 @@
 import {
   Controller,
   Get,
-  Post,
   Param,
   Query,
-  Body,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -17,7 +15,6 @@ import {
 import { CommissionsService } from './commissions.service';
 import { QueryCommissionsDto } from './dto/query-commissions.dto';
 import { CommissionResponseDto, CommissionStatsDto } from './dto/commission-response.dto';
-import { ReleaseCommissionDto, CommissionReleaseResponseDto } from './dto/commission-release.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -67,13 +64,12 @@ export class CommissionsController {
     return this.commissionsService.findAll(queryDto, userId, 'agent');
   }
 
-  @Get('partner')
+  @Get('my-partner-commissions')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('partner')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'List partner commissions (partner only)',
-    description: 'Returns paginated commissions for the authenticated partner',
+    summary: 'List partner commissions (partner only, including suspended)',
+    description: 'Returns paginated commissions for the authenticated partner, accessible even when suspended',
   })
   @ApiResponse({
     status: 200,
@@ -81,7 +77,6 @@ export class CommissionsController {
     type: [CommissionResponseDto],
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
   findPartnerCommissions(@Query() queryDto: QueryCommissionsDto, @Req() req: Request) {
     const userId = (req.user as any).id;
     return this.commissionsService.findAll(queryDto, userId, 'partner');
@@ -134,45 +129,4 @@ export class CommissionsController {
     return this.commissionsService.findOne(id, userId, userRole);
   }
 
-  @Post(':id/mark-paid')
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
-  @ApiOperation({
-    summary: 'Mark commission as paid (admin only)',
-    description: 'Updates commission status to PAID and records payment date',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Commission marked as paid successfully',
-    type: CommissionResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Bad request - commission already paid' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Commission not found' })
-  markAsPaid(@Param('id') id: string) {
-    return this.commissionsService.markAsPaid(id);
-  }
-
-  @Post(':id/release')
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
-  @ApiOperation({
-    summary: 'Release commission payment via Paystack Transfer (admin only)',
-    description: 'Transfers commission amount to recipient bank account using Paystack Transfer API. Updates commission status to PAID and records transfer details.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Commission released successfully',
-    type: CommissionReleaseResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Bad request - commission already paid or invalid bank details' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Commission not found' })
-  releaseCommission(@Param('id') id: string, @Body() releaseDto: ReleaseCommissionDto) {
-    return this.commissionsService.releaseCommission(id, releaseDto);
-  }
 }

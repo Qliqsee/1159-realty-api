@@ -61,6 +61,26 @@ export class QueryCommissionsDto {
   @IsOptional()
   enrollmentId?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by agent ID' })
+  @IsUUID()
+  @IsOptional()
+  agentId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by partner ID' })
+  @IsUUID()
+  @IsOptional()
+  partnerId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by property ID (via enrollment)' })
+  @IsUUID()
+  @IsOptional()
+  propertyId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by client ID (via enrollment)' })
+  @IsUUID()
+  @IsOptional()
+  clientId?: string;
+
   @ApiPropertyOptional({ description: 'Filter by date from (ISO 8601)' })
   @IsDateString()
   @IsOptional()

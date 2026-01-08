@@ -794,4 +794,77 @@ export class UsersService {
     const agent = sortedEnrollments[0]?.agent;
     return agent ? { id: agent.id, name: agent.name } : undefined;
   }
+
+  // Bank Account Management
+  async updateBankAccount(userId: string, bankData: { accountNumber: string; bankCode: string; accountName: string; bankName: string }) {
+    // Here you would validate with Paystack Resolve Account API
+    // For now, we'll just save the data
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        accountNumber: bankData.accountNumber,
+        bankCode: bankData.bankCode,
+        accountName: bankData.accountName,
+        bankName: bankData.bankName,
+      },
+      select: {
+        accountNumber: true,
+        bankCode: true,
+        accountName: true,
+        bankName: true,
+      },
+    });
+
+    return this.maskBankAccount(user);
+  }
+
+  async getBankAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        accountNumber: true,
+        bankCode: true,
+        accountName: true,
+        bankName: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.accountNumber) {
+      throw new NotFoundException('Bank account not configured');
+    }
+
+    return this.maskBankAccount(user);
+  }
+
+  async deleteBankAccount(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        accountNumber: null,
+        bankCode: null,
+        accountName: null,
+        bankName: null,
+      },
+    });
+
+    return { message: 'Bank account deleted successfully' };
+  }
+
+  private maskBankAccount(user: any) {
+    if (!user.accountNumber) {
+      return null;
+    }
+
+    const masked = '****' + user.accountNumber.slice(-4);
+    return {
+      accountNumber: masked,
+      bankCode: user.bankCode,
+      accountName: user.accountName,
+      bankName: user.bankName,
+    };
+  }
 }

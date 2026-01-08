@@ -26,6 +26,8 @@ import { AppointmentsModule } from './appointments/appointments.module';
 import { CasesModule } from './cases/cases.module';
 import { RequirementsModule } from './requirements/requirements.module';
 import { SupportModule } from './support/support.module';
+import { DisbursementsModule } from './disbursements/disbursements.module';
+import { DisbursementConfigModule } from './disbursement-config/disbursement-config.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { SupportModule } from './support/support.module';
     EnrollmentsModule,
     InvoicesModule,
     CommissionsModule,
+    DisbursementsModule,
+    DisbursementConfigModule,
     PaymentsModule,
     CronModule,
     SalesTargetsModule,

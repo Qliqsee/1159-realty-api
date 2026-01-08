@@ -155,6 +155,22 @@ enum TicketCategory {
   OTHER
 }
 
+enum DisbursementType {
+  COMMISSION
+  REFUND
+}
+
+enum DisbursementStatus {
+  PENDING
+  RELEASED
+  FAILED
+}
+
+enum DisbursementConfigMode {
+  ALL_EXCEPT
+  NONE_EXCEPT
+}
+
 model User {
   id                     String   @id @default(uuid())
   email                  String   @unique
@@ -173,6 +189,10 @@ model User {
   isSuspended            Boolean  @default(false)
   partnerLink            String?  @unique
   referredByPartnerId    String?
+  accountNumber          String?
+  bankCode               String?
+  accountName            String?
+  bankName               String?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -217,6 +237,9 @@ model User {
   documentsSubmitted      RequirementDocument[] @relation("DocumentUser")
   documentsReviewed       RequirementDocument[] @relation("DocumentReviewer")
   supportTickets          SupportTicket[]       @relation("TicketUser")
+  disbursementsAsRecipient Disbursement[]       @relation("DisbursementRecipient")
+  disbursementsCreated     Disbursement[]       @relation("DisbursementCreatedBy")
+  disbursementsReleased    Disbursement[]       @relation("DisbursementReleasedBy")
 
   @@map("users")
 }
@@ -651,6 +674,7 @@ model Enrollment {
   invoices     Invoice[]
   commissions  Commission[]
   paymentLinks PaymentLink[]
+  disbursements Disbursement[]
 
   @@index([propertyId])
   @@index([agentId])
@@ -687,24 +711,26 @@ model Invoice {
 }
 
 model Commission {
-  id           String           @id @default(uuid())
-  enrollmentId String
-  invoiceId    String
-  agentId      String?
-  partnerId    String?
-  type         CommissionType
-  percentage   Decimal          @db.Decimal(5, 2)
-  amount       Decimal          @db.Decimal(15, 2)
-  status       CommissionStatus @default(PENDING)
-  dueDate      DateTime?
-  paidAt       DateTime?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id             String           @id @default(uuid())
+  enrollmentId   String
+  invoiceId      String
+  agentId        String?
+  partnerId      String?
+  type           CommissionType
+  percentage     Decimal          @db.Decimal(5, 2)
+  amount         Decimal          @db.Decimal(15, 2)
+  status         CommissionStatus @default(PENDING)
+  dueDate        DateTime?
+  paidAt         DateTime?
+  disbursementId String?          @unique
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  invoice    Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  agent      User?      @relation("CommissionAgent", fields: [agentId], references: [id])
-  partner    User?      @relation("CommissionPartner", fields: [partnerId], references: [id])
+  enrollment   Enrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  agent        User?         @relation("CommissionAgent", fields: [agentId], references: [id])
+  partner      User?         @relation("CommissionPartner", fields: [partnerId], references: [id])
+  disbursement Disbursement? @relation(fields: [disbursementId], references: [id])
 
   @@index([enrollmentId])
   @@index([invoiceId])
@@ -712,6 +738,7 @@ model Commission {
   @@index([partnerId])
   @@index([status])
   @@index([type])
+  @@index([disbursementId])
   @@map("commissions")
 }
 
@@ -911,4 +938,47 @@ model SupportTicket {
   @@index([status])
   @@index([category])
   @@map("support_tickets")
+}
+
+model Disbursement {
+  id                 String             @id @default(uuid())
+  type               DisbursementType
+  commissionId       String?            @unique
+  enrollmentId       String
+  recipientId        String
+  recipientType      String
+  amount             Decimal            @db.Decimal(15, 2)
+  status             DisbursementStatus @default(PENDING)
+  releaseDate        DateTime?
+  transferCode       String?
+  transferReference  String?
+  paystackResponse   Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  createdBy          String
+  releasedBy         String?
+
+  enrollment Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  recipient  User        @relation("DisbursementRecipient", fields: [recipientId], references: [id])
+  creator    User        @relation("DisbursementCreatedBy", fields: [createdBy], references: [id])
+  releaser   User?       @relation("DisbursementReleasedBy", fields: [releasedBy], references: [id])
+  commission Commission?
+
+  @@index([type])
+  @@index([status])
+  @@index([recipientId])
+  @@index([enrollmentId])
+  @@index([commissionId])
+  @@index([createdAt])
+  @@map("disbursements")
+}
+
+model DisbursementConfig {
+  id               String                  @id @default(uuid())
+  mode             DisbursementConfigMode
+  exceptionUserIds String[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@map("disbursement_configs")
 }

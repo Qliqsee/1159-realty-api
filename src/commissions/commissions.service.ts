@@ -1,26 +1,16 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { QueryCommissionsDto } from './dto/query-commissions.dto';
 import { CommissionResponseDto, CommissionStatsDto } from './dto/commission-response.dto';
-import { ReleaseCommissionDto, CommissionReleaseResponseDto } from './dto/commission-release.dto';
 import { Prisma, CommissionStatus as PrismaCommissionStatus } from '@prisma/client';
-import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class CommissionsService {
-  private readonly paystackSecretKey: string;
-
-  constructor(
-    private prisma: PrismaService,
-    private configService: ConfigService,
-  ) {
-    this.paystackSecretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY');
-  }
+  constructor(private prisma: PrismaService) {}
 
   async findAll(queryDto: QueryCommissionsDto, userId?: string, userRole?: string) {
     const {
@@ -29,6 +19,10 @@ export class CommissionsService {
       status,
       type,
       enrollmentId,
+      agentId,
+      partnerId,
+      propertyId,
+      clientId,
       dateFrom,
       dateTo,
       search,
@@ -42,6 +36,10 @@ export class CommissionsService {
       ...(status && { status: status as any }),
       ...(type && { type: type as any }),
       ...(enrollmentId && { enrollmentId }),
+      ...(agentId && { agentId }),
+      ...(partnerId && { partnerId }),
+      ...(propertyId && { enrollment: { propertyId } }),
+      ...(clientId && { enrollment: { clientId } }),
       ...(dateFrom && { createdAt: { gte: new Date(dateFrom) } }),
       ...(dateTo && { createdAt: { lte: new Date(dateTo) } }),
       ...(search && {
@@ -49,6 +47,8 @@ export class CommissionsService {
           { enrollmentId: { contains: search, mode: 'insensitive' } },
           { enrollment: { client: { name: { contains: search, mode: 'insensitive' } } } },
           { enrollment: { property: { name: { contains: search, mode: 'insensitive' } } } },
+          { agent: { name: { contains: search, mode: 'insensitive' } } },
+          { partner: { name: { contains: search, mode: 'insensitive' } } },
         ],
       }),
     };
@@ -73,6 +73,8 @@ export class CommissionsService {
             include: {
               property: { select: { name: true } },
               client: { select: { name: true } },
+              agent: { select: { name: true } },
+              partner: { select: { name: true } },
             },
           },
           invoice: {
@@ -81,6 +83,14 @@ export class CommissionsService {
               installmentNumber: true,
               amount: true,
               paidAt: true,
+            },
+          },
+          disbursement: {
+            select: {
+              id: true,
+              status: true,
+              amount: true,
+              releaseDate: true,
             },
           },
         },
@@ -102,11 +112,23 @@ export class CommissionsService {
       status: commission.status as any,
       dueDate: commission.dueDate || undefined,
       paidAt: commission.paidAt || undefined,
+      disbursementId: commission.disbursementId || undefined,
+      disbursementStatus: commission.disbursementId ? 'DISBURSED' : 'PENDING',
+      disbursementDetails: commission.disbursement
+        ? {
+            id: commission.disbursement.id,
+            status: commission.disbursement.status,
+            amount: Number(commission.disbursement.amount),
+            releaseDate: commission.disbursement.releaseDate || undefined,
+          }
+        : undefined,
       enrollmentDetails: {
         id: commission.enrollment.id,
         propertyName: commission.enrollment.property.name,
         clientName: commission.enrollment.client?.name,
         totalAmount: Number(commission.enrollment.totalAmount),
+        agentName: commission.enrollment.agent?.name,
+        partnerName: commission.enrollment.partner?.name,
       },
       invoiceDetails: {
         id: commission.invoice.id,
@@ -139,6 +161,7 @@ export class CommissionsService {
           include: {
             property: { select: { id: true, name: true } },
             agent: { select: { name: true } },
+            partner: { select: { name: true } },
             client: { select: { id: true, name: true, email: true } },
           },
         },
@@ -150,6 +173,14 @@ export class CommissionsService {
             dueDate: true,
             paidAt: true,
             paymentReference: true,
+          },
+        },
+        disbursement: {
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            releaseDate: true,
           },
         },
       },
@@ -182,11 +213,23 @@ export class CommissionsService {
       status: commission.status as any,
       dueDate: commission.dueDate || undefined,
       paidAt: commission.paidAt || undefined,
+      disbursementId: commission.disbursementId || undefined,
+      disbursementStatus: commission.disbursementId ? 'DISBURSED' : 'PENDING',
+      disbursementDetails: commission.disbursement
+        ? {
+            id: commission.disbursement.id,
+            status: commission.disbursement.status,
+            amount: Number(commission.disbursement.amount),
+            releaseDate: commission.disbursement.releaseDate || undefined,
+          }
+        : undefined,
       enrollmentDetails: {
         id: commission.enrollment.id,
         propertyName: commission.enrollment.property.name,
         clientName: commission.enrollment.client?.name,
         totalAmount: Number(commission.enrollment.totalAmount),
+        agentName: commission.enrollment.agent?.name,
+        partnerName: commission.enrollment.partner?.name,
       },
       invoiceDetails: {
         id: commission.invoice.id,
@@ -201,77 +244,6 @@ export class CommissionsService {
     return response;
   }
 
-  async markAsPaid(id: string) {
-    const commission = await this.prisma.commission.findUnique({
-      where: { id },
-      include: {
-        agent: { select: { name: true } },
-        partner: { select: { name: true } },
-        enrollment: {
-          include: {
-            property: { select: { name: true } },
-            client: { select: { name: true } },
-          },
-        },
-        invoice: {
-          select: {
-            id: true,
-            installmentNumber: true,
-            amount: true,
-            paidAt: true,
-          },
-        },
-      },
-    });
-
-    if (!commission) {
-      throw new NotFoundException('Commission not found');
-    }
-
-    if (commission.status === PrismaCommissionStatus.PAID) {
-      throw new BadRequestException('Commission is already paid');
-    }
-
-    const now = new Date();
-
-    const updatedCommission = await this.prisma.commission.update({
-      where: { id },
-      data: {
-        status: PrismaCommissionStatus.PAID,
-        paidAt: now,
-      },
-    });
-
-    return {
-      id: updatedCommission.id,
-      enrollmentId: commission.enrollmentId,
-      invoiceId: commission.invoiceId,
-      agentId: commission.agentId || undefined,
-      agentName: commission.agent?.name,
-      partnerId: commission.partnerId || undefined,
-      partnerName: commission.partner?.name,
-      type: commission.type as any,
-      percentage: Number(commission.percentage),
-      amount: Number(commission.amount),
-      status: updatedCommission.status as any,
-      dueDate: commission.dueDate || undefined,
-      paidAt: updatedCommission.paidAt || undefined,
-      enrollmentDetails: {
-        id: commission.enrollment.id,
-        propertyName: commission.enrollment.property.name,
-        clientName: commission.enrollment.client?.name,
-        totalAmount: Number(commission.enrollment.totalAmount),
-      },
-      invoiceDetails: {
-        id: commission.invoice.id,
-        installmentNumber: commission.invoice.installmentNumber,
-        amount: Number(commission.invoice.amount),
-        paidAt: commission.invoice.paidAt || undefined,
-      },
-      createdAt: commission.createdAt,
-      updatedAt: updatedCommission.updatedAt,
-    };
-  }
 
   async getStats(userId?: string, userRole?: string, dateFrom?: string, dateTo?: string) {
     const where: Prisma.CommissionWhereInput = {
@@ -315,6 +287,16 @@ export class CommissionsService {
       }),
     ]);
 
+    // Get disbursement metrics
+    const [totalDisbursedCount, pendingDisbursementCount] = await Promise.all([
+      this.prisma.commission.count({
+        where: { ...where, disbursementId: { not: null } },
+      }),
+      this.prisma.commission.count({
+        where: { ...where, disbursementId: null, status: PrismaCommissionStatus.PENDING },
+      }),
+    ]);
+
     const stats: CommissionStatsDto = {
       totalCommissions,
       pendingCommissions,
@@ -322,113 +304,10 @@ export class CommissionsService {
       totalAmount: Number(totalAmountResult._sum.amount || 0),
       pendingAmount: Number(pendingAmountResult._sum.amount || 0),
       paidAmount: Number(paidAmountResult._sum.amount || 0),
+      totalDisbursed: totalDisbursedCount,
+      pendingDisbursement: pendingDisbursementCount,
     };
 
     return stats;
-  }
-
-  async releaseCommission(
-    id: string,
-    releaseDto: ReleaseCommissionDto,
-  ): Promise<CommissionReleaseResponseDto> {
-    const { accountNumber, bankCode, accountName } = releaseDto;
-
-    // Fetch commission with related data
-    const commission = await this.prisma.commission.findUnique({
-      where: { id },
-      include: {
-        agent: { select: { id: true, name: true, email: true } },
-        partner: { select: { id: true, name: true, email: true } },
-        enrollment: {
-          include: {
-            property: { select: { name: true } },
-          },
-        },
-        invoice: {
-          select: { installmentNumber: true },
-        },
-      },
-    });
-
-    if (!commission) {
-      throw new NotFoundException('Commission not found');
-    }
-
-    if (commission.status === PrismaCommissionStatus.PAID) {
-      throw new BadRequestException('Commission is already paid');
-    }
-
-    // Calculate amount in kobo (Paystack expects kobo)
-    const amountInKobo = Math.round(Number(commission.amount) * 100);
-
-    // Create transfer recipient on Paystack
-    const recipientResponse = await fetch('https://api.paystack.co/transferrecipient', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.paystackSecretKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'nuban',
-        name: accountName,
-        account_number: accountNumber,
-        bank_code: bankCode,
-        currency: 'NGN',
-      }),
-    });
-
-    const recipientData = await recipientResponse.json();
-
-    if (!recipientData.status) {
-      throw new BadRequestException(
-        `Failed to create transfer recipient: ${recipientData.message}`,
-      );
-    }
-
-    const recipientCode = recipientData.data.recipient_code;
-
-    // Initiate transfer
-    const transferReference = `COMM-${id.substring(0, 8)}-${Date.now()}`;
-    const transferResponse = await fetch('https://api.paystack.co/transfer', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.paystackSecretKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        source: 'balance',
-        amount: amountInKobo,
-        recipient: recipientCode,
-        reason: `Commission payment for ${commission.enrollment.property.name} - Installment #${commission.invoice.installmentNumber}`,
-        reference: transferReference,
-      }),
-    });
-
-    const transferData = await transferResponse.json();
-
-    if (!transferData.status) {
-      throw new BadRequestException(
-        `Failed to initiate transfer: ${transferData.message}`,
-      );
-    }
-
-    // Update commission status to PAID
-    const now = new Date();
-    await this.prisma.commission.update({
-      where: { id },
-      data: {
-        status: PrismaCommissionStatus.PAID,
-        paidAt: now,
-      },
-    });
-
-    return {
-      commissionId: id,
-      amount: Number(commission.amount),
-      transferCode: transferData.data.transfer_code,
-      reference: transferReference,
-      status: transferData.data.status,
-      message: `Commission of ₦${Number(commission.amount).toLocaleString()} successfully released to ${accountName}`,
-    };
   }
 }

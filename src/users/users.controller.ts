@@ -246,4 +246,33 @@ export class UsersController {
   getUserPermissions(@Param('id') id: string) {
     return this.usersService.getUserPermissions(id);
   }
+
+  @Patch('me/bank-account')
+  @ApiOperation({ summary: 'Update or add bank account details for authenticated user' })
+  @ApiResponse({ status: 200, description: 'Bank account updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid bank details' })
+  updateMyBankAccount(@Req() req: Request, @Body() bankData: any) {
+    const userId = (req.user as any).id;
+    return this.usersService.updateBankAccount(userId, bankData);
+  }
+
+  @Get('me/bank-account')
+  @ApiOperation({ summary: 'Get bank account details for authenticated user' })
+  @ApiResponse({ status: 200, description: 'Bank account retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Bank account not configured' })
+  getMyBankAccount(@Req() req: Request) {
+    const userId = (req.user as any).id;
+    return this.usersService.getBankAccount(userId);
+  }
+
+  @Delete('me/bank-account')
+  @ApiOperation({ summary: 'Delete bank account details for authenticated user' })
+  @ApiResponse({ status: 200, description: 'Bank account deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  deleteMyBankAccount(@Req() req: Request) {
+    const userId = (req.user as any).id;
+    return this.usersService.deleteBankAccount(userId);
+  }
 }

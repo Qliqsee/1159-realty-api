@@ -41,12 +41,28 @@ export class CommissionResponseDto {
   @ApiPropertyOptional()
   paidAt?: Date;
 
+  @ApiPropertyOptional()
+  disbursementId?: string;
+
+  @ApiPropertyOptional({ enum: ['PENDING', 'DISBURSED'] })
+  disbursementStatus?: string;
+
+  @ApiPropertyOptional()
+  disbursementDetails?: {
+    id: string;
+    status: string;
+    amount: number;
+    releaseDate?: Date;
+  };
+
   @ApiProperty()
   enrollmentDetails: {
     id: string;
     propertyName: string;
     clientName?: string;
     totalAmount: number;
+    agentName?: string;
+    partnerName?: string;
   };
 
   @ApiProperty()
@@ -82,4 +98,10 @@ export class CommissionStatsDto {
 
   @ApiProperty()
   paidAmount: number;
+
+  @ApiProperty()
+  totalDisbursed: number;
+
+  @ApiProperty()
+  pendingDisbursement: number;
 }

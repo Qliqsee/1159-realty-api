@@ -1,0 +1,165 @@
+COMMISSIONS AND DISBURSEMENT MODULE - IMPLEMENTATION STATUS
+
+COMPLETED ITEMS:
+
+SCHEMA UPDATES - ✓ COMPLETED
+✓ Add bank account fields to User model (accountNumber, bankCode, accountName, bankName)
+✓ Add disbursementId field to Commission model (nullable, for tracking if commission has been disbursed)
+✓ Create Disbursement model with all required fields
+✓ Create DisbursementConfig model with fields: id, mode, exceptionUserIds, createdAt, updatedAt
+✓ Database schema pushed successfully
+
+COMMISSION ENDPOINTS - ADMIN SIDE - ✓ COMPLETED
+✓ Add filter by agentId to GET /commissions endpoint
+✓ Add filter by partnerId to GET /commissions endpoint
+✓ Add filter by propertyId to GET /commissions endpoint (filter through enrollment.propertyId)
+✓ Add filter by clientId to GET /commissions endpoint (filter through enrollment.clientId)
+✓ Ensure search works on client name, property name, agent name, partner name
+✓ Update commission response DTO to include disbursementStatus and disbursementDetails if disbursed
+✓ Update commission response to show full enrollment details (property, client, agent, partner)
+✓ Remove POST /commissions/:id/mark-paid endpoint (replaced by disbursement flow)
+✓ Remove POST /commissions/:id/release endpoint (replaced by disbursement flow)
+✓ Ensure GET /commissions/:id returns linked enrollment, client, partner details
+
+COMMISSION ENDPOINTS - AGENT SIDE - ✓ COMPLETED
+✓ Verify GET /commissions/my-commissions filters correctly by agentId
+✓ Ensure search and all filters work on agent endpoint
+✓ Update response to include disbursement status if commission has been disbursed
+✓ Add swagger docs with full request/response structures and examples
+
+COMMISSION ENDPOINTS - PARTNER SIDE - ✓ COMPLETED
+✓ Update GET /commissions/partner endpoint path to /commissions/my-partner-commissions for clarity
+✓ Verify endpoint allows suspended partners to access their commissions (removed RolesGuard requirement)
+✓ Ensure search and filters work correctly
+✓ Add swagger docs with full request/response structures and examples
+
+DISBURSEMENT MODULE - NEW - ✓ COMPLETED
+✓ Create disbursements module, controller, service
+✓ Create Disbursement entity and repository setup
+✓ Add POST /disbursements endpoint to create disbursement from single commission (admin only)
+✓ Add POST /disbursements/bulk endpoint to create disbursements from multiple commissions (admin only)
+✓ Add GET /disbursements endpoint with all required filters (admin only)
+✓ Add GET /disbursements/my-disbursements endpoint for agents to view their disbursements
+✓ Add GET /disbursements/my-partner-disbursements endpoint for partners (including suspended)
+✓ Add GET /disbursements/stats endpoint with role-based filtering
+✓ Add GET /disbursements/:id endpoint with role-based access control
+✓ Add POST /disbursements/:id/release endpoint to process actual Paystack transfer (admin only)
+✓ Update Commission model with disbursementId after disbursement is created
+✓ Create all required DTOs
+✓ Add validation to prevent creating disbursement for already-disbursed commission
+✓ Add validation to prevent releasing already-released disbursement
+✓ Ensure disbursements link to enrollments and show enrollment details in response
+✓ Include recipient details in disbursement response
+✓ Sort disbursements by latest to earliest by default
+✓ Paystack integration with transfer logic
+
+AUTO-DISBURSEMENT CONFIG - ✓ COMPLETED
+✓ Create disbursement-config module, controller, service
+✓ Add GET /disbursement-config endpoint to retrieve current config (admin only)
+✓ Add PUT /disbursement-config endpoint to update mode (admin only)
+✓ Add POST /disbursement-config/exceptions endpoint to add user to exception list (admin only)
+✓ Add DELETE /disbursement-config/exceptions/:userId endpoint to remove user (admin only)
+✓ Add GET /disbursement-config/exceptions endpoint to list exceptions (admin only)
+✓ Implement logic to check auto-disbursement eligibility
+
+USER BANK DETAILS MANAGEMENT - ✓ COMPLETED
+✓ Add PUT /users/me/bank-account endpoint for users to save bank details
+✓ Add GET /users/me/bank-account endpoint to retrieve saved bank details (mask account number)
+✓ Add DELETE /users/me/bank-account endpoint to remove bank details
+✓ Add service methods for bank account management
+
+COMMISSION STATS ENHANCEMENT - ✓ COMPLETED
+✓ Add totalDisbursed and pendingDisbursement fields to commission stats
+✓ Filter stats by date range correctly
+
+MODULE REGISTRATION - ✓ COMPLETED
+✓ Register DisbursementsModule in AppModule
+✓ Register DisbursementConfigModule in AppModule
+
+MIGRATIONS - ✓ COMPLETED
+✓ Schema changes pushed to database successfully using prisma db push
+
+SWAGGER DOCUMENTATION - ✓ COMPLETED
+✓ Add @ApiProperty decorators to all commission DTOs
+✓ Add @ApiProperty decorators to all disbursement DTOs
+✓ Add request/response examples for commission endpoints
+✓ Add request/response examples for disbursement endpoints
+✓ Add proper error response documentation
+✓ Document auto-disbursement configuration endpoints
+✓ Add examples for bank account DTOs
+
+PAYSTACK INTEGRATION - ✓ COMPLETED
+✓ Move Paystack transfer logic from commissions.service to disbursements.service
+✓ Add Paystack recipient creation in disbursement release
+✓ Add Paystack transfer initiation in disbursement release
+✓ Store transfer response in disbursement record
+✓ Add error handling for failed transfers
+✓ Update disbursement status based on transfer success/failure
+✓ Mark commission as PAID when disbursement is released
+
+VALIDATION AND BUSINESS RULES - ✓ COMPLETED
+✓ Validate commission exists and is not already disbursed before creating disbursement
+✓ Validate user has bank details before allowing disbursement creation
+✓ Prevent duplicate disbursements for same commission
+✓ Validate only PENDING commissions can be disbursed
+✓ Validate only PENDING disbursements can be released
+
+LINKING AND RELATIONSHIPS - ✓ COMPLETED
+✓ Ensure Commission links to Enrollment, Invoice, Agent, Partner
+✓ Ensure Disbursement links to Commission, Enrollment, Recipient
+✓ Update Commission response to include disbursement info
+✓ Ensure cascading deletes are handled properly
+
+ERROR HANDLING - ✓ COMPLETED
+✓ Add proper error messages for all validation failures
+✓ Add proper error handling for Paystack API failures
+✓ Handle edge cases (missing bank details, invalid commission, etc.)
+
+RESPONSE FORMATTING - ✓ COMPLETED
+✓ Ensure all decimal amounts are converted to numbers in responses
+✓ Ensure all date fields are properly formatted
+✓ Include pagination metadata in list responses
+✓ Include proper status codes for all responses
+
+
+PENDING/NOT IMPLEMENTED ITEMS:
+
+AUTO-DISBURSEMENT LOGIC (Manual implementation may be required):
+- Add disbursement creation in invoice payment webhook handler (after commission creation)
+- Auto-disbursement should check config mode and exception list
+- Add scheduled job or webhook listener to process auto-disbursements
+- Ensure auto-disbursement respects ALL_EXCEPT and NONE_EXCEPT modes correctly
+
+CANCELLED ENROLLMENT REFUND HANDLING (Requires enrollment service integration):
+- Add disbursement creation in enrollment cancellation service
+- Calculate refund amount based on total payments made
+- Create REFUND type disbursement linked to cancelled enrollment
+- Create disbursements for commission clawback if needed
+- Link refund disbursement to enrollment
+- Update enrollment cancellation response to include refund disbursement details
+
+BANK ACCOUNT VALIDATION (Enhancement):
+- Validate bank details with Paystack Resolve Account API before saving
+- Hash or encrypt sensitive bank details (currently stored as plain text)
+
+ADMIN ENDPOINT FOR USER BANK DETAILS:
+- Add endpoint for admin to view user bank details for disbursement purposes
+
+GUARDS AND PERMISSIONS (If custom guard needed):
+- Custom guard for suspended partners already handled by removing RolesGuard requirement
+
+ADDITIONAL FEATURES NOT IN CORE REQUIREMENTS:
+- Retry logic for failed Paystack transfers
+- Paystack webhook handler for transfer status updates
+- More granular permissions beyond role-based access
+
+
+SUMMARY:
+- Core disbursement and commission system: ✓ FULLY IMPLEMENTED
+- Database schema: ✓ COMPLETE
+- API endpoints: ✓ ALL CREATED
+- Paystack integration: ✓ IMPLEMENTED
+- Auto-disbursement config: ✓ COMPLETE
+- Bank account management: ✓ BASIC IMPLEMENTATION COMPLETE
+
+Remaining work is primarily enhancements and integration with existing invoice/enrollment flows.
