@@ -399,6 +399,8 @@ model Property {
   units             Unit[]
   propertyInterests PropertyInterest[]
   enrollments       Enrollment[]
+  schedules         Schedule[]
+  appointments      Appointment[]
 
   @@map("properties")
 }
@@ -476,15 +478,15 @@ model Unit {
 }
 
 model PropertyInterest {
-  id            String         @id @default(uuid())
-  propertyId    String
-  userId        String
-  message       String?
-  status        InterestStatus @default(OPEN)
-  agentId       String?
-  contactedAt   DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id          String         @id @default(uuid())
+  propertyId  String
+  userId      String
+  message     String?
+  status      InterestStatus @default(OPEN)
+  agentId     String?
+  contactedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -598,17 +600,17 @@ model Enrollment {
   suspendedAt           DateTime?
   resumedAt             DateTime?
 
-  property      Property              @relation(fields: [propertyId], references: [id])
-  unit          Unit?                 @relation(fields: [unitId], references: [id])
-  agent         User                  @relation("EnrollmentAgent", fields: [agentId], references: [id])
-  client        User?                 @relation("EnrollmentClient", fields: [clientId], references: [id])
-  partner       User?                 @relation("EnrollmentPartner", fields: [partnerId], references: [id])
-  creator       User                  @relation("EnrollmentCreatedBy", fields: [createdBy], references: [id])
-  canceller     User?                 @relation("EnrollmentCancelledBy", fields: [cancelledBy], references: [id])
-  paymentPlan   PropertyPaymentPlan?  @relation(fields: [selectedPaymentPlanId], references: [id])
-  invoices      Invoice[]
-  commissions   Commission[]
-  paymentLinks  PaymentLink[]
+  property     Property             @relation(fields: [propertyId], references: [id])
+  unit         Unit?                @relation(fields: [unitId], references: [id])
+  agent        User                 @relation("EnrollmentAgent", fields: [agentId], references: [id])
+  client       User?                @relation("EnrollmentClient", fields: [clientId], references: [id])
+  partner      User?                @relation("EnrollmentPartner", fields: [partnerId], references: [id])
+  creator      User                 @relation("EnrollmentCreatedBy", fields: [createdBy], references: [id])
+  canceller    User?                @relation("EnrollmentCancelledBy", fields: [cancelledBy], references: [id])
+  paymentPlan  PropertyPaymentPlan? @relation(fields: [selectedPaymentPlanId], references: [id])
+  invoices     Invoice[]
+  commissions  Commission[]
+  paymentLinks PaymentLink[]
 
   @@index([propertyId])
   @@index([agentId])
@@ -620,21 +622,21 @@ model Enrollment {
 }
 
 model Invoice {
-  id               String        @id @default(uuid())
-  enrollmentId     String
+  id                String        @id @default(uuid())
+  enrollmentId      String
   installmentNumber Int
-  dueDate          DateTime
-  amount           Decimal       @db.Decimal(15, 2)
-  amountPaid       Decimal       @default(0) @db.Decimal(15, 2)
-  status           InvoiceStatus @default(PENDING)
-  overdueDate      DateTime?
-  overdueFee       Decimal       @default(0) @db.Decimal(15, 2)
-  paidAt           DateTime?
-  paymentReference String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  dueDate           DateTime
+  amount            Decimal       @db.Decimal(15, 2)
+  amountPaid        Decimal       @default(0) @db.Decimal(15, 2)
+  status            InvoiceStatus @default(PENDING)
+  overdueDate       DateTime?
+  overdueFee        Decimal       @default(0) @db.Decimal(15, 2)
+  paidAt            DateTime?
+  paymentReference  String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
-  enrollment   Enrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  enrollment   Enrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   commissions  Commission[]
   paymentLinks PaymentLink[]
 
@@ -674,19 +676,19 @@ model Commission {
 }
 
 model PaymentLink {
-  id                 String    @id @default(uuid())
-  enrollmentId       String
-  invoiceId          String
-  firstName          String
-  lastName           String
-  token              String    @unique
-  paystackReference  String?
-  paymentUrl         String?   @db.Text
-  isActive           Boolean   @default(true)
-  createdAt          DateTime  @default(now())
-  expiresAt          DateTime?
-  usedAt             DateTime?
-  createdBy          String
+  id                String    @id @default(uuid())
+  enrollmentId      String
+  invoiceId         String
+  firstName         String
+  lastName          String
+  token             String    @unique
+  paystackReference String?
+  paymentUrl        String?   @db.Text
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  expiresAt         DateTime?
+  usedAt            DateTime?
+  createdBy         String
 
   enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   invoice    Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -699,15 +701,15 @@ model PaymentLink {
 }
 
 model SalesTarget {
-  id              String   @id @default(uuid())
-  userId          String
-  targetAmount    Decimal  @db.Decimal(15, 2)
-  achievedAmount  Decimal  @default(0) @db.Decimal(15, 2)
-  startDate       DateTime
-  endDate         DateTime
-  createdBy       String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(uuid())
+  userId         String
+  targetAmount   Decimal  @db.Decimal(15, 2)
+  achievedAmount Decimal  @default(0) @db.Decimal(15, 2)
+  startDate      DateTime
+  endDate        DateTime
+  createdBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user    User @relation("SalesTargetUser", fields: [userId], references: [id], onDelete: Cascade)
   creator User @relation("SalesTargetCreatedBy", fields: [createdBy], references: [id])
@@ -733,4 +735,47 @@ model Achievement {
   @@index([userId])
   @@index([startDate, endDate])
   @@map("achievements")
+}
+
+model Schedule {
+  id         String   @id @default(uuid())
+  propertyId String
+  dateTime   DateTime
+  location   String   @db.Text
+  message    String?  @db.Text
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  creator      User          @relation("ScheduleCreatedBy", fields: [createdBy], references: [id])
+  appointments Appointment[]
+
+  @@index([propertyId])
+  @@index([dateTime])
+  @@index([createdBy])
+  @@map("schedules")
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  scheduleId  String
+  propertyId  String
+  userId      String
+  status      AppointmentStatus @default(BOOKED)
+  bookedAt    DateTime          @default(now())
+  cancelledAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User     @relation("AppointmentUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, userId])
+  @@index([scheduleId])
+  @@index([propertyId])
+  @@index([userId])
+  @@index([status])
+  @@map("appointments")
 }

@@ -21,6 +21,8 @@ import { CommissionsModule } from './commissions/commissions.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CronModule } from './cron/cron.module';
 import { SalesTargetsModule } from './sales-targets/sales-targets.module';
+import { SchedulesModule } from './schedules/schedules.module';
+import { AppointmentsModule } from './appointments/appointments.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { SalesTargetsModule } from './sales-targets/sales-targets.module';
     PaymentsModule,
     CronModule,
     SalesTargetsModule,
+    SchedulesModule,
+    AppointmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

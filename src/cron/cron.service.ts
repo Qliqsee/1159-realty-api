@@ -258,4 +258,95 @@ export class CronService {
       this.logger.error('Error checking upcoming due invoices', error);
     }
   }
+
+  /**
+   * Runs every hour to check for appointments scheduled in the next 24 hours
+   * Sends reminder emails to clients
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async handleAppointmentReminders() {
+    this.logger.debug('Checking for appointments in the next 24 hours...');
+
+    const now = new Date();
+    const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const twentyThreeHoursFromNow = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+
+    try {
+      // Find appointments scheduled between 23-24 hours from now
+      // This ensures we send the reminder once, approximately 24 hours before
+      const upcomingAppointments = await this.prisma.appointment.findMany({
+        where: {
+          status: 'BOOKED',
+          schedule: {
+            dateTime: {
+              gte: twentyThreeHoursFromNow,
+              lte: twentyFourHoursFromNow,
+            },
+          },
+        },
+        include: {
+          user: {
+            select: {
+              email: true,
+              name: true,
+            },
+          },
+          property: {
+            select: {
+              name: true,
+            },
+          },
+          schedule: {
+            select: {
+              dateTime: true,
+              location: true,
+              message: true,
+            },
+          },
+        },
+      });
+
+      this.logger.debug(
+        `Found ${upcomingAppointments.length} appointments scheduled in 24 hours`,
+      );
+
+      // Send reminder emails to clients
+      for (const appointment of upcomingAppointments) {
+        const clientEmail = appointment.user?.email;
+        const clientName = appointment.user?.name || 'Valued Client';
+        const propertyName = appointment.property?.name || 'Property';
+        const appointmentDate = appointment.schedule.dateTime;
+        const location = appointment.schedule.location;
+        const message = appointment.schedule.message;
+
+        if (clientEmail) {
+          try {
+            await this.emailService.sendAppointmentReminderEmail(
+              clientEmail,
+              clientName,
+              propertyName,
+              appointmentDate,
+              location,
+              message,
+            );
+
+            this.logger.log(
+              `Appointment reminder sent to ${clientEmail} for appointment on ${appointmentDate.toISOString()}`,
+            );
+          } catch (error) {
+            this.logger.error(
+              `Failed to send appointment reminder to ${clientEmail}`,
+              error,
+            );
+          }
+        }
+      }
+
+      this.logger.log(
+        `Sent ${upcomingAppointments.length} appointment reminder emails`,
+      );
+    } catch (error) {
+      this.logger.error('Error checking upcoming appointments', error);
+    }
+  }
 }

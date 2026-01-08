@@ -14,6 +14,7 @@ import { kycApprovedTemplate } from './templates/kyc-approved.template';
 import { kycRejectedTemplate } from './templates/kyc-rejected.template';
 import { invoiceReminderTemplate } from './templates/invoice-reminder.template';
 import { invoiceOverdueTemplate } from './templates/invoice-overdue.template';
+import { appointmentReminderTemplate } from './templates/appointment-reminder.template';
 
 @Injectable()
 export class EmailService {
@@ -264,6 +265,31 @@ export class EmailService {
 
     this.logger.log(
       `Overdue invoice notification sent to ${recipientEmail} for installment #${installmentNumber}`,
+    );
+  }
+
+  async sendAppointmentReminderEmail(
+    recipientEmail: string,
+    recipientName: string,
+    propertyName: string,
+    appointmentDate: Date,
+    location: string,
+    message?: string,
+  ): Promise<void> {
+    await this.sendEmail(
+      recipientEmail,
+      'Appointment Reminder - 1159 Realty',
+      appointmentReminderTemplate(
+        recipientName,
+        propertyName,
+        appointmentDate,
+        location,
+        message,
+      ),
+    );
+
+    this.logger.log(
+      `Appointment reminder sent to ${recipientEmail} for ${appointmentDate.toISOString()}`,
     );
   }
 
