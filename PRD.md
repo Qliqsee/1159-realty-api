@@ -61,6 +61,12 @@ Three-application ecosystem:
 - Links lead to client, changes status to closed
 - Cannot close 2 leads with same email
 - Leads have separate ID, linked to client on closure
+- Bidirectional linking:
+  - Lead.clientId → User.id
+  - User.leadId → Lead.id
+  - Lead.closedBy → Agent.id
+  - User.closedBy → Agent.id
+- See User Management section for complete linking details
 
 **Agent History:**
 
@@ -521,6 +527,86 @@ Three-application ecosystem:
 - Fields: client, message, agent, request date, status
 - Status: `open`, `closed`
 - Action: mark as attended, WhatsApp chat with agent
+
+---
+
+### User Management
+
+**Admin Endpoints:**
+
+- List all users: `/users`
+  - Paginated, searchable (name, email, phone)
+  - Filters: excludeClient, excludePartners, excludeAdmin, gender, country, state, emailVerified, hasCompletedKYC, isSuspended
+  - Sort: latest, oldest, most spent
+- Get user by ID: `/users/:id`
+  - Any user in system
+  - Full details payload
+- User stats: `/users/stats`
+  - Total users, total male, total female
+  - Total partners, total agents, total clients
+  - Total active, total suspended
+
+**Agent Endpoints:**
+
+- List my clients: `/users/my-clients`
+  - Only clients linked to agent (via enrollments or leads closed by agent)
+  - Paginated, searchable (name, email, phone)
+  - Filters: excludeAgents, excludePartners, gender, country, state, hasCompletedKYC
+  - Sort: latest, oldest, most spent
+- Get client by ID: `/users/:id`
+  - Only if client is linked to agent
+  - Full details payload
+- My client stats: `/users/my-stats`
+  - Total clients (linked to agent)
+  - Total male, total female
+  - Total partners (among agent's clients)
+
+**User Endpoints:**
+
+- Get own profile: `/users/me`
+  - Full user details
+  - Partnership status and link
+  - Enrollments summary
+  - KYC status
+- Get referral info: `/users/referral-id`
+  - Partner referral link (if approved partner)
+  - Referral code
+  - Total referred clients
+
+**User Details Payload:**
+
+- Basic info: id, name, email, phone, gender, country, state
+- Account info: emailVerified, hasCompletedOnboarding, createdAt
+- Financial: totalSpent (sum of all payments), activeEnrollments, completedEnrollments
+- KYC: status, currentStep, submittedAt, reviewedAt
+- Lead conversion: leadId (linked lead if converted from lead), closedBy (agent who converted the lead)
+- Agent: assignedAgentId, assignedAgentName (from enrollments)
+- Partnership: partnershipStatus, partnerLink, referredByPartnerId, referredByPartnerName
+- Enrollments: list of enrollments (id, property, status, amountPaid, totalAmount)
+- Status: isSuspended, suspendedAt, roles
+- Stats: totalEnrollments, totalPaid, totalPending
+
+**Lead-to-User Linking:**
+
+- When a lead is closed, it must be linked to a user (client)
+- User receives `leadId` field pointing to the lead
+- Lead receives `clientId` field pointing to the user
+- User receives `closedBy` field pointing to the agent who closed the lead
+- Lead receives `closedBy` field pointing to the agent who closed the lead
+- This creates a bidirectional relationship: User ↔ Lead
+- Email validation ensures no duplicate lead closures
+- Used for tracking lead conversion and agent performance
+
+**Authorization:**
+
+- Admins: access all users
+- Agents: access only their linked clients/partners
+- Users: access only own profile
+
+**Search & Filters:**
+
+- All list endpoints support search and filters on major user properties
+- Pagination mandatory on all list endpoints
 
 ---
 

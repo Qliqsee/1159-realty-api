@@ -9,6 +9,7 @@ import {
   UseGuards,
   Req,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,12 +23,16 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Request } from 'express';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UserQueryDto } from './dto/user-query.dto';
+import { UserQueryDto, MyClientsQueryDto } from './dto/user-query.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import {
   UserResponseDto,
   DeleteUserResponseDto,
   RemoveRoleResponseDto,
+  UserDetailsResponseDto,
+  UserStatsResponseDto,
+  MyStatsResponseDto,
+  ReferralInfoResponseDto,
 } from './dto/user-response.dto';
 
 @ApiTags('Users')
@@ -38,21 +43,82 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Get('me')
-  @ApiOperation({ summary: 'Get authenticated user profile' })
+  @ApiOperation({ summary: 'Get authenticated user profile with full details' })
   @ApiResponse({
     status: 200,
     description: 'User profile retrieved successfully',
-    type: UserResponseDto,
+    type: UserDetailsResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getProfile(@Req() req: Request) {
-    return req.user;
+  async getProfile(@Req() req: Request) {
+    return this.usersService.getProfile(req.user['id']);
+  }
+
+  @Get('referral-id')
+  @ApiOperation({ summary: 'Get user referral information' })
+  @ApiResponse({
+    status: 200,
+    description: 'Referral information retrieved successfully',
+    type: ReferralInfoResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  getReferralInfo(@Req() req: Request) {
+    return this.usersService.getReferralInfo(req.user['id']);
+  }
+
+  @Get('stats')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({ summary: 'Get user statistics (admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'User statistics retrieved successfully',
+    type: UserStatsResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  getUserStats() {
+    return this.usersService.getUserStats();
+  }
+
+  @Get('my-stats')
+  @UseGuards(RolesGuard)
+  @Roles('agent')
+  @ApiOperation({ summary: 'Get my client statistics (agent only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Agent client statistics retrieved successfully',
+    type: MyStatsResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  getMyStats(@Req() req: Request) {
+    return this.usersService.getMyStats(req.user['id']);
+  }
+
+  @Get('my-clients')
+  @UseGuards(RolesGuard)
+  @Roles('agent')
+  @ApiOperation({
+    summary: 'Get my clients with pagination, search, and filters (agent only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns paginated list of agent clients',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  getMyClients(@Req() req: Request, @Query() query: MyClientsQueryDto) {
+    return this.usersService.getMyClients(req.user['id'], query);
   }
 
   @Get()
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'List all users with pagination, search, and filters' })
+  @ApiOperation({
+    summary: 'List all users with pagination, search, and filters (admin only)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Returns paginated users list',
@@ -64,25 +130,52 @@ export class UsersController {
   }
 
   @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Get user by ID with roles and permissions' })
+  @ApiOperation({ summary: 'Get user by ID with full details' })
   @ApiResponse({
     status: 200,
     description: 'User details retrieved successfully',
-    type: UserResponseDto,
+    type: UserDetailsResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  findOne(@Param('id') id: string) {
+  async findOne(@Req() req: Request, @Param('id') id: string) {
+    const currentUser = req.user;
+    const roles = currentUser['roles'] || [];
+
+    // Admin can access any user
+    if (roles.includes('admin')) {
+      return this.usersService.findOne(id);
+    }
+
+    // Agent can only access their clients
+    if (roles.includes('agent')) {
+      const canAccess = await this.usersService.canAgentAccessClient(
+        currentUser['id'],
+        id
+      );
+
+      if (!canAccess) {
+        throw new ForbiddenException(
+          'You can only access users that are your clients'
+        );
+      }
+
+      return this.usersService.findOne(id);
+    }
+
+    // User can only access their own profile
+    if (id !== currentUser['id']) {
+      throw new ForbiddenException('You can only access your own profile');
+    }
+
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Update user details' })
+  @ApiOperation({ summary: 'Update user details (admin only)' })
   @ApiResponse({
     status: 200,
     description: 'User updated successfully',
@@ -98,7 +191,7 @@ export class UsersController {
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Delete user' })
+  @ApiOperation({ summary: 'Delete user (admin only)' })
   @ApiResponse({
     status: 200,
     description: 'User deleted successfully',
@@ -114,10 +207,13 @@ export class UsersController {
   @Post(':id/roles')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Assign role to user' })
+  @ApiOperation({ summary: 'Assign role to user (admin only)' })
   @ApiResponse({ status: 201, description: 'Role assigned successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - User already has this role' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - User already has this role',
+  })
   @ApiResponse({ status: 404, description: 'User or role not found' })
   assignRole(@Param('id') userId: string, @Body() body: AssignRoleDto) {
     return this.usersService.assignRole(userId, body.roleId);
@@ -126,7 +222,7 @@ export class UsersController {
   @Delete(':id/roles/:roleId')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Remove role from user' })
+  @ApiOperation({ summary: 'Remove role from user (admin only)' })
   @ApiResponse({
     status: 200,
     description: 'Role removed successfully',
@@ -142,7 +238,7 @@ export class UsersController {
   @Get(':id/permissions')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Get all permissions for a user' })
+  @ApiOperation({ summary: 'Get all permissions for a user (admin only)' })
   @ApiResponse({ status: 200, description: 'Returns user permissions list' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })

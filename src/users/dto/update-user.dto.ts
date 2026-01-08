@@ -11,4 +11,9 @@ export class UpdateUserDto {
   @IsEmail()
   @IsOptional()
   email?: string;
+
+  @ApiPropertyOptional({ example: '+2348012345678' })
+  @IsString()
+  @IsOptional()
+  phone?: string;
 }
