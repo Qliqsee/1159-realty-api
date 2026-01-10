@@ -30,6 +30,7 @@ import { DisbursementsModule } from './disbursements/disbursements.module';
 import { DisbursementConfigModule } from './disbursement-config/disbursement-config.module';
 import { InterestsModule } from './interests/interests.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
     SupportModule,
     InterestsModule,
     CampaignsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
