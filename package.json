@@ -8,6 +8,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
+    "start:dev:local": "npx dotenv-cli -e .env.local -- nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -15,7 +16,12 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "backfill:partner-links": "ts-node scripts/backfill-partner-links.ts"
+    "backfill:partner-links": "ts-node scripts/backfill-partner-links.ts",
+    "db:local:up": "docker-compose up -d",
+    "db:local:down": "docker-compose down",
+    "db:local:reset": "docker-compose down -v && docker-compose up -d",
+    "prisma:migrate:local": "npx dotenv-cli -e .env.local -- npx prisma migrate dev",
+    "prisma:studio:local": "npx dotenv-cli -e .env.local -- npx prisma studio"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -60,6 +66,7 @@
     "@types/passport-google-oauth20": "^2.0.17",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
+    "dotenv-cli": "^11.0.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
