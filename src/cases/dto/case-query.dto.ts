@@ -34,7 +34,6 @@ export class CaseQueryDto {
   limit?: number = 20;
 
   @ApiProperty({
-    example: 'John',
     description: 'Search by name or title',
     required: false,
   })
@@ -43,7 +42,6 @@ export class CaseQueryDto {
   search?: string;
 
   @ApiProperty({
-    example: 'PENDING',
     description: 'Filter by status',
     enum: CaseStatus,
     required: false,
@@ -53,7 +51,6 @@ export class CaseQueryDto {
   status?: CaseStatus;
 
   @ApiProperty({
-    example: 'uuid-here',
     description: 'Filter by user ID',
     required: false,
   })
@@ -62,7 +59,6 @@ export class CaseQueryDto {
   userId?: string;
 
   @ApiProperty({
-    example: 'uuid-here',
     description: 'Filter by property ID',
     required: false,
   })

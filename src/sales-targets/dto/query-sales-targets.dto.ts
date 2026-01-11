@@ -27,27 +27,27 @@ export class QuerySalesTargetsDto {
   @IsString()
   userId?: string;
 
-  @ApiProperty({ description: 'Filter by start date (from)', example: '2026-01-01', required: false })
+  @ApiProperty({ description: 'Filter by start date (from)', required: false })
   @IsOptional()
   @IsDateString()
   startDateFrom?: string;
 
-  @ApiProperty({ description: 'Filter by start date (to)', example: '2026-12-31', required: false })
+  @ApiProperty({ description: 'Filter by start date (to)', required: false })
   @IsOptional()
   @IsDateString()
   startDateTo?: string;
 
-  @ApiProperty({ description: 'Filter by end date (from)', example: '2026-01-01', required: false })
+  @ApiProperty({ description: 'Filter by end date (from)', required: false })
   @IsOptional()
   @IsDateString()
   endDateFrom?: string;
 
-  @ApiProperty({ description: 'Filter by end date (to)', example: '2026-12-31', required: false })
+  @ApiProperty({ description: 'Filter by end date (to)', required: false })
   @IsOptional()
   @IsDateString()
   endDateTo?: string;
 
-  @ApiProperty({ description: 'Filter by status - active or completed', enum: ['active', 'completed', 'all'], required: false, example: 'active' })
+  @ApiProperty({ description: 'Filter by status - active or completed', enum: ['active', 'completed', 'all'], required: false })
   @IsOptional()
   @IsString()
   status?: string;

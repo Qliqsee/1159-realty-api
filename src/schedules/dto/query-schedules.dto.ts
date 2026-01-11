@@ -32,17 +32,17 @@ export class QuerySchedulesDto {
   @IsString()
   createdBy?: string;
 
-  @ApiProperty({ description: 'Filter by date/time from', example: '2026-01-01T00:00:00Z', required: false })
+  @ApiProperty({ description: 'Filter by date/time from', required: false })
   @IsOptional()
   @IsDateString()
   dateTimeFrom?: string;
 
-  @ApiProperty({ description: 'Filter by date/time to', example: '2026-12-31T23:59:59Z', required: false })
+  @ApiProperty({ description: 'Filter by date/time to', required: false })
   @IsOptional()
   @IsDateString()
   dateTimeTo?: string;
 
-  @ApiProperty({ description: 'Filter upcoming schedules only', required: false, example: true })
+  @ApiProperty({ description: 'Filter upcoming schedules only', required: false })
   @IsOptional()
   @Type(() => Boolean)
   upcomingOnly?: boolean;

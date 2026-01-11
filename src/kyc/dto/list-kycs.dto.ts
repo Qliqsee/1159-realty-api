@@ -14,22 +14,22 @@ export class ListKycsQueryDto {
   @IsEnum(KycStatus)
   status?: KycStatus;
 
-  @ApiProperty({ required: false, example: '2024-01-01' })
+  @ApiProperty({ required: false, description: 'Filter by submission date from (ISO 8601)' })
   @IsOptional()
   @IsDateString()
   submissionDateFrom?: string;
 
-  @ApiProperty({ required: false, example: '2024-12-31' })
+  @ApiProperty({ required: false, description: 'Filter by submission date to (ISO 8601)' })
   @IsOptional()
   @IsDateString()
   submissionDateTo?: string;
 
-  @ApiProperty({ required: false, example: '2024-01-01' })
+  @ApiProperty({ required: false, description: 'Filter by review date from (ISO 8601)' })
   @IsOptional()
   @IsDateString()
   reviewDateFrom?: string;
 
-  @ApiProperty({ required: false, example: '2024-12-31' })
+  @ApiProperty({ required: false, description: 'Filter by review date to (ISO 8601)' })
   @IsOptional()
   @IsDateString()
   reviewDateTo?: string;

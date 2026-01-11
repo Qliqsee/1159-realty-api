@@ -6,7 +6,6 @@ export class SegmentListQueryDto {
   @ApiProperty({
     required: false,
     description: 'Search by segment name or description',
-    example: 'Lagos',
   })
   @IsOptional()
   @IsString()
@@ -39,7 +38,6 @@ export class SegmentListQueryDto {
   @ApiProperty({
     required: false,
     description: 'Filter by creator ID',
-    example: 'user-uuid',
   })
   @IsOptional()
   @IsString()

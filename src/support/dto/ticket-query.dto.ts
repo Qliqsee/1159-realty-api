@@ -43,7 +43,6 @@ export class TicketQueryDto {
   limit?: number = 20;
 
   @ApiProperty({
-    example: 'dashboard',
     description: 'Search by reason',
     required: false,
   })
@@ -52,7 +51,6 @@ export class TicketQueryDto {
   search?: string;
 
   @ApiProperty({
-    example: 'OPENED',
     description: 'Filter by status',
     enum: TicketStatus,
     required: false,
@@ -62,7 +60,6 @@ export class TicketQueryDto {
   status?: TicketStatus;
 
   @ApiProperty({
-    example: 'TECHNICAL',
     description: 'Filter by category',
     enum: TicketCategory,
     required: false,
@@ -72,7 +69,6 @@ export class TicketQueryDto {
   category?: TicketCategory;
 
   @ApiProperty({
-    example: 'uuid-here',
     description: 'Filter by user ID',
     required: false,
   })

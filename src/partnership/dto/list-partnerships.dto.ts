@@ -4,7 +4,7 @@ import { PartnershipStatus } from '@prisma/client';
 import { PartnershipWithUserDto } from './partnership-response.dto';
 
 export class ListPartnershipsQueryDto {
-  @ApiPropertyOptional({ description: 'Search by user name or email', example: 'john' })
+  @ApiPropertyOptional({ description: 'Search by user name or email' })
   @IsOptional()
   @IsString()
   search?: string;

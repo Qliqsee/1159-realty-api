@@ -3,7 +3,7 @@ import { IsOptional, IsString, IsEnum } from 'class-validator';
 import { EnrollmentStatus } from '@prisma/client';
 
 export class ListPartnerClientsQueryDto {
-  @ApiPropertyOptional({ description: 'Search by client name or email', example: 'john' })
+  @ApiPropertyOptional({ description: 'Search by client name or email' })
   @IsOptional()
   @IsString()
   search?: string;

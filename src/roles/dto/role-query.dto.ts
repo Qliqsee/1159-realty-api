@@ -2,12 +2,12 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 
 export class RoleQueryDto {
-  @ApiPropertyOptional({ description: 'Search by role name', example: 'admin' })
+  @ApiPropertyOptional({ description: 'Search by role name' })
   @IsString()
   @IsOptional()
   search?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by app context', example: 'realty' })
+  @ApiPropertyOptional({ description: 'Filter by app context' })
   @IsString()
   @IsOptional()
   appContext?: string;

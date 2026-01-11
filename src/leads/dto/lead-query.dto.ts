@@ -4,7 +4,6 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class LeadQueryDto {
   @ApiProperty({
-    example: 'john',
     description: 'Search in email, firstName, lastName, phone',
     required: false,
   })
@@ -14,7 +13,6 @@ export class LeadQueryDto {
 
   @ApiProperty({
     enum: LeadStatus,
-    example: 'RESERVED',
     description: 'Filter by lead status',
     required: false,
   })
@@ -23,7 +21,6 @@ export class LeadQueryDto {
   status?: LeadStatus;
 
   @ApiProperty({
-    example: 'user-id-123',
     description: 'Filter by agent who reserved the lead',
     required: false,
   })
@@ -32,7 +29,6 @@ export class LeadQueryDto {
   reservedBy?: string;
 
   @ApiProperty({
-    example: 'user-id-456',
     description: 'Filter by user who added the lead',
     required: false,
   })
@@ -41,7 +37,6 @@ export class LeadQueryDto {
   addedBy?: string;
 
   @ApiProperty({
-    example: '2026-01-01T00:00:00.000Z',
     description: 'Filter leads created on or after this date',
     required: false,
   })
@@ -50,7 +45,6 @@ export class LeadQueryDto {
   startDate?: string;
 
   @ApiProperty({
-    example: '2026-12-31T23:59:59.999Z',
     description: 'Filter leads created on or before this date',
     required: false,
   })

@@ -35,14 +35,13 @@ export class QueryAppointmentsDto {
   @ApiProperty({
     description: 'Filter by status',
     enum: ['BOOKED', 'CANCELLED', 'ALL'],
-    required: false,
-    example: 'BOOKED'
+    required: false
   })
   @IsOptional()
   @IsString()
   status?: string;
 
-  @ApiProperty({ description: 'Filter upcoming appointments only', required: false, example: true })
+  @ApiProperty({ description: 'Filter upcoming appointments only', required: false })
   @IsOptional()
   @Type(() => Boolean)
   upcomingOnly?: boolean;

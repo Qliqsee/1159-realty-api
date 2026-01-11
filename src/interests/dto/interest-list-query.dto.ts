@@ -39,7 +39,6 @@ export class InterestListQueryDto {
 
   @ApiPropertyOptional({
     description: 'Search by client name, property name, agent name, or message',
-    example: 'John',
   })
   @IsOptional()
   @IsString()
@@ -48,7 +47,6 @@ export class InterestListQueryDto {
   @ApiPropertyOptional({
     description: 'Filter by interest status',
     enum: InterestStatus,
-    example: 'OPEN',
   })
   @IsOptional()
   @IsEnum(InterestStatus)
@@ -56,7 +54,6 @@ export class InterestListQueryDto {
 
   @ApiPropertyOptional({
     description: 'Filter by property ID',
-    example: 'clx123abc456def789',
   })
   @IsOptional()
   @IsString()
@@ -64,7 +61,6 @@ export class InterestListQueryDto {
 
   @ApiPropertyOptional({
     description: 'Filter by client ID',
-    example: 'clx123abc456def789',
   })
   @IsOptional()
   @IsString()
@@ -72,7 +68,6 @@ export class InterestListQueryDto {
 
   @ApiPropertyOptional({
     description: 'Filter by agent ID',
-    example: 'clx123abc456def789',
   })
   @IsOptional()
   @IsString()
@@ -80,7 +75,6 @@ export class InterestListQueryDto {
 
   @ApiPropertyOptional({
     description: 'Filter by created date start (ISO 8601 format)',
-    example: '2024-01-01T00:00:00.000Z',
   })
   @IsOptional()
   @IsDateString()
@@ -88,7 +82,6 @@ export class InterestListQueryDto {
 
   @ApiPropertyOptional({
     description: 'Filter by created date end (ISO 8601 format)',
-    example: '2024-12-31T23:59:59.999Z',
   })
   @IsOptional()
   @IsDateString()
