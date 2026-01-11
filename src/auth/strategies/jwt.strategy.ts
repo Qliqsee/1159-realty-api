@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -21,6 +21,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: {
+        admin: true,
+        client: true,
         userRoles: {
           include: {
             role: {
@@ -41,6 +43,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found');
     }
 
+    // Check if user is banned
+    if (user.isBanned) {
+      throw new ForbiddenException('Your account has been banned');
+    }
+
+    const userType = user.admin ? 'admin' : user.client ? 'client' : null;
+
+    if (!userType) {
+      throw new UnauthorizedException('User type not found');
+    }
+
     const roles = user.userRoles.map((ur) => ({
       id: ur.role.id,
       name: ur.role.name,
@@ -58,6 +71,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: user.id,
       email: user.email,
+      userType,
+      admin: user.admin || null,
+      client: user.client || null,
       roles,
       permissions,
     };

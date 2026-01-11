@@ -90,7 +90,7 @@ export class CampaignsService {
 
     // Validate partner IDs exist
     if (partnerIds.length > 0) {
-      const validPartners = await this.prisma.user.count({
+      const validPartners = await this.prisma.client.count({
         where: {
           id: { in: partnerIds },
           partnership: {
@@ -137,7 +137,11 @@ export class CampaignsService {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -185,7 +189,11 @@ export class CampaignsService {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -213,7 +221,11 @@ export class CampaignsService {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -281,7 +293,7 @@ export class CampaignsService {
 
     // Validate partner IDs if provided
     if (partnerIds && partnerIds.length > 0) {
-      const validPartners = await this.prisma.user.count({
+      const validPartners = await this.prisma.client.count({
         where: {
           id: { in: partnerIds },
           partnership: {
@@ -329,7 +341,11 @@ export class CampaignsService {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -379,35 +395,39 @@ export class CampaignsService {
 
     const where = this.buildSegmentQuery(segment);
 
-    const [users, total] = await Promise.all([
-      this.prisma.user.findMany({
+    const [clients, total] = await Promise.all([
+      this.prisma.client.findMany({
         where,
         select: {
           id: true,
           name: true,
-          email: true,
           phone: true,
           gender: true,
           country: true,
           state: true,
           referralSource: true,
+          user: {
+            select: {
+              email: true,
+            },
+          },
         },
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.user.count({ where }),
+      this.prisma.client.count({ where }),
     ]);
 
     return {
-      data: users.map((user) => ({
-        id: user.id,
-        name: user.name || '',
-        email: user.email,
-        phone: user.phone || '',
-        gender: user.gender || '',
-        country: user.country || '',
-        state: user.state || '',
-        referralSource: user.referralSource,
+      data: clients.map((client) => ({
+        id: client.id,
+        name: client.name || '',
+        email: client.user?.email || '',
+        phone: client.phone || '',
+        gender: client.gender || '',
+        country: client.country || '',
+        state: client.state || '',
+        referralSource: client.referralSource,
       })),
       total,
       page,
@@ -434,13 +454,17 @@ export class CampaignsService {
 
     const where = this.buildSegmentQuery(segment);
 
-    // Get all matching users
-    const users = await this.prisma.user.findMany({
+    // Get all matching clients
+    const clients = await this.prisma.client.findMany({
       where,
       select: {
-        email: true,
         name: true,
         phone: true,
+        user: {
+          select: {
+            email: true,
+          },
+        },
       },
     });
 
@@ -450,8 +474,12 @@ export class CampaignsService {
 
     try {
       // Format contacts for Brevo
-      const contacts = users.map((user) =>
-        this.brevoService.formatContactForBrevo(user),
+      const contacts = clients.map((client) =>
+        this.brevoService.formatContactForBrevo({
+          email: client.user?.email || '',
+          name: client.name,
+          phone: client.phone,
+        }),
       );
 
       // Sync to Brevo
@@ -530,8 +558,8 @@ export class CampaignsService {
     };
   }
 
-  private buildSegmentQuery(segment: any): Prisma.UserWhereInput {
-    const conditions: Prisma.UserWhereInput[] = [];
+  private buildSegmentQuery(segment: any): Prisma.ClientWhereInput {
+    const conditions: Prisma.ClientWhereInput[] = [];
 
     // Filter by gender
     if (segment.gender && segment.gender.length > 0) {
@@ -639,7 +667,7 @@ export class CampaignsService {
       creator: {
         id: segment.creator.id,
         name: segment.creator.name || '',
-        email: segment.creator.email,
+        email: segment.creator.user?.email || '',
       },
       createdAt: segment.createdAt,
       updatedAt: segment.updatedAt,

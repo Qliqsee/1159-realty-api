@@ -131,23 +131,29 @@ export class DisbursementConfigService {
       where: {
         id: { in: config.exceptionUserIds },
         ...(search && {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-          ],
+          email: { contains: search, mode: 'insensitive' },
         }),
       },
       select: {
         id: true,
-        name: true,
         email: true,
+        admin: {
+          select: {
+            name: true,
+          },
+        },
+        client: {
+          select: {
+            name: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
     return users.map((user) => ({
       id: user.id,
-      name: user.name,
+      name: user.admin?.name || user.client?.name || 'Unknown',
       email: user.email,
       addedAt: config.createdAt, // Simplified: using config creation date
     }));

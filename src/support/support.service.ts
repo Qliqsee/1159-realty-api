@@ -8,20 +8,24 @@ import { TicketQueryDto } from './dto/ticket-query.dto';
 export class SupportService {
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: string, createTicketDto: CreateTicketDto) {
+  async create(clientId: string, createTicketDto: CreateTicketDto) {
     const ticket = await this.prisma.supportTicket.create({
       data: {
-        userId,
+        clientId,
         category: createTicketDto.category,
         reason: createTicketDto.reason,
         attachments: createTicketDto.attachments || [],
       },
       include: {
-        user: {
+        client: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -55,7 +59,7 @@ export class SupportService {
     }
 
     if (userId) {
-      where.userId = userId;
+      where.clientId = userId;
     }
 
     const [tickets, total] = await Promise.all([
@@ -65,12 +69,16 @@ export class SupportService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          user: {
+          client: {
             select: {
               id: true,
               name: true,
-              email: true,
               phone: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -89,11 +97,11 @@ export class SupportService {
     };
   }
 
-  async getMy(userId: string, query: TicketQueryDto) {
+  async getMy(clientId: string, query: TicketQueryDto) {
     const { page = 1, limit = 20, search, status, category } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = { userId };
+    const where: any = { clientId };
 
     if (search) {
       where.reason = {
@@ -135,12 +143,16 @@ export class SupportService {
     const ticket = await this.prisma.supportTicket.findUnique({
       where: { id },
       include: {
-        user: {
+        client: {
           select: {
             id: true,
             name: true,
-            email: true,
             phone: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -170,11 +182,15 @@ export class SupportService {
         status: updateTicketStatusDto.status,
       },
       include: {
-        user: {
+        client: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },

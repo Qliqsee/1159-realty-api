@@ -31,8 +31,8 @@ export class DisbursementsService {
     const commission = await this.prisma.commission.findUnique({
       where: { id: commissionId },
       include: {
-        agent: { select: { id: true, name: true, email: true, accountNumber: true } },
-        partner: { select: { id: true, name: true, email: true, accountNumber: true } },
+        agent: { select: { id: true, name: true, user: { select: { email: true } }, accountNumber: true } },
+        partner: { select: { id: true, name: true, user: { select: { email: true } }, accountNumber: true } },
         enrollment: {
           include: {
             property: { select: { name: true } },
@@ -81,7 +81,7 @@ export class DisbursementsService {
         createdBy,
       },
       include: {
-        recipient: { select: { id: true, name: true, email: true } },
+        recipient: { select: { id: true, name: true, user: { select: { email: true } } } },
         enrollment: {
           include: {
             property: { select: { name: true } },
@@ -176,7 +176,7 @@ export class DisbursementsService {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
         include: {
-          recipient: { select: { id: true, name: true, email: true } },
+          recipient: { select: { id: true, name: true, user: { select: { email: true } } } },
           enrollment: {
             include: {
               property: { select: { name: true } },
@@ -215,7 +215,7 @@ export class DisbursementsService {
     const disbursement = await this.prisma.disbursement.findUnique({
       where: { id },
       include: {
-        recipient: { select: { id: true, name: true, email: true } },
+        recipient: { select: { id: true, name: true, user: { select: { email: true } } } },
         enrollment: {
           include: {
             property: { select: { name: true } },
@@ -255,7 +255,7 @@ export class DisbursementsService {
     const disbursement = await this.prisma.disbursement.findUnique({
       where: { id },
       include: {
-        recipient: { select: { name: true, email: true } },
+        recipient: { select: { name: true, user: { select: { email: true } } } },
         enrollment: { include: { property: { select: { name: true } } } },
         commission: { select: { id: true } },
       },

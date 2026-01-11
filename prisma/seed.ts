@@ -530,6 +530,142 @@ async function main() {
     },
   });
 
+  // Additional admin role types
+  const managerRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'manager',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
+      name: 'manager',
+      appContext: 'crm',
+      description: 'Manager in CRM',
+    },
+  });
+
+  const operationsManagerRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'operations-manager',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
+      name: 'operations-manager',
+      appContext: 'crm',
+      description: 'Operations Manager in CRM',
+    },
+  });
+
+  const hrRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'hr',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
+      name: 'hr',
+      appContext: 'crm',
+      description: 'Human Resources in CRM',
+    },
+  });
+
+  const accountingRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'accounting',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
+      name: 'accounting',
+      appContext: 'crm',
+      description: 'Accounting in CRM',
+    },
+  });
+
+  const accountingManagerRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'accounting-manager',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
+      name: 'accounting-manager',
+      appContext: 'crm',
+      description: 'Accounting Manager in CRM',
+    },
+  });
+
+  const salesManagerRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'sales-manager',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
+      name: 'sales-manager',
+      appContext: 'crm',
+      description: 'Sales Manager in CRM',
+    },
+  });
+
+  const mediaManagerRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'media-manager',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
+      name: 'media-manager',
+      appContext: 'crm',
+      description: 'Media Manager in CRM',
+    },
+  });
+
+  const cstRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'cst',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
+      name: 'cst',
+      appContext: 'crm',
+      description: 'Customer Service Team in CRM',
+    },
+  });
+
+  const cstManagerRole = await prisma.role.upsert({
+    where: {
+      name_appContext: {
+        name: 'cst-manager',
+        appContext: 'crm',
+      },
+    },
+    update: {},
+    create: {
+      name: 'cst-manager',
+      appContext: 'crm',
+      description: 'Customer Service Team Manager in CRM',
+    },
+  });
+
   await Promise.all([
     ...customerPermissions.map((permission) =>
       prisma.rolePermission.upsert({
@@ -758,30 +894,29 @@ async function main() {
     )
   );
 
+  // Create test admin user
   const testUser = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
     create: {
       email: 'admin@example.com',
       password: hashedPassword,
+      isEmailVerified: true,
+    },
+  });
+
+  // Create Admin record for test user
+  await prisma.admin.upsert({
+    where: { userId: testUser.id },
+    update: {},
+    create: {
+      userId: testUser.id,
       name: 'Admin User',
+      phone: '+2348012345678',
     },
   });
 
   await Promise.all([
-    prisma.userRole.upsert({
-      where: {
-        userId_roleId: {
-          userId: testUser.id,
-          roleId: customerRole.id,
-        },
-      },
-      update: {},
-      create: {
-        userId: testUser.id,
-        roleId: customerRole.id,
-      },
-    }),
     prisma.userRole.upsert({
       where: {
         userId_roleId: {
@@ -795,15 +930,40 @@ async function main() {
         roleId: adminRole.id,
       },
     }),
+    prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: testUser.id,
+          roleId: agentRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: testUser.id,
+        roleId: agentRole.id,
+      },
+    }),
   ]);
 
+  // Create test client user
   const regularUser = await prisma.user.upsert({
     where: { email: 'user@example.com' },
     update: {},
     create: {
       email: 'user@example.com',
       password: hashedPassword,
+      isEmailVerified: true,
+    },
+  });
+
+  // Create Client record for regular user
+  await prisma.client.upsert({
+    where: { userId: regularUser.id },
+    update: {},
+    create: {
+      userId: regularUser.id,
       name: 'Regular User',
+      phone: '+2348087654321',
     },
   });
 
@@ -811,13 +971,13 @@ async function main() {
     where: {
       userId_roleId: {
         userId: regularUser.id,
-        roleId: customerRole.id,
+        roleId: clientRole.id,
       },
     },
     update: {},
     create: {
       userId: regularUser.id,
-      roleId: customerRole.id,
+      roleId: clientRole.id,
     },
   });
 
@@ -846,8 +1006,13 @@ async function main() {
 
   console.log('Seed completed successfully!');
   console.log('Test users:');
-  console.log('  Admin: admin@example.com / password123 (has customer + admin roles)');
-  console.log('  User: user@example.com / password123 (has customer role)');
+  console.log('  Admin: admin@example.com / password123 (has admin + agent roles)');
+  console.log('  Client: user@example.com / password123 (has client role)');
+  console.log('\nAdmin roles created:');
+  console.log('  - admin, manager, operations-manager, hr, accounting');
+  console.log('  - accounting-manager, sales-manager, media-manager, cst, cst-manager, agent');
+  console.log('\nClient roles created:');
+  console.log('  - client, partner');
 }
 
 main()

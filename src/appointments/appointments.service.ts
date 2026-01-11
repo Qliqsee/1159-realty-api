@@ -17,7 +17,7 @@ export class AppointmentsService {
 
   async book(
     bookAppointmentDto: BookAppointmentDto,
-    userId: string,
+    clientId: string,
   ): Promise<AppointmentResponseDto> {
     const { scheduleId } = bookAppointmentDto;
 
@@ -38,12 +38,12 @@ export class AppointmentsService {
       throw new BadRequestException('Cannot book appointment for past schedules');
     }
 
-    // Check if user already has an appointment for this schedule
+    // Check if client already has an appointment for this schedule
     const existingAppointment = await this.prisma.appointment.findUnique({
       where: {
-        scheduleId_userId: {
+        scheduleId_clientId: {
           scheduleId,
-          userId,
+          clientId,
         },
       },
     });
@@ -68,10 +68,14 @@ export class AppointmentsService {
               name: true,
             },
           },
-          user: {
+          client: {
             select: {
               name: true,
-              email: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -85,7 +89,7 @@ export class AppointmentsService {
       data: {
         scheduleId,
         propertyId: schedule.propertyId,
-        userId,
+        clientId,
         status: 'BOOKED',
       },
       include: {
@@ -95,10 +99,14 @@ export class AppointmentsService {
             name: true,
           },
         },
-        user: {
+        client: {
           select: {
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -128,7 +136,7 @@ export class AppointmentsService {
     const where: Prisma.AppointmentWhereInput = {};
 
     if (userId) {
-      where.userId = userId;
+      where.clientId = userId;
     }
 
     if (propertyId) {
@@ -166,10 +174,14 @@ export class AppointmentsService {
               name: true,
             },
           },
-          user: {
+          client: {
             select: {
               name: true,
-              email: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -185,14 +197,14 @@ export class AppointmentsService {
     };
   }
 
-  async findAllForClient(userId: string, query: QueryAppointmentsDto): Promise<{
+  async findAllForClient(clientId: string, query: QueryAppointmentsDto): Promise<{
     data: AppointmentResponseDto[];
     total: number;
     page: number;
     limit: number;
   }> {
-    // Force userId filter for clients
-    const clientQuery = { ...query, userId };
+    // Force clientId filter for clients
+    const clientQuery = { ...query, userId: clientId };
     return this.findAll(clientQuery);
   }
 
@@ -206,10 +218,14 @@ export class AppointmentsService {
             name: true,
           },
         },
-        user: {
+        client: {
           select: {
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -222,7 +238,7 @@ export class AppointmentsService {
     return this.formatAppointmentResponse(appointment);
   }
 
-  async cancel(id: string, userId: string, isAdmin: boolean = false): Promise<AppointmentResponseDto> {
+  async cancel(id: string, clientId: string, isAdmin: boolean = false): Promise<AppointmentResponseDto> {
     const appointment = await this.prisma.appointment.findUnique({
       where: { id },
       include: {
@@ -235,7 +251,7 @@ export class AppointmentsService {
     }
 
     // Check ownership if not admin
-    if (!isAdmin && appointment.userId !== userId) {
+    if (!isAdmin && appointment.clientId !== clientId) {
       throw new ForbiddenException('You can only cancel your own appointments');
     }
 
@@ -261,10 +277,14 @@ export class AppointmentsService {
             name: true,
           },
         },
-        user: {
+        client: {
           select: {
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -279,9 +299,9 @@ export class AppointmentsService {
       scheduleId: appointment.scheduleId,
       propertyId: appointment.propertyId,
       propertyName: appointment.property?.name,
-      userId: appointment.userId,
-      clientName: appointment.user?.name,
-      clientEmail: appointment.user?.email,
+      userId: appointment.clientId,
+      clientName: appointment.client?.name,
+      clientEmail: appointment.client?.user?.email,
       scheduleDateTime: appointment.schedule?.dateTime,
       scheduleLocation: appointment.schedule?.location,
       scheduleMessage: appointment.schedule?.message,

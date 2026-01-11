@@ -42,6 +42,13 @@ import {
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
+  /**
+   * DEPRECATED: Most endpoints are commented out because UsersService methods are unavailable
+   * after schema migration. User fields moved to Admin/Client tables.
+   * These endpoints will be replaced by Admin and Client module endpoints.
+   */
+
+  /* COMMENTED OUT - Schema migration: UsersService methods unavailable
   @Get('me')
   @ApiOperation({ summary: 'Get authenticated user profile with full details' })
   @ApiResponse({
@@ -187,6 +194,9 @@ export class UsersController {
   update(@Param('id') id: string, @Body() updateData: UpdateUserDto) {
     return this.usersService.update(id, updateData);
   }
+  */ // END COMMENTED OUT - Schema migration
+
+  // These endpoints still work with the new schema
 
   @Delete(':id')
   @UseGuards(RolesGuard)
@@ -247,6 +257,7 @@ export class UsersController {
     return this.usersService.getUserPermissions(id);
   }
 
+  /* COMMENTED OUT - Schema migration: bank account fields moved to Admin/Client tables
   @Patch('me/bank-account')
   @ApiOperation({ summary: 'Update or add bank account details for authenticated user' })
   @ApiResponse({ status: 200, description: 'Bank account updated successfully' })
@@ -275,4 +286,5 @@ export class UsersController {
     const userId = (req.user as any).id;
     return this.usersService.deleteBankAccount(userId);
   }
+  */ // END COMMENTED OUT - Bank account endpoints
 }

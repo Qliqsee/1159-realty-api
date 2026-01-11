@@ -49,15 +49,21 @@ export class ListKycsQueryDto {
   limit?: number = 20;
 }
 
-export class UserInfoDto {
+export class ClientInfoDto {
   @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
   id: string;
 
-  @ApiProperty({ example: 'john.doe@example.com' })
-  email: string;
-
   @ApiProperty({ example: 'John Doe', nullable: true })
   name: string | null;
+
+  @ApiProperty({
+    example: {
+      email: 'john.doe@example.com',
+    },
+  })
+  user: {
+    email: string;
+  };
 }
 
 export class KycListItemDto {
@@ -65,10 +71,10 @@ export class KycListItemDto {
   id: string;
 
   @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
-  userId: string;
+  clientId: string;
 
-  @ApiProperty({ type: UserInfoDto })
-  user: UserInfoDto;
+  @ApiProperty({ type: ClientInfoDto })
+  client: ClientInfoDto;
 
   @ApiProperty({ enum: KycStatus, example: KycStatus.SUBMITTED })
   status: KycStatus;

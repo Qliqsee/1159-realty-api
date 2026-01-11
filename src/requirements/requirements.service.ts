@@ -72,11 +72,15 @@ export class RequirementsService {
         sampleDocuments: true,
         submittedDocuments: {
           include: {
-            user: {
+            client: {
               select: {
                 id: true,
                 name: true,
-                email: true,
+                user: {
+                  select: {
+                    email: true,
+                  },
+                },
               },
             },
           },
@@ -150,7 +154,7 @@ export class RequirementsService {
 
   async uploadDocument(
     requirementId: string,
-    userId: string,
+    clientId: string,
     file: Express.Multer.File,
   ) {
     const requirement = await this.findOne(requirementId);
@@ -163,7 +167,7 @@ export class RequirementsService {
     const document = await this.prisma.requirementDocument.create({
       data: {
         requirementId,
-        userId,
+        clientId,
         fileUrl: url,
         fileName: file.originalname,
         fileType: file.mimetype,
@@ -173,13 +177,13 @@ export class RequirementsService {
     return document;
   }
 
-  async getMyDocuments(requirementId: string, userId: string) {
+  async getMyDocuments(requirementId: string, clientId: string) {
     const requirement = await this.findOne(requirementId);
 
     const documents = await this.prisma.requirementDocument.findMany({
       where: {
         requirementId,
-        userId,
+        clientId,
       },
       orderBy: {
         submittedAt: 'desc',
@@ -259,11 +263,11 @@ export class RequirementsService {
     };
   }
 
-  async getMyRequirements(caseId: string, userId: string) {
+  async getMyRequirements(caseId: string, clientId: string) {
     const caseItem = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        userId,
+        clientId,
       },
     });
 
@@ -276,7 +280,7 @@ export class RequirementsService {
       include: {
         sampleDocuments: true,
         submittedDocuments: {
-          where: { userId },
+          where: { clientId },
         },
       },
       orderBy: {

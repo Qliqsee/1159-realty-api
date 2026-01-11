@@ -41,14 +41,14 @@ export class LeadsService {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
         reserver: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
       },
@@ -194,21 +194,21 @@ export class LeadsService {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: { select: { email: true } },
             },
           },
           reserver: {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: { select: { email: true } },
             },
           },
           closer: {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: { select: { email: true } },
             },
           },
         },
@@ -247,28 +247,28 @@ export class LeadsService {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
         reserver: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
         closer: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
         client: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
         feedbacks: {
@@ -277,7 +277,7 @@ export class LeadsService {
               select: {
                 id: true,
                 name: true,
-                email: true,
+                user: { select: { email: true } },
               },
             },
           },
@@ -306,14 +306,14 @@ export class LeadsService {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
         reserver: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
       },
@@ -372,14 +372,14 @@ export class LeadsService {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
         reserver: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
       },
@@ -433,7 +433,7 @@ export class LeadsService {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
       },
@@ -475,8 +475,8 @@ export class LeadsService {
 
     // Update lead and link to client
     const updatedLead = await this.prisma.$transaction(async (tx) => {
-      // Update user with lead information
-      await tx.user.update({
+      // Update client with lead information
+      await tx.client.update({
         where: { id: client.id },
         data: {
           leadId: id,
@@ -499,21 +499,21 @@ export class LeadsService {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: { select: { email: true } },
             },
           },
           closer: {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: { select: { email: true } },
             },
           },
           client: {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: { select: { email: true } },
             },
           },
         },
@@ -551,7 +551,7 @@ export class LeadsService {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: { select: { email: true } },
           },
         },
       },
@@ -575,7 +575,11 @@ export class LeadsService {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -614,7 +618,11 @@ export class LeadsService {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
         },

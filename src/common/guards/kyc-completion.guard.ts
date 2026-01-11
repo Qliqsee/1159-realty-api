@@ -15,12 +15,12 @@ export class KycCompletionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || !user.userId) {
-      throw new ForbiddenException('User not authenticated');
+    if (!user || !user.clientId) {
+      throw new ForbiddenException('User not authenticated or not a client');
     }
 
     const kyc = await this.prisma.kyc.findUnique({
-      where: { userId: user.userId },
+      where: { clientId: user.clientId },
     });
 
     if (!kyc) {

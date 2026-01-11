@@ -41,7 +41,16 @@ export class PaymentsService {
         enrollment: {
           include: {
             property: true,
-            client: { select: { email: true, name: true } },
+            client: {
+              select: {
+                name: true,
+                user: {
+                  select: {
+                    email: true
+                  }
+                }
+              }
+            },
             agent: { select: { name: true } },
           },
         },
@@ -81,7 +90,7 @@ export class PaymentsService {
     // Determine customer email
     let customerEmail = email;
     if (!customerEmail && invoice.enrollment.client) {
-      customerEmail = invoice.enrollment.client.email;
+      customerEmail = invoice.enrollment.client.user.email;
     }
     if (!customerEmail) {
       throw new BadRequestException('Customer email is required for payment');

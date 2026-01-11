@@ -1,0 +1,68 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class AdminResponseDto {
+  @ApiProperty({ description: 'Admin ID', example: 'uuid' })
+  id: string;
+
+  @ApiProperty({ description: 'User ID', example: 'uuid' })
+  userId: string;
+
+  @ApiProperty({ description: 'Email address', example: 'admin@example.com' })
+  email: string;
+
+  @ApiPropertyOptional({ description: 'Admin name', example: 'John Doe' })
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Phone number', example: '+2348012345678' })
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Date of birth' })
+  dateOfBirth?: Date;
+
+  @ApiPropertyOptional({ description: 'Street address' })
+  street?: string;
+
+  @ApiPropertyOptional({ description: 'City' })
+  city?: string;
+
+  @ApiPropertyOptional({ description: 'State' })
+  state?: string;
+
+  @ApiPropertyOptional({ description: 'Country' })
+  country?: string;
+
+  @ApiPropertyOptional({ description: 'Postal code' })
+  postalCode?: string;
+
+  @ApiProperty({ description: 'Can onboard clients', example: true })
+  canOnboardClients: boolean;
+
+  @ApiProperty({ description: 'Is banned', example: false })
+  isBanned: boolean;
+
+  @ApiProperty({ description: 'Is user suspended', example: false })
+  isSuspended: boolean;
+
+  @ApiProperty({ description: 'Roles assigned', example: ['agent', 'admin'] })
+  roles: string[];
+
+  @ApiProperty({ description: 'Created at' })
+  createdAt: Date;
+
+  @ApiProperty({ description: 'Updated at' })
+  updatedAt: Date;
+}
+
+export class BankAccountResponseDto {
+  @ApiProperty({ description: 'Masked account number', example: '****6789' })
+  accountNumber: string;
+
+  @ApiProperty({ description: 'Bank code', example: '058' })
+  bankCode: string;
+
+  @ApiProperty({ description: 'Account name', example: 'John Doe' })
+  accountName: string;
+
+  @ApiProperty({ description: 'Bank name', example: 'GTBank' })
+  bankName: string;
+}

@@ -5,8 +5,8 @@ export class PartnershipResponseDto {
   @ApiProperty({ example: 'clx123abc' })
   id: string;
 
-  @ApiProperty({ example: 'user123' })
-  userId: string;
+  @ApiProperty({ example: 'client123' })
+  clientId: string;
 
   @ApiProperty({ enum: PartnershipStatus, example: PartnershipStatus.AWAITING_APPROVAL })
   status: PartnershipStatus;
@@ -48,14 +48,18 @@ export class PartnershipResponseDto {
 export class PartnershipWithUserDto extends PartnershipResponseDto {
   @ApiProperty({
     example: {
-      id: 'user123',
-      email: 'user@example.com',
+      id: 'client123',
       name: 'John Doe',
+      user: {
+        email: 'client@example.com',
+      },
     },
   })
-  user: {
+  client: {
     id: string;
-    email: string;
     name: string;
+    user: {
+      email: string;
+    };
   };
 }

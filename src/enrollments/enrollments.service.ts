@@ -73,22 +73,25 @@ export class EnrollmentsService {
     }
 
     // Validate agent exists and is not suspended
-    const agent = await this.prisma.user.findUnique({
+    const agent = await this.prisma.admin.findUnique({
       where: { id: finalAgentId },
+      include: {
+        user: { select: { isSuspended: true, isBanned: true } },
+      },
     });
 
     if (!agent) {
       throw new NotFoundException('Agent not found');
     }
 
-    if (agent.isSuspended) {
+    if (agent.user.isSuspended || agent.user.isBanned || !agent.canOnboardClients) {
       throw new BadRequestException('Agent is suspended and cannot create enrollments');
     }
 
     // Validate client if provided
     let partnerId: string | undefined;
     if (clientId) {
-      const client = await this.prisma.user.findUnique({
+      const client = await this.prisma.client.findUnique({
         where: { id: clientId },
         include: {
           kyc: true,
@@ -287,7 +290,7 @@ export class EnrollmentsService {
           { id: { contains: search, mode: 'insensitive' } },
           { property: { name: { contains: search, mode: 'insensitive' } } },
           { client: { name: { contains: search, mode: 'insensitive' } } },
-          { client: { email: { contains: search, mode: 'insensitive' } } },
+          { client: { user: { email: { contains: search, mode: 'insensitive' } } } },
         ],
       }),
     };
@@ -308,7 +311,7 @@ export class EnrollmentsService {
         include: {
           property: { select: { name: true } },
           agent: { select: { name: true } },
-          client: { select: { name: true, email: true } },
+          client: { select: { name: true, user: { select: { email: true } } } },
           partner: { select: { name: true } },
           unit: { select: { unitId: true } },
           invoices: {
@@ -343,7 +346,7 @@ export class EnrollmentsService {
         agentName: enrollment.agent.name,
         clientId: enrollment.clientId,
         clientName: enrollment.client?.name,
-        clientEmail: enrollment.client?.email,
+        clientEmail: enrollment.client?.user?.email,
         partnerId: enrollment.partnerId,
         partnerName: enrollment.partner?.name,
         paymentType: enrollment.paymentType,
@@ -379,9 +382,9 @@ export class EnrollmentsService {
       include: {
         property: true,
         unit: true,
-        agent: true,
-        client: true,
-        partner: true,
+        agent: { include: { user: { select: { email: true } } } },
+        client: { include: { user: { select: { email: true } } } },
+        partner: { include: { user: { select: { email: true } } } },
         paymentPlan: true,
         invoices: {
           orderBy: { installmentNumber: 'asc' },
@@ -482,20 +485,20 @@ export class EnrollmentsService {
       agent: {
         id: enrollment.agent.id,
         name: enrollment.agent.name,
-        email: enrollment.agent.email,
+        email: enrollment.agent.user.email,
       },
       client: enrollment.client
         ? {
             id: enrollment.client.id,
             name: enrollment.client.name,
-            email: enrollment.client.email,
+            email: enrollment.client.user.email,
           }
         : undefined,
       partner: enrollment.partner
         ? {
             id: enrollment.partner.id,
             name: enrollment.partner.name,
-            email: enrollment.partner.email,
+            email: enrollment.partner.user.email,
           }
         : undefined,
       paymentType: enrollment.paymentType,
@@ -634,7 +637,7 @@ export class EnrollmentsService {
     }
 
     // Validate client exists
-    const client = await this.prisma.user.findUnique({
+    const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: {
         referredByPartner: {

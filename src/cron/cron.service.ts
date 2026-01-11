@@ -40,8 +40,8 @@ export class CronService {
               invoices: {
                 orderBy: { installmentNumber: 'asc' },
               },
-              client: { select: { email: true, name: true } },
-              agent: { select: { email: true, name: true } },
+              client: { select: { name: true, user: { select: { email: true } } } },
+              agent: { select: { name: true, user: { select: { email: true } } } },
               property: { select: { name: true } },
             },
           },
@@ -104,9 +104,9 @@ export class CronService {
         });
 
         // Send overdue notification emails
-        const clientEmail = enrollment.client?.email;
+        const clientEmail = enrollment.client?.user?.email;
         const clientName = enrollment.client?.name || 'Valued Client';
-        const agentEmail = enrollment.agent?.email;
+        const agentEmail = enrollment.agent?.user?.email;
         const agentName = enrollment.agent?.name || 'Agent';
         const propertyName = enrollment.property?.name || 'Property';
         const gracePeriodRemaining = Math.max(0, 32 - totalGraceDaysUsed);
@@ -187,8 +187,8 @@ export class CronService {
         include: {
           enrollment: {
             include: {
-              client: { select: { email: true, name: true } },
-              agent: { select: { email: true, name: true } },
+              client: { select: { name: true, user: { select: { email: true } } } },
+              agent: { select: { name: true, user: { select: { email: true } } } },
               property: { select: { name: true } },
             },
           },
@@ -200,9 +200,9 @@ export class CronService {
       // Send reminder emails to clients and agents
       for (const invoice of upcomingInvoices) {
         const { enrollment } = invoice;
-        const clientEmail = enrollment.client?.email;
+        const clientEmail = enrollment.client?.user?.email;
         const clientName = enrollment.client?.name || 'Valued Client';
-        const agentEmail = enrollment.agent?.email;
+        const agentEmail = enrollment.agent?.user?.email;
         const agentName = enrollment.agent?.name || 'Agent';
         const propertyName = enrollment.property?.name || 'Property';
 
@@ -285,10 +285,14 @@ export class CronService {
           },
         },
         include: {
-          user: {
+          client: {
             select: {
-              email: true,
               name: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
           property: {
@@ -312,8 +316,8 @@ export class CronService {
 
       // Send reminder emails to clients
       for (const appointment of upcomingAppointments) {
-        const clientEmail = appointment.user?.email;
-        const clientName = appointment.user?.name || 'Valued Client';
+        const clientEmail = appointment.client?.user?.email;
+        const clientName = appointment.client?.name || 'Valued Client';
         const propertyName = appointment.property?.name || 'Property';
         const appointmentDate = appointment.schedule.dateTime;
         const location = appointment.schedule.location;

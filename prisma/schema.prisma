@@ -172,78 +172,117 @@ enum DisbursementConfigMode {
 }
 
 model User {
-  id                     String   @id @default(uuid())
-  email                  String   @unique
-  password               String?
-  googleId               String?  @unique
+  id              String   @id @default(uuid())
+  email           String   @unique
+  password        String?
+  googleId        String?  @unique
+  isEmailVerified Boolean  @default(false)
+  isSuspended     Boolean  @default(false)
+  isBanned        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userRoles           UserRole[]
+  emailOtps           EmailOtp[]
+  passwordResetTokens PasswordResetToken[]
+  admin               Admin?
+  client              Client?
+
+  @@map("users")
+}
+
+model Admin {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  name              String?
+  phone             String?
+  dateOfBirth       DateTime?
+  accountNumber     String?
+  bankCode          String?
+  accountName       String?
+  bankName          String?
+  street            String?
+  city              String?
+  state             String?
+  country           String?
+  postalCode        String?
+  canOnboardClients Boolean   @default(true)
+  isBanned          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user                     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kycCreatedRecords        Kyc[]                 @relation("KycCreatedBy")
+  kycUpdatedRecords        Kyc[]                 @relation("KycUpdatedBy")
+  kycReviewedRecords       Kyc[]                 @relation("KycReviewedBy")
+  rejectionReasonsCreated  KycRejectionReason[]  @relation("RejectionCreatedBy")
+  kycHistoryReviewed       KycHistory[]          @relation("KycHistoryReviewedBy")
+  leadsCreated             Lead[]                @relation("LeadCreatedBy")
+  leadsClosed              Lead[]                @relation("LeadClosedBy")
+  leadsReserved            Lead[]                @relation("LeadReservedBy")
+  leadsStatusChanged       Lead[]                @relation("LeadStatusChangedBy")
+  leadFeedbacks            LeadFeedback[]
+  leadAgentHistory         LeadAgentHistory[]
+  closedClients            Client[]              @relation("ClosedByAgent")
+  partnershipsReviewed     Partnership[]         @relation("PartnershipReviewedBy")
+  partnershipsSuspended    Partnership[]         @relation("PartnershipSuspendedBy")
+  enrollmentsAsAgent       Enrollment[]          @relation("EnrollmentAgent")
+  enrollmentsCreated       Enrollment[]          @relation("EnrollmentCreatedBy")
+  enrollmentsCancelled     Enrollment[]          @relation("EnrollmentCancelledBy")
+  agentCommissions         Commission[]          @relation("CommissionAgent")
+  paymentLinksCreated      PaymentLink[]         @relation("PaymentLinkCreatedBy")
+  salesTargets             SalesTarget[]         @relation("SalesTargetUser")
+  salesTargetsCreated      SalesTarget[]         @relation("SalesTargetCreatedBy")
+  achievements             Achievement[]         @relation("AchievementUser")
+  schedulesCreated         Schedule[]            @relation("ScheduleCreatedBy")
+  documentsReviewed        RequirementDocument[] @relation("DocumentReviewer")
+  disbursementsCreated     Disbursement[]        @relation("DisbursementCreatedBy")
+  disbursementsReleased    Disbursement[]        @relation("DisbursementReleasedBy")
+  segmentsCreated          Segment[]             @relation("SegmentCreatedBy")
+  segmentExports           SegmentExport[]       @relation("SegmentExportedBy")
+
+  @@map("admins")
+}
+
+model Client {
+  id                     String    @id @default(uuid())
+  userId                 String    @unique
   name                   String?
   phone                  String?
-  isEmailVerified        Boolean  @default(false)
-  hasCompletedOnboarding Boolean  @default(false)
   gender                 Gender?
   referralSource         String?
   country                String?
   state                  String?
-  leadId                 String?  @unique
-  closedBy               String?
-  isSuspended            Boolean  @default(false)
-  partnerLink            String?  @unique
+  hasCompletedOnboarding Boolean   @default(false)
+  partnerLink            String?   @unique
   referredByPartnerId    String?
   accountNumber          String?
   bankCode               String?
   accountName            String?
   bankName               String?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  leadId                 String?   @unique
+  closedBy               String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  userRoles               UserRole[]
-  emailOtps               EmailOtp[]
-  passwordResetTokens     PasswordResetToken[]
-  kyc                     Kyc?
-  kycCreatedRecords       Kyc[]                 @relation("KycCreatedBy")
-  kycUpdatedRecords       Kyc[]                 @relation("KycUpdatedBy")
-  kycReviewedRecords      Kyc[]                 @relation("KycReviewedBy")
-  rejectionReasonsCreated KycRejectionReason[]  @relation("RejectionCreatedBy")
-  kycHistoryReviewed      KycHistory[]          @relation("KycHistoryReviewedBy")
-  propertyInterests       PropertyInterest[]
-  lead                    Lead?                 @relation("LeadToClient", fields: [leadId], references: [id])
-  closedByAgent           User?                 @relation("ClosedByAgent", fields: [closedBy], references: [id])
-  closedClients           User[]                @relation("ClosedByAgent")
-  leadsCreated            Lead[]                @relation("LeadCreatedBy")
-  leadsClosed             Lead[]                @relation("LeadClosedBy")
-  leadsReserved           Lead[]                @relation("LeadReservedBy")
-  leadsStatusChanged      Lead[]                @relation("LeadStatusChangedBy")
-  leadFeedbacks           LeadFeedback[]
-  leadAgentHistory        LeadAgentHistory[]
-  partnership             Partnership?
-  partnershipsReviewed    Partnership[]         @relation("PartnershipReviewedBy")
-  partnershipsSuspended   Partnership[]         @relation("PartnershipSuspendedBy")
-  referredByPartner       User?                 @relation("ReferredByPartner", fields: [referredByPartnerId], references: [id])
-  referredClients         User[]                @relation("ReferredByPartner")
-  enrollmentsAsClient     Enrollment[]          @relation("EnrollmentClient")
-  enrollmentsAsAgent      Enrollment[]          @relation("EnrollmentAgent")
-  enrollmentsAsPartner    Enrollment[]          @relation("EnrollmentPartner")
-  enrollmentsCreated      Enrollment[]          @relation("EnrollmentCreatedBy")
-  enrollmentsCancelled    Enrollment[]          @relation("EnrollmentCancelledBy")
-  agentCommissions        Commission[]          @relation("CommissionAgent")
-  partnerCommissions      Commission[]          @relation("CommissionPartner")
-  paymentLinksCreated     PaymentLink[]         @relation("PaymentLinkCreatedBy")
-  salesTargets            SalesTarget[]         @relation("SalesTargetUser")
-  salesTargetsCreated     SalesTarget[]         @relation("SalesTargetCreatedBy")
-  achievements            Achievement[]         @relation("AchievementUser")
-  schedulesCreated        Schedule[]            @relation("ScheduleCreatedBy")
-  appointments            Appointment[]         @relation("AppointmentUser")
-  cases                   Case[]                @relation("CaseUser")
-  documentsSubmitted      RequirementDocument[] @relation("DocumentUser")
-  documentsReviewed       RequirementDocument[] @relation("DocumentReviewer")
-  supportTickets          SupportTicket[]       @relation("TicketUser")
-  disbursementsAsRecipient Disbursement[]       @relation("DisbursementRecipient")
-  disbursementsCreated     Disbursement[]       @relation("DisbursementCreatedBy")
-  disbursementsReleased    Disbursement[]       @relation("DisbursementReleasedBy")
-  segmentsCreated          Segment[]            @relation("SegmentCreatedBy")
-  segmentExports           SegmentExport[]      @relation("SegmentExportedBy")
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kyc                   Kyc?
+  propertyInterests     PropertyInterest[]
+  lead                  Lead?              @relation("LeadToClient", fields: [leadId], references: [id])
+  closedByAgent         Admin?             @relation("ClosedByAgent", fields: [closedBy], references: [id])
+  partnership           Partnership?
+  referredByPartner     Client?            @relation("ReferredByPartner", fields: [referredByPartnerId], references: [id])
+  referredClients       Client[]           @relation("ReferredByPartner")
+  enrollmentsAsClient   Enrollment[]       @relation("EnrollmentClient")
+  enrollmentsAsPartner  Enrollment[]       @relation("EnrollmentPartner")
+  partnerCommissions    Commission[]       @relation("CommissionPartner")
+  appointments          Appointment[]      @relation("AppointmentUser")
+  cases                 Case[]             @relation("CaseUser")
+  documentsSubmitted    RequirementDocument[] @relation("DocumentUser")
+  supportTickets        SupportTicket[]    @relation("TicketUser")
+  disbursementsAsRecipient Disbursement[]  @relation("DisbursementRecipient")
 
-  @@map("users")
+  @@map("clients")
 }
 
 model Role {
@@ -330,7 +369,7 @@ model PasswordResetToken {
 
 model Kyc {
   id          String    @id @default(uuid())
-  userId      String    @unique
+  clientId    String    @unique
   status      KycStatus @default(DRAFT)
   currentStep KycStep   @default(PERSONAL)
 
@@ -359,10 +398,10 @@ model Kyc {
   createdBy String?
   updatedBy String?
 
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reviewer         User?                @relation("KycReviewedBy", fields: [reviewedBy], references: [id])
-  creator          User?                @relation("KycCreatedBy", fields: [createdBy], references: [id])
-  updater          User?                @relation("KycUpdatedBy", fields: [updatedBy], references: [id])
+  client           Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  reviewer         Admin?               @relation("KycReviewedBy", fields: [reviewedBy], references: [id])
+  creator          Admin?               @relation("KycCreatedBy", fields: [createdBy], references: [id])
+  updater          Admin?               @relation("KycUpdatedBy", fields: [updatedBy], references: [id])
   rejectionReasons KycRejectionReason[]
   history          KycHistory[]
 
@@ -376,8 +415,8 @@ model KycRejectionReason {
   createdAt DateTime @default(now())
   createdBy String
 
-  kyc     Kyc  @relation(fields: [kycId], references: [id], onDelete: Cascade)
-  creator User @relation("RejectionCreatedBy", fields: [createdBy], references: [id])
+  kyc     Kyc   @relation(fields: [kycId], references: [id], onDelete: Cascade)
+  creator Admin @relation("RejectionCreatedBy", fields: [createdBy], references: [id])
 
   @@map("kyc_rejection_reasons")
 }
@@ -403,8 +442,8 @@ model KycHistory {
 
   createdAt DateTime @default(now())
 
-  kyc      Kyc   @relation(fields: [kycId], references: [id], onDelete: Cascade)
-  reviewer User? @relation("KycHistoryReviewedBy", fields: [reviewedBy], references: [id])
+  kyc      Kyc    @relation(fields: [kycId], references: [id], onDelete: Cascade)
+  reviewer Admin? @relation("KycHistoryReviewedBy", fields: [reviewedBy], references: [id])
 
   @@map("kyc_history")
 }
@@ -542,7 +581,7 @@ model Unit {
 model PropertyInterest {
   id          String         @id @default(uuid())
   propertyId  String
-  userId      String
+  clientId    String
   message     String?
   status      InterestStatus @default(OPEN)
   agentId     String?
@@ -551,9 +590,9 @@ model PropertyInterest {
   updatedAt   DateTime       @updatedAt
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  @@unique([propertyId, userId])
+  @@unique([propertyId, clientId])
   @@index([status])
   @@index([agentId])
   @@map("property_interests")
@@ -576,11 +615,11 @@ model Lead {
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
 
-  creator       User               @relation("LeadCreatedBy", fields: [addedBy], references: [id])
-  closer        User?              @relation("LeadClosedBy", fields: [closedBy], references: [id])
-  reserver      User?              @relation("LeadReservedBy", fields: [reservedBy], references: [id])
-  statusChanger User?              @relation("LeadStatusChangedBy", fields: [statusChangedBy], references: [id])
-  client        User?              @relation("LeadToClient")
+  creator       Admin              @relation("LeadCreatedBy", fields: [addedBy], references: [id])
+  closer        Admin?             @relation("LeadClosedBy", fields: [closedBy], references: [id])
+  reserver      Admin?             @relation("LeadReservedBy", fields: [reservedBy], references: [id])
+  statusChanger Admin?             @relation("LeadStatusChangedBy", fields: [statusChangedBy], references: [id])
+  client        Client?            @relation("LeadToClient")
   feedbacks     LeadFeedback[]
   agentHistory  LeadAgentHistory[]
 
@@ -598,8 +637,8 @@ model LeadFeedback {
   comment   String   @db.Text
   createdAt DateTime @default(now())
 
-  lead  Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  agent User @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agent Admin @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([agentId])
@@ -614,8 +653,8 @@ model LeadAgentHistory {
   unassignedAt DateTime?
   reason       String?
 
-  lead  Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  agent User @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agent Admin @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([agentId])
@@ -624,7 +663,7 @@ model LeadAgentHistory {
 
 model Partnership {
   id                String            @id @default(uuid())
-  userId            String            @unique
+  clientId          String            @unique
   status            PartnershipStatus @default(NONE)
   appliedAt         DateTime?
   reviewedAt        DateTime?
@@ -636,9 +675,9 @@ model Partnership {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reviewer  User? @relation("PartnershipReviewedBy", fields: [reviewedBy], references: [id])
-  suspender User? @relation("PartnershipSuspendedBy", fields: [suspendedBy], references: [id])
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  reviewer  Admin? @relation("PartnershipReviewedBy", fields: [reviewedBy], references: [id])
+  suspender Admin? @relation("PartnershipSuspendedBy", fields: [suspendedBy], references: [id])
 
   @@map("partnerships")
 }
@@ -667,11 +706,11 @@ model Enrollment {
 
   property     Property             @relation(fields: [propertyId], references: [id])
   unit         Unit?                @relation(fields: [unitId], references: [id])
-  agent        User                 @relation("EnrollmentAgent", fields: [agentId], references: [id])
-  client       User?                @relation("EnrollmentClient", fields: [clientId], references: [id])
-  partner      User?                @relation("EnrollmentPartner", fields: [partnerId], references: [id])
-  creator      User                 @relation("EnrollmentCreatedBy", fields: [createdBy], references: [id])
-  canceller    User?                @relation("EnrollmentCancelledBy", fields: [cancelledBy], references: [id])
+  agent        Admin                @relation("EnrollmentAgent", fields: [agentId], references: [id])
+  client       Client?              @relation("EnrollmentClient", fields: [clientId], references: [id])
+  partner      Client?              @relation("EnrollmentPartner", fields: [partnerId], references: [id])
+  creator      Admin                @relation("EnrollmentCreatedBy", fields: [createdBy], references: [id])
+  canceller    Admin?               @relation("EnrollmentCancelledBy", fields: [cancelledBy], references: [id])
   paymentPlan  PropertyPaymentPlan? @relation(fields: [selectedPaymentPlanId], references: [id])
   invoices     Invoice[]
   commissions  Commission[]
@@ -730,8 +769,8 @@ model Commission {
 
   enrollment   Enrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  agent        User?         @relation("CommissionAgent", fields: [agentId], references: [id])
-  partner      User?         @relation("CommissionPartner", fields: [partnerId], references: [id])
+  agent        Admin?        @relation("CommissionAgent", fields: [agentId], references: [id])
+  partner      Client?       @relation("CommissionPartner", fields: [partnerId], references: [id])
   disbursement Disbursement? @relation(fields: [disbursementId], references: [id])
 
   @@index([enrollmentId])
@@ -761,7 +800,7 @@ model PaymentLink {
 
   enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   invoice    Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  creator    User       @relation("PaymentLinkCreatedBy", fields: [createdBy], references: [id])
+  creator    Admin      @relation("PaymentLinkCreatedBy", fields: [createdBy], references: [id])
 
   @@unique([invoiceId, isActive])
   @@index([token])
@@ -771,7 +810,7 @@ model PaymentLink {
 
 model SalesTarget {
   id             String   @id @default(uuid())
-  userId         String
+  adminId        String
   targetAmount   Decimal  @db.Decimal(15, 2)
   achievedAmount Decimal  @default(0) @db.Decimal(15, 2)
   startDate      DateTime
@@ -780,10 +819,10 @@ model SalesTarget {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user    User @relation("SalesTargetUser", fields: [userId], references: [id], onDelete: Cascade)
-  creator User @relation("SalesTargetCreatedBy", fields: [createdBy], references: [id])
+  admin   Admin @relation("SalesTargetUser", fields: [adminId], references: [id], onDelete: Cascade)
+  creator Admin @relation("SalesTargetCreatedBy", fields: [createdBy], references: [id])
 
-  @@index([userId])
+  @@index([adminId])
   @@index([startDate, endDate])
   @@index([createdBy])
   @@map("sales_targets")
@@ -791,7 +830,7 @@ model SalesTarget {
 
 model Achievement {
   id             String   @id @default(uuid())
-  userId         String
+  adminId        String
   targetAmount   Decimal  @db.Decimal(15, 2)
   achievedAmount Decimal  @db.Decimal(15, 2)
   startDate      DateTime
@@ -799,9 +838,9 @@ model Achievement {
   achievedAt     DateTime @default(now())
   createdAt      DateTime @default(now())
 
-  user User @relation("AchievementUser", fields: [userId], references: [id], onDelete: Cascade)
+  admin Admin @relation("AchievementUser", fields: [adminId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([adminId])
   @@index([startDate, endDate])
   @@map("achievements")
 }
@@ -817,7 +856,7 @@ model Schedule {
   updatedAt  DateTime @updatedAt
 
   property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  creator      User          @relation("ScheduleCreatedBy", fields: [createdBy], references: [id])
+  creator      Admin         @relation("ScheduleCreatedBy", fields: [createdBy], references: [id])
   appointments Appointment[]
 
   @@index([propertyId])
@@ -830,7 +869,7 @@ model Appointment {
   id          String            @id @default(uuid())
   scheduleId  String
   propertyId  String
-  userId      String
+  clientId    String
   status      AppointmentStatus @default(BOOKED)
   bookedAt    DateTime          @default(now())
   cancelledAt DateTime?
@@ -839,12 +878,12 @@ model Appointment {
 
   schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  user     User     @relation("AppointmentUser", fields: [userId], references: [id], onDelete: Cascade)
+  client   Client   @relation("AppointmentUser", fields: [clientId], references: [id], onDelete: Cascade)
 
-  @@unique([scheduleId, userId])
+  @@unique([scheduleId, clientId])
   @@index([scheduleId])
   @@index([propertyId])
-  @@index([userId])
+  @@index([clientId])
   @@index([status])
   @@map("appointments")
 }
@@ -853,16 +892,16 @@ model Case {
   id         String     @id @default(uuid())
   name       String
   title      String
-  userId     String?
+  clientId   String?
   propertyId String?
   status     CaseStatus @default(PENDING)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  user         User?             @relation("CaseUser", fields: [userId], references: [id], onDelete: SetNull)
+  client       Client?           @relation("CaseUser", fields: [clientId], references: [id], onDelete: SetNull)
   requirements CaseRequirement[]
 
-  @@index([userId])
+  @@index([clientId])
   @@index([propertyId])
   @@index([status])
   @@map("cases")
@@ -901,7 +940,7 @@ model SampleDocument {
 model RequirementDocument {
   id              String         @id @default(uuid())
   requirementId   String
-  userId          String
+  clientId        String
   fileUrl         String
   fileName        String
   fileType        String
@@ -914,11 +953,11 @@ model RequirementDocument {
   updatedAt       DateTime       @updatedAt
 
   requirement CaseRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  user        User            @relation("DocumentUser", fields: [userId], references: [id], onDelete: Cascade)
-  reviewer    User?           @relation("DocumentReviewer", fields: [reviewedBy], references: [id])
+  client      Client          @relation("DocumentUser", fields: [clientId], references: [id], onDelete: Cascade)
+  reviewer    Admin?          @relation("DocumentReviewer", fields: [reviewedBy], references: [id])
 
   @@index([requirementId])
-  @@index([userId])
+  @@index([clientId])
   @@index([status])
   @@index([reviewedBy])
   @@map("requirement_documents")
@@ -926,7 +965,7 @@ model RequirementDocument {
 
 model SupportTicket {
   id          String         @id @default(uuid())
-  userId      String
+  clientId    String
   category    TicketCategory
   reason      String         @db.Text
   attachments String[]
@@ -934,9 +973,9 @@ model SupportTicket {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  user User @relation("TicketUser", fields: [userId], references: [id], onDelete: Cascade)
+  client Client @relation("TicketUser", fields: [clientId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([clientId])
   @@index([status])
   @@index([category])
   @@map("support_tickets")
@@ -961,9 +1000,9 @@ model Disbursement {
   releasedBy         String?
 
   enrollment Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  recipient  User        @relation("DisbursementRecipient", fields: [recipientId], references: [id])
-  creator    User        @relation("DisbursementCreatedBy", fields: [createdBy], references: [id])
-  releaser   User?       @relation("DisbursementReleasedBy", fields: [releasedBy], references: [id])
+  recipient  Client      @relation("DisbursementRecipient", fields: [recipientId], references: [id])
+  creator    Admin       @relation("DisbursementCreatedBy", fields: [createdBy], references: [id])
+  releaser   Admin?      @relation("DisbursementReleasedBy", fields: [releasedBy], references: [id])
   commission Commission?
 
   @@index([type])
@@ -1001,7 +1040,7 @@ model Segment {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  creator        User             @relation("SegmentCreatedBy", fields: [createdBy], references: [id])
+  creator        Admin          @relation("SegmentCreatedBy", fields: [createdBy], references: [id])
   segmentExports SegmentExport[]
 
   @@index([createdBy])
@@ -1019,7 +1058,7 @@ model SegmentExport {
   errorMessage String?  @db.Text
 
   segment   Segment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
-  exporter  User    @relation("SegmentExportedBy", fields: [exportedBy], references: [id])
+  exporter  Admin   @relation("SegmentExportedBy", fields: [exportedBy], references: [id])
 
   @@index([segmentId])
   @@index([exportedBy])

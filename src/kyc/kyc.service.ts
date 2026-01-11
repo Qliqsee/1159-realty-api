@@ -55,9 +55,9 @@ export class KycService {
       },
     });
 
-    // Update User fields after personal step
-    await this.prisma.user.update({
-      where: { id: userId },
+    // Update Client fields after personal step
+    await this.prisma.client.update({
+      where: { userId },
       data: {
         hasCompletedOnboarding: true,
         gender: data.gender,
@@ -94,9 +94,9 @@ export class KycService {
       },
     });
 
-    // Update User fields after address step
-    await this.prisma.user.update({
-      where: { id: userId },
+    // Update Client fields after address step
+    await this.prisma.client.update({
+      where: { userId },
       data: {
         country: data.country,
         state: data.state,
@@ -225,8 +225,17 @@ export class KycService {
   }
 
   async submitKyc(userId: string): Promise<Kyc> {
-    const kyc = await this.prisma.kyc.findUnique({
+    const client = await this.prisma.client.findUnique({
       where: { userId },
+      select: { id: true },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+
+    const kyc = await this.prisma.kyc.findUnique({
+      where: { clientId: client.id },
     });
 
     if (!kyc) {
@@ -294,13 +303,16 @@ export class KycService {
 
     // Send notification email to admin
     const adminEmail = this.configService.get<string>('ADMIN_EMAIL');
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const clientWithEmail = await this.prisma.client.findUnique({
+      where: { userId },
+      include: { user: { select: { email: true } } },
+    });
 
-    if (adminEmail && user) {
+    if (adminEmail && clientWithEmail) {
       await this.emailService.sendKycSubmittedEmail(
         adminEmail,
-        user.name || 'User',
-        user.email,
+        clientWithEmail.name || 'User',
+        clientWithEmail.user.email,
         kyc.id,
       );
     }
@@ -309,8 +321,17 @@ export class KycService {
   }
 
   async getMyKyc(userId: string) {
-    const kyc = await this.prisma.kyc.findUnique({
+    const client = await this.prisma.client.findUnique({
       where: { userId },
+      select: { id: true },
+    });
+
+    if (!client) {
+      return null;
+    }
+
+    const kyc = await this.prisma.kyc.findUnique({
+      where: { clientId: client.id },
       include: {
         rejectionReasons: {
           orderBy: { createdAt: 'desc' },
@@ -345,11 +366,15 @@ export class KycService {
     const kyc = await this.prisma.kyc.findUnique({
       where: { id },
       include: {
-        user: {
-          select: { id: true, email: true, name: true },
+        client: {
+          select: {
+            id: true,
+            name: true,
+            user: { select: { id: true, email: true } },
+          },
         },
         reviewer: {
-          select: { id: true, email: true, name: true },
+          select: { id: true, name: true, user: { select: { email: true } } },
         },
         rejectionReasons: {
           orderBy: { createdAt: 'desc' },
@@ -358,7 +383,7 @@ export class KycService {
           orderBy: { createdAt: 'desc' },
           include: {
             reviewer: {
-              select: { id: true, email: true, name: true },
+              select: { id: true, name: true, user: { select: { email: true } } },
             },
           },
         },
@@ -403,8 +428,8 @@ export class KycService {
 
     if (search) {
       where.OR = [
-        { user: { email: { contains: search, mode: 'insensitive' } } },
-        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { client: { user: { email: { contains: search, mode: 'insensitive' } } } },
+        { client: { name: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -432,8 +457,12 @@ export class KycService {
       this.prisma.kyc.findMany({
         where,
         include: {
-          user: {
-            select: { id: true, email: true, name: true },
+          client: {
+            select: {
+              id: true,
+              name: true,
+              user: { select: { id: true, email: true } },
+            },
           },
         },
         skip: (page - 1) * limit,
@@ -491,12 +520,15 @@ export class KycService {
     this.logger.log(`KYC ${kycId} approved by admin ${adminId}`);
 
     // Send approval email to client
-    const user = await this.prisma.user.findUnique({ where: { id: kyc.userId } });
+    const client = await this.prisma.client.findUnique({
+      where: { id: kyc.clientId },
+      include: { user: { select: { email: true } } },
+    });
 
-    if (user) {
+    if (client) {
       await this.emailService.sendKycApprovedEmail(
-        user.email,
-        user.name || 'User',
+        client.user.email,
+        client.name || 'User',
         feedback,
       );
     }
@@ -562,12 +594,15 @@ export class KycService {
     this.logger.log(`KYC ${kycId} rejected by admin ${adminId}`);
 
     // Send rejection email to client
-    const user = await this.prisma.user.findUnique({ where: { id: kyc.userId } });
+    const client = await this.prisma.client.findUnique({
+      where: { id: kyc.clientId },
+      include: { user: { select: { email: true } } },
+    });
 
-    if (user) {
+    if (client) {
       await this.emailService.sendKycRejectedEmail(
-        user.email,
-        user.name || 'User',
+        client.user.email,
+        client.name || 'User',
         reason,
         feedback,
       );
@@ -588,7 +623,7 @@ export class KycService {
       orderBy: { createdAt: 'desc' },
       include: {
         reviewer: {
-          select: { id: true, email: true, name: true },
+          select: { id: true, name: true, user: { select: { email: true } } },
         },
       },
     });
@@ -598,8 +633,26 @@ export class KycService {
     isValid: boolean;
     errors: ValidationErrorDto[];
   }> {
-    const kyc = await this.prisma.kyc.findUnique({
+    const client = await this.prisma.client.findUnique({
       where: { userId },
+      select: { id: true },
+    });
+
+    if (!client) {
+      return {
+        isValid: false,
+        errors: [
+          {
+            step: KycStep.PERSONAL,
+            field: 'client',
+            message: 'Client not found.',
+          },
+        ],
+      };
+    }
+
+    const kyc = await this.prisma.kyc.findUnique({
+      where: { clientId: client.id },
     });
 
     const errors: ValidationErrorDto[] = [];
@@ -762,18 +815,27 @@ export class KycService {
     userId: string,
     createdBy?: string,
   ): Promise<Kyc> {
-    let kyc = await this.prisma.kyc.findUnique({ where: { userId } });
+    const client = await this.prisma.client.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+
+    let kyc = await this.prisma.kyc.findUnique({ where: { clientId: client.id } });
 
     if (!kyc) {
       kyc = await this.prisma.kyc.create({
         data: {
-          userId,
+          clientId: client.id,
           status: KycStatus.DRAFT,
           currentStep: KycStep.PERSONAL,
           createdBy,
         },
       });
-      this.logger.log(`New KYC created for user ${userId}`);
+      this.logger.log(`New KYC created for client ${client.id}`);
     }
 
     return kyc;

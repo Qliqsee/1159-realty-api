@@ -52,7 +52,7 @@ export class InvoicesService {
           { id: { contains: search, mode: 'insensitive' } },
           { enrollmentId: { contains: search, mode: 'insensitive' } },
           { enrollment: { client: { name: { contains: search, mode: 'insensitive' } } } },
-          { enrollment: { client: { email: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { client: { user: { email: { contains: search, mode: 'insensitive' } } } } },
           { enrollment: { agent: { name: { contains: search, mode: 'insensitive' } } } },
           { enrollment: { partner: { name: { contains: search, mode: 'insensitive' } } } },
           { enrollment: { property: { name: { contains: search, mode: 'insensitive' } } } },
@@ -105,7 +105,7 @@ export class InvoicesService {
             include: {
               property: { select: { name: true } },
               agent: { select: { name: true } },
-              client: { select: { name: true, email: true } },
+              client: { select: { name: true, user: { select: { email: true } } } },
               partner: { select: { name: true } },
             },
           },
@@ -134,7 +134,7 @@ export class InvoicesService {
         paymentReference: invoice.paymentReference,
         propertyName: invoice.enrollment.property.name,
         clientName: invoice.enrollment.client?.name,
-        clientEmail: invoice.enrollment.client?.email,
+        clientEmail: invoice.enrollment.client?.user?.email,
         agentName: invoice.enrollment.agent.name,
         partnerName: invoice.enrollment.partner?.name,
         createdAt: invoice.createdAt,
@@ -161,7 +161,7 @@ export class InvoicesService {
           include: {
             property: { select: { id: true, name: true } },
             agent: { select: { id: true, name: true } },
-            client: { select: { id: true, name: true, email: true } },
+            client: { select: { id: true, name: true, user: { select: { email: true } } } },
             partner: { select: { name: true } },
             invoices: {
               select: {
@@ -224,7 +224,7 @@ export class InvoicesService {
       paymentReference: invoice.paymentReference,
       propertyName: invoice.enrollment.property.name,
       clientName: invoice.enrollment.client?.name,
-      clientEmail: invoice.enrollment.client?.email,
+      clientEmail: invoice.enrollment.client?.user?.email,
       agentName: invoice.enrollment.agent.name,
       partnerName: invoice.enrollment.partner?.name,
       createdAt: invoice.createdAt,
@@ -314,7 +314,7 @@ export class InvoicesService {
             include: {
               property: { select: { name: true } },
               agent: { select: { name: true } },
-              client: { select: { name: true, email: true } },
+              client: { select: { name: true, user: { select: { email: true } } } },
               partner: { select: { name: true } },
             },
           },
@@ -391,7 +391,7 @@ export class InvoicesService {
         paymentReference: updatedInvoice.paymentReference,
         propertyName: updatedInvoice.enrollment.property.name,
         clientName: updatedInvoice.enrollment.client?.name,
-        clientEmail: updatedInvoice.enrollment.client?.email,
+        clientEmail: updatedInvoice.enrollment.client?.user?.email,
         agentName: updatedInvoice.enrollment.agent.name,
         partnerName: updatedInvoice.enrollment.partner?.name,
         createdAt: updatedInvoice.createdAt,
@@ -408,7 +408,7 @@ export class InvoicesService {
           include: {
             property: { select: { name: true } },
             agent: { select: { name: true } },
-            client: { select: { name: true, email: true } },
+            client: { select: { name: true, user: { select: { email: true } } } },
             partner: { select: { name: true } },
             invoices: {
               orderBy: { installmentNumber: 'asc' },
@@ -465,7 +465,7 @@ export class InvoicesService {
             include: {
               property: { select: { name: true } },
               agent: { select: { name: true } },
-              client: { select: { name: true, email: true } },
+              client: { select: { name: true, user: { select: { email: true } } } },
               partner: { select: { name: true } },
             },
           },
@@ -508,7 +508,7 @@ export class InvoicesService {
         paymentReference: updatedInvoice.paymentReference,
         propertyName: updatedInvoice.enrollment.property.name,
         clientName: updatedInvoice.enrollment.client?.name,
-        clientEmail: updatedInvoice.enrollment.client?.email,
+        clientEmail: updatedInvoice.enrollment.client?.user?.email,
         agentName: updatedInvoice.enrollment.agent.name,
         partnerName: updatedInvoice.enrollment.partner?.name,
         createdAt: updatedInvoice.createdAt,
@@ -597,7 +597,7 @@ export class InvoicesService {
           include: {
             property: { select: { name: true } },
             agent: { select: { name: true } },
-            client: { select: { name: true, email: true } },
+            client: { select: { name: true, user: { select: { email: true } } } },
             partner: { select: { name: true } },
           },
         },
@@ -629,7 +629,7 @@ export class InvoicesService {
       dueDate: invoice.dueDate,
       status: invoice.status,
       clientName: invoice.enrollment.client?.name,
-      clientEmail: invoice.enrollment.client?.email,
+      clientEmail: invoice.enrollment.client?.user?.email,
       propertyName: invoice.enrollment.property.name,
       agentName: invoice.enrollment.agent.name,
       partnerName: invoice.enrollment.partner?.name,

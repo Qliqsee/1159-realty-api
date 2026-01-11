@@ -448,11 +448,15 @@ export class PropertiesService {
             name: true,
           },
         },
-        user: {
+        client: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },

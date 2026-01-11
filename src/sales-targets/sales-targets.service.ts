@@ -21,7 +21,7 @@ export class SalesTargetsService {
 
   // Helper method to validate target period for overlaps
   private async validateTargetPeriod(
-    userId: string,
+    adminId: string,
     startDate: Date,
     endDate: Date,
     excludeTargetId?: string,
@@ -30,10 +30,10 @@ export class SalesTargetsService {
       throw new BadRequestException('End date must be after start date');
     }
 
-    // Check for overlapping targets for the same user
+    // Check for overlapping targets for the same admin
     const overlappingTarget = await this.prisma.salesTarget.findFirst({
       where: {
-        userId,
+        adminId,
         id: excludeTargetId ? { not: excludeTargetId } : undefined,
         OR: [
           {
@@ -65,16 +65,16 @@ export class SalesTargetsService {
     }
   }
 
-  // Helper method to calculate achievement amount for a user within a period
+  // Helper method to calculate achievement amount for an admin within a period
   private async calculateAchievement(
-    userId: string,
+    adminId: string,
     startDate: Date,
     endDate: Date,
   ): Promise<number> {
-    // Sum all completed enrollments for the user within the period
+    // Sum all completed enrollments for the admin within the period
     const result = await this.prisma.enrollment.aggregate({
       where: {
-        agentId: userId,
+        agentId: adminId,
         status: 'COMPLETED',
         createdAt: {
           gte: startDate,
@@ -101,9 +101,9 @@ export class SalesTargetsService {
 
     return {
       id: target.id,
-      userId: target.userId,
-      userName: target.user?.name || 'N/A',
-      userEmail: target.user?.email || 'N/A',
+      userId: target.adminId,
+      userName: target.admin?.name || 'N/A',
+      userEmail: target.admin?.user?.email || 'N/A',
       targetAmount: Number(target.targetAmount),
       achievedAmount: Number(target.achievedAmount),
       achievementPercentage: Math.round(achievementPercentage * 100) / 100,
@@ -123,36 +123,43 @@ export class SalesTargetsService {
   ): Promise<SalesTargetResponseDto> {
     const { email, targetAmount, startDate, endDate } = createTargetDto;
 
-    // Find user by email
+    // Find admin by email
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: {
+        admin: true,
+      },
     });
 
-    if (!user) {
-      throw new NotFoundException(`User with email ${email} not found`);
+    if (!user || !user.admin) {
+      throw new NotFoundException(`Admin with email ${email} not found`);
     }
 
     const start = new Date(startDate);
     const end = new Date(endDate);
 
     // Validate period
-    await this.validateTargetPeriod(user.id, start, end);
+    await this.validateTargetPeriod(user.admin.id, start, end);
 
     // Create target
     const target = await this.prisma.salesTarget.create({
       data: {
-        userId: user.id,
+        adminId: user.admin.id,
         targetAmount,
         startDate: start,
         endDate: end,
         createdBy: createdById,
       },
       include: {
-        user: {
+        admin: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -210,12 +217,16 @@ export class SalesTargetsService {
 
     // Build where clause
     const where: Prisma.SalesTargetWhereInput = {
-      ...(userId && { userId }),
+      ...(userId && { adminId: userId }),
       ...(search && {
-        user: {
+        admin: {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
+            {
+              user: {
+                email: { contains: search, mode: 'insensitive' },
+              },
+            },
           ],
         },
       }),
@@ -238,11 +249,15 @@ export class SalesTargetsService {
         skip,
         take: limit,
         include: {
-          user: {
+          admin: {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -271,11 +286,15 @@ export class SalesTargetsService {
     const target = await this.prisma.salesTarget.findUnique({
       where: { id },
       include: {
-        user: {
+        admin: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -310,7 +329,7 @@ export class SalesTargetsService {
 
     // Validate period if dates are being updated
     if (updateDto.startDate || updateDto.endDate) {
-      await this.validateTargetPeriod(existing.userId, startDate, endDate, id);
+      await this.validateTargetPeriod(existing.adminId, startDate, endDate, id);
     }
 
     const updated = await this.prisma.salesTarget.update({
@@ -321,11 +340,15 @@ export class SalesTargetsService {
         ...(updateDto.endDate && { endDate }),
       },
       include: {
-        user: {
+        admin: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -347,7 +370,7 @@ export class SalesTargetsService {
     // Archive to Achievement model
     await this.prisma.achievement.create({
       data: {
-        userId: target.userId,
+        adminId: target.adminId,
         targetAmount: target.targetAmount,
         achievedAmount: target.achievedAmount,
         startDate: target.startDate,
@@ -365,28 +388,32 @@ export class SalesTargetsService {
 
   // Get my targets (for agents)
   async getMyTargets(
-    userId: string,
+    adminId: string,
     query: QuerySalesTargetsDto,
   ): Promise<any> {
-    return this.findAll({ ...query, userId });
+    return this.findAll({ ...query, userId: adminId });
   }
 
   // Get my current active target
-  async getMyCurrent(userId: string): Promise<SalesTargetResponseDto | null> {
+  async getMyCurrent(adminId: string): Promise<SalesTargetResponseDto | null> {
     const now = new Date();
 
     const target = await this.prisma.salesTarget.findFirst({
       where: {
-        userId,
+        adminId,
         startDate: { lte: now },
         endDate: { gte: now },
       },
       include: {
-        user: {
+        admin: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -396,9 +423,9 @@ export class SalesTargetsService {
   }
 
   // Get my stats
-  async getMyStats(userId: string): Promise<TargetStatsDto> {
+  async getMyStats(adminId: string): Promise<TargetStatsDto> {
     const targets = await this.prisma.salesTarget.findMany({
-      where: { userId },
+      where: { adminId },
     });
 
     const now = new Date();
@@ -483,10 +510,10 @@ export class SalesTargetsService {
     };
   }
 
-  // Get achievement history for a user
-  async getAchievementHistory(userId: string): Promise<TargetAchievementDto[]> {
+  // Get achievement history for an admin
+  async getAchievementHistory(adminId: string): Promise<TargetAchievementDto[]> {
     const achievements = await this.prisma.achievement.findMany({
-      where: { userId },
+      where: { adminId },
       orderBy: { achievedAt: 'desc' },
     });
 
@@ -500,7 +527,7 @@ export class SalesTargetsService {
 
       return {
         id: achievement.id,
-        userId: achievement.userId,
+        userId: achievement.adminId,
         targetAmount: Number(achievement.targetAmount),
         achievedAmount: Number(achievement.achievedAmount),
         achievementPercentage:
@@ -525,7 +552,7 @@ export class SalesTargetsService {
 
     for (const target of activeTargets) {
       const achievedAmount = await this.calculateAchievement(
-        target.userId,
+        target.adminId,
         target.startDate,
         target.endDate,
       );
@@ -551,7 +578,7 @@ export class SalesTargetsService {
       // Check if already archived
       const existing = await this.prisma.achievement.findFirst({
         where: {
-          userId: target.userId,
+          adminId: target.adminId,
           startDate: target.startDate,
           endDate: target.endDate,
         },
@@ -560,7 +587,7 @@ export class SalesTargetsService {
       if (!existing) {
         await this.prisma.achievement.create({
           data: {
-            userId: target.userId,
+            adminId: target.adminId,
             targetAmount: target.targetAmount,
             achievedAmount: target.achievedAmount,
             startDate: target.startDate,

@@ -1,9 +1,10 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import { SignUpDto } from './dto/signup.dto';
+import { AdminSignUpDto } from './dto/admin-signup.dto';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +14,7 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
+  // CLIENT SIGNUP
   async signUp(signUpDto: SignUpDto) {
     const { email, password, name, partnerRefCode } = signUpDto;
 
@@ -29,7 +31,7 @@ export class AuthService {
     // Validate partner referral code if provided
     let referredByPartnerId: string | undefined;
     if (partnerRefCode) {
-      const referringPartner = await this.prisma.user.findFirst({
+      const referringPartner = await this.prisma.client.findFirst({
         where: {
           partnerLink: partnerRefCode,
           partnership: {
@@ -44,22 +46,105 @@ export class AuthService {
       }
     }
 
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        referredByPartnerId,
-      },
+    // Create user and client in transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+        },
+      });
+
+      const client = await tx.client.create({
+        data: {
+          userId: user.id,
+          name,
+          referredByPartnerId,
+        },
+      });
+
+      // Assign client role
+      const clientRole = await tx.role.findFirst({
+        where: { name: 'client', appContext: 'client' },
+      });
+
+      if (clientRole) {
+        await tx.userRole.create({
+          data: {
+            userId: user.id,
+            roleId: clientRole.id,
+          },
+        });
+      }
+
+      return { user, client };
     });
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    const tokens = await this.generateTokens(result.user.id, result.user.email, 'client');
 
     return {
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
+        id: result.user.id,
+        email: result.user.email,
+        name: result.client.name,
+      },
+      ...tokens,
+    };
+  }
+
+  // ADMIN SIGNUP
+  async adminSignUp(adminSignUpDto: AdminSignUpDto) {
+    const { email, password } = adminSignUpDto;
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user and admin in transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+        },
+      });
+
+      const admin = await tx.admin.create({
+        data: {
+          userId: user.id,
+        },
+      });
+
+      // Assign agent role by default
+      const agentRole = await tx.role.findFirst({
+        where: { name: 'agent', appContext: 'crm' },
+      });
+
+      if (agentRole) {
+        await tx.userRole.create({
+          data: {
+            userId: user.id,
+            roleId: agentRole.id,
+          },
+        });
+      }
+
+      return { user, admin };
+    });
+
+    const tokens = await this.generateTokens(result.user.id, result.user.email, 'admin');
+
+    return {
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.admin.name,
       },
       ...tokens,
     };
@@ -68,10 +153,19 @@ export class AuthService {
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: {
+        admin: true,
+        client: true,
+      },
     });
 
     if (!user || !user.password) {
       return null;
+    }
+
+    // Check if user is banned
+    if (user.isBanned) {
+      throw new ForbiddenException('Your account has been banned');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -84,41 +178,175 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const tokens = await this.generateTokens(user.id, user.email);
+    // Determine userType
+    const userType = user.admin ? 'admin' : user.client ? 'client' : null;
+    const name = user.admin?.name || user.client?.name || null;
+
+    if (!userType) {
+      throw new UnauthorizedException('User type not found');
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email, userType);
 
     return {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
+        name,
+        userType,
       },
       ...tokens,
     };
   }
 
+  // CLIENT GOOGLE OAUTH
   async validateGoogleUser(profile: { googleId: string; email: string; name: string }) {
     let user = await this.prisma.user.findUnique({
       where: { googleId: profile.googleId },
+      include: {
+        client: true,
+        admin: true,
+      },
     });
 
     if (!user) {
       user = await this.prisma.user.findUnique({
         where: { email: profile.email },
+        include: {
+          client: true,
+          admin: true,
+        },
       });
 
       if (user) {
+        // Link Google account
         user = await this.prisma.user.update({
           where: { id: user.id },
           data: { googleId: profile.googleId },
-        });
-      } else {
-        user = await this.prisma.user.create({
-          data: {
-            googleId: profile.googleId,
-            email: profile.email,
-            name: profile.name,
+          include: {
+            client: true,
+            admin: true,
           },
         });
+      } else {
+        // Create new client user with Google
+        const result = await this.prisma.$transaction(async (tx) => {
+          const newUser = await tx.user.create({
+            data: {
+              googleId: profile.googleId,
+              email: profile.email,
+              isEmailVerified: true,
+            },
+          });
+
+          const client = await tx.client.create({
+            data: {
+              userId: newUser.id,
+              name: profile.name,
+            },
+          });
+
+          // Assign client role
+          const clientRole = await tx.role.findFirst({
+            where: { name: 'client', appContext: 'client' },
+          });
+
+          if (clientRole) {
+            await tx.userRole.create({
+              data: {
+                userId: newUser.id,
+                roleId: clientRole.id,
+              },
+            });
+          }
+
+          return tx.user.findUnique({
+            where: { id: newUser.id },
+            include: {
+              client: true,
+              admin: true,
+            },
+          });
+        });
+
+        user = result;
+      }
+    }
+
+    return user;
+  }
+
+  // ADMIN GOOGLE OAUTH
+  async validateGoogleAdminUser(profile: { googleId: string; email: string; name: string }) {
+    let user = await this.prisma.user.findUnique({
+      where: { googleId: profile.googleId },
+      include: {
+        admin: true,
+        client: true,
+      },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.findUnique({
+        where: { email: profile.email },
+        include: {
+          admin: true,
+          client: true,
+        },
+      });
+
+      if (user) {
+        // Link Google account
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { googleId: profile.googleId },
+          include: {
+            admin: true,
+            client: true,
+          },
+        });
+      } else {
+        // Create new admin user with Google
+        const result = await this.prisma.$transaction(async (tx) => {
+          const newUser = await tx.user.create({
+            data: {
+              googleId: profile.googleId,
+              email: profile.email,
+              isEmailVerified: true,
+            },
+          });
+
+          const admin = await tx.admin.create({
+            data: {
+              userId: newUser.id,
+              name: profile.name,
+            },
+          });
+
+          // Assign agent role
+          const agentRole = await tx.role.findFirst({
+            where: { name: 'agent', appContext: 'crm' },
+          });
+
+          if (agentRole) {
+            await tx.userRole.create({
+              data: {
+                userId: newUser.id,
+                roleId: agentRole.id,
+              },
+            });
+          }
+
+          return tx.user.findUnique({
+            where: { id: newUser.id },
+            include: {
+              admin: true,
+              client: true,
+            },
+          });
+        });
+
+        user = result;
       }
     }
 
@@ -126,13 +354,27 @@ export class AuthService {
   }
 
   async googleLogin(user: any) {
-    const tokens = await this.generateTokens(user.id, user.email);
+    // Check if user is banned
+    if (user.isBanned) {
+      throw new ForbiddenException('Your account has been banned');
+    }
+
+    // Determine userType
+    const userType = user.admin ? 'admin' : user.client ? 'client' : null;
+    const name = user.admin?.name || user.client?.name || null;
+
+    if (!userType) {
+      throw new UnauthorizedException('User type not found');
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email, userType);
 
     return {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
+        name,
+        userType,
       },
       ...tokens,
     };
@@ -146,21 +388,74 @@ export class AuthService {
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
+        include: {
+          admin: true,
+          client: true,
+        },
       });
 
       if (!user) {
         throw new UnauthorizedException('User not found');
       }
 
-      const tokens = await this.generateTokens(user.id, user.email);
+      // Check if user is banned
+      if (user.isBanned) {
+        throw new ForbiddenException('Your account has been banned');
+      }
+
+      const userType = user.admin ? 'admin' : user.client ? 'client' : null;
+
+      if (!userType) {
+        throw new UnauthorizedException('User type not found');
+      }
+
+      const tokens = await this.generateTokens(user.id, user.email, userType);
       return tokens;
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
-  private async generateTokens(userId: string, email: string) {
-    const payload = { sub: userId, email };
+  private async generateTokens(userId: string, email: string, userType: 'admin' | 'client') {
+    // Get user roles and permissions
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { userId },
+      include: {
+        role: {
+          include: {
+            rolePermissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const roles = userRoles.map((ur) => ({
+      name: ur.role.name,
+      appContext: ur.role.appContext,
+    }));
+
+    const permissions = userRoles.flatMap((ur) =>
+      ur.role.rolePermissions.map((rp) => ({
+        name: rp.permission.name,
+        resource: rp.permission.resource,
+        action: rp.permission.action,
+      }))
+    );
+
+    const payload = {
+      sub: userId,
+      email,
+      userType,
+      roles,
+      permissions,
+    };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {

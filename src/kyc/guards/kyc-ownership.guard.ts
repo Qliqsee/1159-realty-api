@@ -33,7 +33,7 @@ export class KycOwnershipGuard implements CanActivate {
       throw new NotFoundException('KYC not found');
     }
 
-    if (kyc.userId !== userId) {
+    if (kyc.clientId !== userId) {
       throw new ForbiddenException('You can only access your own KYC');
     }
 

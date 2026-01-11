@@ -30,7 +30,13 @@ export class EmailService {
     expiresAt: Date;
     canResendAt?: Date;
   }> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        admin: { select: { name: true } },
+        client: { select: { name: true } },
+      },
+    });
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -86,7 +92,7 @@ export class EmailService {
     await this.sendEmail(
       user.email,
       'Verify Your Email - 1159 Realty',
-      verificationOtpTemplate(code, user.name || undefined),
+      verificationOtpTemplate(code, user.admin?.name || user.client?.name || undefined),
     );
 
     this.logger.log(`OTP sent to user ${userId} (${user.email})`);
@@ -148,7 +154,13 @@ export class EmailService {
     email: string,
     token: string,
   ): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        admin: { select: { name: true } },
+        client: { select: { name: true } },
+      },
+    });
     if (!user) {
       // Don't reveal if user exists or not
       return;
@@ -160,7 +172,7 @@ export class EmailService {
     await this.sendEmail(
       email,
       'Reset Your Password - 1159 Realty',
-      passwordResetTemplate(resetLink, user.name || undefined),
+      passwordResetTemplate(resetLink, user.admin?.name || user.client?.name || undefined),
     );
 
     this.logger.log(`Password reset email sent to ${email}`);

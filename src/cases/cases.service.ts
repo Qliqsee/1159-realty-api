@@ -16,12 +16,12 @@ export class CasesService {
 
   async create(createCaseDto: CreateCaseDto) {
     if (createCaseDto.userId) {
-      const user = await this.prisma.user.findUnique({
+      const client = await this.prisma.client.findUnique({
         where: { id: createCaseDto.userId },
       });
-      if (!user) {
+      if (!client) {
         throw new NotFoundException(
-          `User with ID ${createCaseDto.userId} not found`,
+          `Client with ID ${createCaseDto.userId} not found`,
         );
       }
     }
@@ -30,15 +30,19 @@ export class CasesService {
       data: {
         name: createCaseDto.name,
         title: createCaseDto.title,
-        userId: createCaseDto.userId,
+        clientId: createCaseDto.userId,
         propertyId: createCaseDto.propertyId,
       },
       include: {
-        user: {
+        client: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -65,7 +69,7 @@ export class CasesService {
     }
 
     if (userId) {
-      where.userId = userId;
+      where.clientId = userId;
     }
 
     if (propertyId) {
@@ -78,11 +82,15 @@ export class CasesService {
         skip,
         take: limit,
         include: {
-          user: {
+          client: {
             select: {
               id: true,
               name: true,
-              email: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
           requirements: {
@@ -113,11 +121,15 @@ export class CasesService {
     const caseItem = await this.prisma.case.findUnique({
       where: { id },
       include: {
-        user: {
+        client: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
         requirements: {
@@ -145,12 +157,12 @@ export class CasesService {
     await this.findOne(id);
 
     if (updateCaseDto.userId) {
-      const user = await this.prisma.user.findUnique({
+      const client = await this.prisma.client.findUnique({
         where: { id: updateCaseDto.userId },
       });
-      if (!user) {
+      if (!client) {
         throw new NotFoundException(
-          `User with ID ${updateCaseDto.userId} not found`,
+          `Client with ID ${updateCaseDto.userId} not found`,
         );
       }
     }
@@ -159,11 +171,15 @@ export class CasesService {
       where: { id },
       data: updateCaseDto,
       include: {
-        user: {
+        client: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -181,11 +197,15 @@ export class CasesService {
         status: updateCaseStatusDto.status,
       },
       include: {
-        user: {
+        client: {
           select: {
             id: true,
             name: true,
-            email: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
           },
         },
       },
@@ -225,7 +245,7 @@ export class CasesService {
     const skip = (page - 1) * limit;
 
     const where: Prisma.CaseWhereInput = {
-      userId,
+      clientId: userId,
     };
 
     if (search) {
@@ -274,14 +294,14 @@ export class CasesService {
     const caseItem = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        userId,
+        clientId: userId,
       },
       include: {
         requirements: {
           include: {
             submittedDocuments: {
               where: {
-                userId,
+                clientId: userId,
               },
             },
           },

@@ -49,7 +49,7 @@ export class InterestsService {
       const interest = await this.prisma.propertyInterest.create({
         data: {
           propertyId,
-          userId,
+          clientId: userId,
           message,
           agentId,
           status: 'OPEN',
@@ -60,7 +60,14 @@ export class InterestsService {
               state: true,
             },
           },
-          user: true,
+          client: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              user: { select: { email: true } },
+            },
+          },
         },
       });
 
@@ -102,7 +109,7 @@ export class InterestsService {
     }
 
     if (clientId) {
-      where.userId = clientId;
+      where.clientId = clientId;
     }
 
     if (agentId) {
@@ -123,7 +130,7 @@ export class InterestsService {
     if (search) {
       where.OR = [
         {
-          user: {
+          client: {
             name: {
               contains: search,
               mode: 'insensitive',
@@ -159,7 +166,14 @@ export class InterestsService {
               state: true,
             },
           },
-          user: true,
+          client: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              user: { select: { email: true } },
+            },
+          },
         },
       }),
       this.prisma.propertyInterest.count({ where }),
@@ -172,9 +186,9 @@ export class InterestsService {
       .filter((id): id is string => id !== null);
 
     const agents = agentIds.length > 0
-      ? await this.prisma.user.findMany({
+      ? await this.prisma.admin.findMany({
           where: { id: { in: agentIds } },
-          select: { id: true, name: true, email: true, phone: true },
+          select: { id: true, name: true, user: { select: { email: true } }, phone: true },
         })
       : [];
 
@@ -218,7 +232,14 @@ export class InterestsService {
             state: true,
           },
         },
-        user: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            user: { select: { email: true } },
+          },
+        },
       },
     });
 
@@ -227,16 +248,16 @@ export class InterestsService {
     }
 
     // Check authorization: clients can only view their own interests
-    if (!isAdmin && userId && interest.userId !== userId) {
+    if (!isAdmin && userId && interest.clientId !== userId) {
       throw new ForbiddenException('You can only view your own interests');
     }
 
     // Fetch agent if agentId exists
     let agent = null;
     if (interest.agentId) {
-      agent = await this.prisma.user.findUnique({
+      agent = await this.prisma.admin.findUnique({
         where: { id: interest.agentId },
-        select: { id: true, name: true, email: true, phone: true },
+        select: { id: true, name: true, user: { select: { email: true } }, phone: true },
       });
     }
 
@@ -268,16 +289,23 @@ export class InterestsService {
             state: true,
           },
         },
-        user: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            user: { select: { email: true } },
+          },
+        },
       },
     });
 
     // Fetch agent if agentId exists
     let agent = null;
     if (updatedInterest.agentId) {
-      agent = await this.prisma.user.findUnique({
+      agent = await this.prisma.admin.findUnique({
         where: { id: updatedInterest.agentId },
-        select: { id: true, name: true, email: true, phone: true },
+        select: { id: true, name: true, user: { select: { email: true } }, phone: true },
       });
     }
 
@@ -310,10 +338,10 @@ export class InterestsService {
     };
 
     const client: InterestClientDto = {
-      id: interest.user.id,
-      name: interest.user.name,
-      email: interest.user.email,
-      phone: interest.user.phone,
+      id: interest.client.id,
+      name: interest.client.name,
+      email: interest.client.user?.email,
+      phone: interest.client.phone,
     };
 
     let agent: InterestAgentDto | undefined;
@@ -321,7 +349,7 @@ export class InterestsService {
       agent = {
         id: interest.agent.id,
         name: interest.agent.name,
-        email: interest.agent.email,
+        email: interest.agent.user?.email,
         phone: interest.agent.phone,
       };
     }

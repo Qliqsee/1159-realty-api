@@ -1,1 +1,82 @@
+SCHEMA MIGRATION COMPLETED
+Build compiles successfully with zero errors
+Auth module fully configured with separate admin and client flows
+All services updated to work with new User Admin Client schema
+Users Service deprecated methods commented out with clear notes
 
+CRITICAL CONTEXT FOR NEW AGENT
+User table now minimal id email password googleId isEmailVerified isSuspended isBanned timestamps
+Admin table has name phone dateOfBirth bank details address canOnboardClients
+Client table has name phone gender referralSource country state hasCompletedOnboarding partnerLink referredByPartnerId bank details leadId closedBy
+Admin and Client both have userId foreign key pointing to User table
+Email is accessed via user relation admin.user.email or client.user.email
+Token payload includes userType admin or client
+JWT strategy populates request.user with id email userType roles admin client objects
+All userId foreign keys pointing to clients are now clientId
+All userId foreign keys pointing to admins are now adminId
+
+ADMIN MODULE COMPLETED
+All admin endpoints implemented with proper guards DTOs and swagger documentation
+
+CLIENT MODULE COMPLETED
+All client endpoints implemented except phone verification endpoints which are marked as structure only
+
+REMAINING TASKS
+
+1 ROLES AND PERMISSIONS ENDPOINTS
+Verify GET roles endpoint works list all roles with filters by name appContext pagination
+Verify GET roles permissions endpoint works returns all permissions
+Test role assignment and removal via users endpoints
+
+2 ENDPOINT ACCESS CONTROL AUDIT
+Add ApiTags to all controllers Users Admins Clients Auth KYC Enrollments etc
+Update ApiOperation summaries to clarify who can access each endpoint
+Add comments above endpoints Admin only Client only Both Agent only Partner only
+Verify all endpoints have proper guards JwtAuthGuard for authentication RolesGuard for role checks PermissionsGuard for permission checks
+Verify ban check works banned users cannot access any endpoint except logout
+Verify suspend check works suspended admins cannot onboard clients
+
+3 SWAGGER DOCUMENTATION
+Ensure all GET list endpoints document search filters and pagination parameters
+Verify all endpoints have ApiResponse decorators with proper status codes and types
+Verify all POST PATCH endpoints have ApiBody decorators with DTO types
+Add examples to all DTOs for better Swagger documentation
+
+4 ENVIRONMENT VARIABLES
+Add GOOGLE_ADMIN_CALLBACK_URL to env file for admin Google OAuth callback
+Verify all Brevo SMS related env variables are configured
+Verify database connection string is correct
+Verify JWT secret and expiration times are set
+
+5 TESTING PHASE
+Test admin signup with email password verify agent role is assigned by default
+Test client signup with email password verify client role is assigned by default
+Test admin signup with Google OAuth verify agent role is assigned
+Test client signup with Google OAuth verify client role is assigned
+Test unified login endpoint works for both admin and client returns correct userType
+Test JWT token includes userType admin or client
+Test ban functionality banned user cannot signin or refresh token
+Test suspend functionality suspended admin has canOnboardClients false
+Test role change endpoint for admins
+Test all new admin endpoints with proper authentication and authorization
+Test all new client endpoints with proper authentication and authorization
+Test KYC flow with clientId instead of userId
+Test partnership flow with clientId
+Test enrollment creation with adminId for agent and clientId for client
+Test commission calculation for agents and partners
+
+6 DEPRECATION CLEANUP OPTIONAL
+Review UsersController and UsersService commented out code
+Decide if any functionality needs to be restored or if Admin Client modules fully replace it
+Consider removing commented code entirely once Admin Client modules are complete and tested
+
+IMPLEMENTATION NOTES
+All endpoints must have search filters and pagination per CLAUDE.md requirements
+All endpoints must have proper request and response structures in Swagger docs
+Do not write tests unless explicitly requested per CLAUDE.md
+Track progress in this TODO.txt file remove items as completed
+Keep TODO.txt concise avoid duplication of tracking
+Use Admin model for all admin agent operations
+Use Client model for all client operations
+Never query User model directly for name phone or other profile fields
+Always access email via user relation never directly on Admin or Client

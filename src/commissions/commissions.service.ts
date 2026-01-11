@@ -155,14 +155,14 @@ export class CommissionsService {
     const commission = await this.prisma.commission.findUnique({
       where: { id },
       include: {
-        agent: { select: { id: true, name: true, email: true } },
-        partner: { select: { id: true, name: true, email: true } },
+        agent: { select: { id: true, name: true, user: { select: { email: true } } } },
+        partner: { select: { id: true, name: true, user: { select: { email: true } } } },
         enrollment: {
           include: {
             property: { select: { id: true, name: true } },
             agent: { select: { name: true } },
             partner: { select: { name: true } },
-            client: { select: { id: true, name: true, email: true } },
+            client: { select: { id: true, name: true, user: { select: { email: true } } } },
           },
         },
         invoice: {

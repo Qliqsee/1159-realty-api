@@ -30,14 +30,14 @@ export class KycStatusGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const userId = request.user?.userId;
+    const clientId = request.user?.clientId;
 
-    if (!userId) {
-      throw new ForbiddenException('User not authenticated');
+    if (!clientId) {
+      throw new ForbiddenException('User not authenticated or not a client');
     }
 
     const kyc = await this.prisma.kyc.findUnique({
-      where: { userId },
+      where: { clientId },
       select: { status: true },
     });
 

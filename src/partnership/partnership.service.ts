@@ -28,9 +28,19 @@ export class PartnershipService {
   }
 
   async applyForPartnership(userId: string): Promise<Partnership> {
+    // Get client
+    const client = await this.prisma.client.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+
     // Check if user has approved KYC
     const kyc = await this.prisma.kyc.findUnique({
-      where: { userId },
+      where: { clientId: client.id },
     });
 
     if (!kyc || kyc.status !== 'APPROVED') {
@@ -41,7 +51,7 @@ export class PartnershipService {
 
     // Check for existing partnership
     const existing = await this.prisma.partnership.findUnique({
-      where: { userId },
+      where: { clientId: client.id },
     });
 
     if (existing) {
@@ -74,7 +84,7 @@ export class PartnershipService {
 
       // Reapply after cooldown or if status was NONE/REJECTED
       const updated = await this.prisma.partnership.update({
-        where: { userId },
+        where: { clientId: client.id },
         data: {
           status: PartnershipStatus.AWAITING_APPROVAL,
           appliedAt: new Date(),
@@ -92,7 +102,7 @@ export class PartnershipService {
     // Create new partnership application
     const partnership = await this.prisma.partnership.create({
       data: {
-        userId,
+        clientId: client.id,
         status: PartnershipStatus.AWAITING_APPROVAL,
         appliedAt: new Date(),
       },
@@ -103,10 +113,19 @@ export class PartnershipService {
   }
 
   async getMyPartnership(userId: string): Promise<any> {
-    const partnership = await this.prisma.partnership.findUnique({
+    const client = await this.prisma.client.findUnique({
       where: { userId },
+      select: { id: true },
+    });
+
+    if (!client) {
+      return null;
+    }
+
+    const partnership = await this.prisma.partnership.findUnique({
+      where: { clientId: client.id },
       include: {
-        user: {
+        client: {
           select: {
             partnerLink: true,
           },
@@ -120,8 +139,8 @@ export class PartnershipService {
 
     const isSuspended = !!partnership.suspendedAt;
     const isLinkActive = partnership.status === PartnershipStatus.APPROVED && !isSuspended;
-    const partnerLink = isLinkActive && partnership.user.partnerLink
-      ? `${this.clientAppUrl}/signup?ref=${partnership.user.partnerLink}`
+    const partnerLink = isLinkActive && partnership.client.partnerLink
+      ? `${this.clientAppUrl}/signup?ref=${partnership.client.partnerLink}`
       : null;
 
     return {
@@ -148,10 +167,10 @@ export class PartnershipService {
     }
 
     if (search) {
-      where.user = {
+      where.client = {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
+          { user: { email: { contains: search, mode: 'insensitive' } } },
         ],
       };
     }
@@ -160,11 +179,18 @@ export class PartnershipService {
       this.prisma.partnership.findMany({
         where,
         include: {
-          user: {
+          client: {
             select: {
               id: true,
-              email: true,
               name: true,
+              user: { select: { email: true } },
+            },
+          },
+          reviewer: {
+            select: {
+              id: true,
+              name: true,
+              user: { select: { email: true } },
             },
           },
         },
@@ -188,18 +214,18 @@ export class PartnershipService {
     const partnership = await this.prisma.partnership.findUnique({
       where: { id },
       include: {
-        user: {
+        client: {
           select: {
             id: true,
-            email: true,
             name: true,
+            user: { select: { email: true } },
           },
         },
         reviewer: {
           select: {
             id: true,
-            email: true,
             name: true,
+            user: { select: { email: true } },
           },
         },
       },
@@ -228,9 +254,9 @@ export class PartnershipService {
     }
 
     // Generate unique partner link
-    const partnerLink = this.generatePartnerLink(partnership.userId);
+    const partnerLink = this.generatePartnerLink(partnership.clientId);
 
-    // Update both partnership and user
+    // Update both partnership and client
     const [updated] = await this.prisma.$transaction([
       this.prisma.partnership.update({
         where: { id },
@@ -240,8 +266,8 @@ export class PartnershipService {
           reviewedBy: adminId,
         },
       }),
-      this.prisma.user.update({
-        where: { id: partnership.userId },
+      this.prisma.client.update({
+        where: { id: partnership.clientId },
         data: {
           partnerLink,
         },
@@ -361,11 +387,11 @@ export class PartnershipService {
     }
 
     const [clients, total] = await Promise.all([
-      this.prisma.user.findMany({
+      this.prisma.client.findMany({
         where,
         select: {
           id: true,
-          email: true,
+          user: { select: { email: true } },
           name: true,
           createdAt: true,
           enrollmentsAsClient: {
@@ -377,7 +403,7 @@ export class PartnershipService {
               amountPaid: true,
             },
           },
-          agentCommissions: {
+          partnerCommissions: {
             where: {
               partnerId,
             },
@@ -391,7 +417,7 @@ export class PartnershipService {
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.user.count({ where }),
+      this.prisma.client.count({ where }),
     ]);
 
     const data = clients.map((client) => {
@@ -403,18 +429,18 @@ export class PartnershipService {
         (sum, e) => sum + Number(e.amountPaid),
         0,
       );
-      const totalCommissions = client.agentCommissions.reduce(
+      const totalCommissions = client.partnerCommissions.reduce(
         (sum, c) => sum + Number(c.amount),
         0,
       );
-      const paidCommissions = client.agentCommissions
+      const paidCommissions = client.partnerCommissions
         .filter((c) => c.status === 'PAID')
         .reduce((sum, c) => sum + Number(c.amount), 0);
       const pendingCommissions = totalCommissions - paidCommissions;
 
       return {
         id: client.id,
-        email: client.email,
+        email: client.user.email,
         name: client.name,
         createdAt: client.createdAt,
         totalEnrollments,
@@ -436,14 +462,14 @@ export class PartnershipService {
   }
 
   async getPartnerClientDetail(partnerId: string, clientId: string) {
-    const client = await this.prisma.user.findFirst({
+    const client = await this.prisma.client.findFirst({
       where: {
         id: clientId,
         referredByPartnerId: partnerId,
       },
       select: {
         id: true,
-        email: true,
+        user: { select: { email: true } },
         name: true,
         createdAt: true,
         enrollmentsAsClient: {
@@ -501,7 +527,7 @@ export class PartnershipService {
 
     return {
       id: client.id,
-      email: client.email,
+      email: client.user.email,
       name: client.name,
       createdAt: client.createdAt,
       enrollments: client.enrollmentsAsClient.map((e) => ({
@@ -533,12 +559,12 @@ export class PartnershipService {
     const last6Months = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
     // Get total clients referred by partner
-    const totalClients = await this.prisma.user.count({
+    const totalClients = await this.prisma.client.count({
       where: { referredByPartnerId: partnerId },
     });
 
     // Get new clients this month
-    const newClientsThisMonth = await this.prisma.user.count({
+    const newClientsThisMonth = await this.prisma.client.count({
       where: {
         referredByPartnerId: partnerId,
         createdAt: { gte: startOfMonth },

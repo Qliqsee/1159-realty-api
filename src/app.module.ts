@@ -31,6 +31,8 @@ import { DisbursementConfigModule } from './disbursement-config/disbursement-con
 import { InterestsModule } from './interests/interests.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { AdminsModule } from './admins/admins.module';
+import { ClientsModule } from './clients/clients.module';
 
 @Module({
   imports: [
@@ -67,6 +69,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
     InterestsModule,
     CampaignsModule,
     DashboardModule,
+    AdminsModule,
+    ClientsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
