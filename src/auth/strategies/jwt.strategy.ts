@@ -18,22 +18,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    // Lightweight query - only fetch what's needed
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      include: {
-        admin: true,
-        client: true,
-        userRoles: {
-          include: {
-            role: {
-              include: {
-                rolePermissions: {
-                  include: {
-                    permission: true,
-                  },
-                },
-              },
-            },
+      select: {
+        id: true,
+        isBanned: true,
+        admin: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        client: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -48,34 +48,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new ForbiddenException('Your account has been banned');
     }
 
-    const userType = user.admin ? 'admin' : user.client ? 'client' : null;
-
-    if (!userType) {
-      throw new UnauthorizedException('User type not found');
-    }
-
-    const roles = user.userRoles.map((ur) => ({
-      id: ur.role.id,
-      name: ur.role.name,
-      appContext: ur.role.appContext,
-    }));
-
-    const permissions = user.userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => ({
-        name: rp.permission.name,
-        resource: rp.permission.resource,
-        action: rp.permission.action,
-      })),
-    );
-
+    // Return user info with admin/client for compatibility
     return {
-      userId: user.id,
-      email: user.email,
-      userType,
+      id: payload.sub,
+      userId: payload.sub,
+      email: payload.email,
+      userType: payload.userType,
       admin: user.admin || null,
       client: user.client || null,
-      roles,
-      permissions,
     };
   }
 }

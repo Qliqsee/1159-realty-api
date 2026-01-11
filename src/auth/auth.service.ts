@@ -26,7 +26,7 @@ export class AuthService {
       throw new ConflictException('User with this email already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 8);
 
     // Validate partner referral code if provided
     let referredByPartnerId: string | undefined;
@@ -64,8 +64,9 @@ export class AuthService {
       });
 
       // Assign client role
-      const clientRole = await tx.role.findFirst({
-        where: { name: 'client', appContext: 'client' },
+      const clientRole = await tx.role.findUnique({
+        where: { name_appContext: { name: 'client', appContext: 'client' } },
+        select: { id: true },
       });
 
       if (clientRole) {
@@ -104,7 +105,7 @@ export class AuthService {
       throw new ConflictException('User with this email already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 8);
 
     // Create user and admin in transaction
     const result = await this.prisma.$transaction(async (tx) => {
@@ -122,8 +123,9 @@ export class AuthService {
       });
 
       // Assign agent role by default
-      const agentRole = await tx.role.findFirst({
-        where: { name: 'agent', appContext: 'crm' },
+      const agentRole = await tx.role.findUnique({
+        where: { name_appContext: { name: 'agent', appContext: 'crm' } },
+        select: { id: true },
       });
 
       if (agentRole) {
@@ -153,9 +155,23 @@ export class AuthService {
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
-      include: {
-        admin: true,
-        client: true,
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        isBanned: true,
+        admin: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        client: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -203,18 +219,24 @@ export class AuthService {
   async validateGoogleUser(profile: { googleId: string; email: string; name: string }) {
     let user = await this.prisma.user.findUnique({
       where: { googleId: profile.googleId },
-      include: {
-        client: true,
-        admin: true,
+      select: {
+        id: true,
+        email: true,
+        isBanned: true,
+        client: { select: { id: true, name: true } },
+        admin: { select: { id: true, name: true } },
       },
     });
 
     if (!user) {
       user = await this.prisma.user.findUnique({
         where: { email: profile.email },
-        include: {
-          client: true,
-          admin: true,
+        select: {
+          id: true,
+          email: true,
+          isBanned: true,
+          client: { select: { id: true, name: true } },
+          admin: { select: { id: true, name: true } },
         },
       });
 
@@ -223,9 +245,12 @@ export class AuthService {
         user = await this.prisma.user.update({
           where: { id: user.id },
           data: { googleId: profile.googleId },
-          include: {
-            client: true,
-            admin: true,
+          select: {
+            id: true,
+            email: true,
+            isBanned: true,
+            client: { select: { id: true, name: true } },
+            admin: { select: { id: true, name: true } },
           },
         });
       } else {
@@ -247,8 +272,9 @@ export class AuthService {
           });
 
           // Assign client role
-          const clientRole = await tx.role.findFirst({
-            where: { name: 'client', appContext: 'client' },
+          const clientRole = await tx.role.findUnique({
+            where: { name_appContext: { name: 'client', appContext: 'client' } },
+            select: { id: true },
           });
 
           if (clientRole) {
@@ -262,9 +288,12 @@ export class AuthService {
 
           return tx.user.findUnique({
             where: { id: newUser.id },
-            include: {
-              client: true,
-              admin: true,
+            select: {
+              id: true,
+              email: true,
+              isBanned: true,
+              client: { select: { id: true, name: true } },
+              admin: { select: { id: true, name: true } },
             },
           });
         });
@@ -280,18 +309,24 @@ export class AuthService {
   async validateGoogleAdminUser(profile: { googleId: string; email: string; name: string }) {
     let user = await this.prisma.user.findUnique({
       where: { googleId: profile.googleId },
-      include: {
-        admin: true,
-        client: true,
+      select: {
+        id: true,
+        email: true,
+        isBanned: true,
+        admin: { select: { id: true, name: true } },
+        client: { select: { id: true, name: true } },
       },
     });
 
     if (!user) {
       user = await this.prisma.user.findUnique({
         where: { email: profile.email },
-        include: {
-          admin: true,
-          client: true,
+        select: {
+          id: true,
+          email: true,
+          isBanned: true,
+          admin: { select: { id: true, name: true } },
+          client: { select: { id: true, name: true } },
         },
       });
 
@@ -300,9 +335,12 @@ export class AuthService {
         user = await this.prisma.user.update({
           where: { id: user.id },
           data: { googleId: profile.googleId },
-          include: {
-            admin: true,
-            client: true,
+          select: {
+            id: true,
+            email: true,
+            isBanned: true,
+            admin: { select: { id: true, name: true } },
+            client: { select: { id: true, name: true } },
           },
         });
       } else {
@@ -324,8 +362,9 @@ export class AuthService {
           });
 
           // Assign agent role
-          const agentRole = await tx.role.findFirst({
-            where: { name: 'agent', appContext: 'crm' },
+          const agentRole = await tx.role.findUnique({
+            where: { name_appContext: { name: 'agent', appContext: 'crm' } },
+            select: { id: true },
           });
 
           if (agentRole) {
@@ -339,9 +378,12 @@ export class AuthService {
 
           return tx.user.findUnique({
             where: { id: newUser.id },
-            include: {
-              admin: true,
-              client: true,
+            select: {
+              id: true,
+              email: true,
+              isBanned: true,
+              admin: { select: { id: true, name: true } },
+              client: { select: { id: true, name: true } },
             },
           });
         });
@@ -388,9 +430,12 @@ export class AuthService {
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
-        include: {
-          admin: true,
-          client: true,
+        select: {
+          id: true,
+          email: true,
+          isBanned: true,
+          admin: { select: { id: true } },
+          client: { select: { id: true } },
         },
       });
 
@@ -420,41 +465,10 @@ export class AuthService {
   }
 
   private async generateTokens(userId: string, email: string, userType: 'admin' | 'client') {
-    // Get user roles and permissions
-    const userRoles = await this.prisma.userRole.findMany({
-      where: { userId },
-      include: {
-        role: {
-          include: {
-            rolePermissions: {
-              include: {
-                permission: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const roles = userRoles.map((ur) => ({
-      name: ur.role.name,
-      appContext: ur.role.appContext,
-    }));
-
-    const permissions = userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => ({
-        name: rp.permission.name,
-        resource: rp.permission.resource,
-        action: rp.permission.action,
-      }))
-    );
-
     const payload = {
       sub: userId,
       email,
       userType,
-      roles,
-      permissions,
     };
 
     const [accessToken, refreshToken] = await Promise.all([
