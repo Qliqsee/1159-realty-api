@@ -52,6 +52,9 @@ export class ClientResponseDto {
   @ApiProperty({ description: 'Roles assigned', example: ['client'] })
   roles: string[];
 
+  @ApiProperty({ description: 'Capabilities', example: ['view:properties', 'create:enrollment'] })
+  capabilities: string[];
+
   @ApiProperty({ description: 'Created at' })
   createdAt: Date;
 

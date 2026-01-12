@@ -46,6 +46,9 @@ export class AdminResponseDto {
   @ApiProperty({ description: 'Roles assigned', example: ['agent', 'admin'] })
   roles: string[];
 
+  @ApiProperty({ description: 'Capabilities', example: ['view:users', 'manage:roles'] })
+  capabilities: string[];
+
   @ApiProperty({ description: 'Created at' })
   createdAt: Date;
 

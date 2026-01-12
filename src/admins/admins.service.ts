@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { CapabilitiesService } from '../capabilities/capabilities.service';
 import { AdminQueryDto, ClientQueryDto, MyClientsQueryDto, AdminSortOption } from './dto/admin-query.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { UpdateBankAccountDto } from './dto/bank-account.dto';
@@ -7,7 +8,10 @@ import { AdminResponseDto, BankAccountResponseDto } from './dto/admin-response.d
 
 @Injectable()
 export class AdminsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private capabilitiesService: CapabilitiesService,
+  ) {}
 
   async findAll(query?: AdminQueryDto) {
     const page = query?.page ? parseInt(query.page, 10) : 1;
@@ -147,7 +151,8 @@ export class AdminsService {
       throw new NotFoundException('Admin profile not found');
     }
 
-    return this.mapToAdminResponse(admin);
+    const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
+    return this.mapToAdminResponse(admin, capabilities);
   }
 
   async updateProfile(userId: string, updateData: UpdateAdminDto) {
@@ -176,7 +181,8 @@ export class AdminsService {
       },
     });
 
-    return this.mapToAdminResponse(updated);
+    const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
+    return this.mapToAdminResponse(updated, capabilities);
   }
 
   async getMyClients(adminId: string, query?: MyClientsQueryDto) {
@@ -583,7 +589,7 @@ export class AdminsService {
     return { message: 'Bank account deleted successfully' };
   }
 
-  private mapToAdminResponse(admin: any): AdminResponseDto {
+  private mapToAdminResponse(admin: any, capabilities: string[] = []): AdminResponseDto {
     return {
       id: admin.id,
       userId: admin.userId,
@@ -600,6 +606,7 @@ export class AdminsService {
       isBanned: admin.user.isBanned,
       isSuspended: admin.user.isSuspended,
       roles: admin.user.userRoles?.map((ur: any) => ur.role.name) || [],
+      capabilities,
       createdAt: admin.createdAt,
       updatedAt: admin.updatedAt,
     };

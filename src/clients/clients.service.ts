@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { CapabilitiesService } from '../capabilities/capabilities.service';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { UpdateBankAccountDto } from './dto/bank-account.dto';
 import { ClientResponseDto, BankAccountResponseDto } from './dto/client-response.dto';
 
 @Injectable()
 export class ClientsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private capabilitiesService: CapabilitiesService,
+  ) {}
 
   async findByUserId(userId: string): Promise<ClientResponseDto> {
     const client = await this.prisma.client.findUnique({
@@ -28,7 +32,8 @@ export class ClientsService {
       throw new NotFoundException('Client profile not found');
     }
 
-    return this.mapToClientResponse(client);
+    const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
+    return this.mapToClientResponse(client, capabilities);
   }
 
   async findOne(id: string): Promise<any> {
@@ -116,7 +121,8 @@ export class ClientsService {
       },
     });
 
-    return this.mapToClientResponse(updated);
+    const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
+    return this.mapToClientResponse(updated, capabilities);
   }
 
   async getMyAgent(clientId: string) {
@@ -294,7 +300,7 @@ export class ClientsService {
     return { message: 'Bank account deleted successfully' };
   }
 
-  private mapToClientResponse(client: any): ClientResponseDto {
+  private mapToClientResponse(client: any, capabilities: string[] = []): ClientResponseDto {
     return {
       id: client.id,
       userId: client.userId,
@@ -313,6 +319,7 @@ export class ClientsService {
       isSuspended: client.user.isSuspended,
       isBanned: client.user.isBanned,
       roles: client.user.userRoles?.map((ur: any) => ur.role.name) || [],
+      capabilities,
       createdAt: client.createdAt,
       updatedAt: client.updatedAt,
     };
