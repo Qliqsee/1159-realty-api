@@ -10,8 +10,14 @@ export class AdminResponseDto {
   @ApiProperty({ description: 'Email address', example: 'admin@example.com' })
   email: string;
 
-  @ApiPropertyOptional({ description: 'Admin name', example: 'John Doe' })
-  name?: string;
+  @ApiPropertyOptional({ description: 'First name', example: 'John' })
+  firstName?: string;
+
+  @ApiPropertyOptional({ description: 'Last name', example: 'Doe' })
+  lastName?: string;
+
+  @ApiPropertyOptional({ description: 'Other name', example: 'Michael' })
+  otherName?: string;
 
   @ApiPropertyOptional({ description: 'Phone number', example: '+2348012345678' })
   phone?: string;

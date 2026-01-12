@@ -8,6 +8,7 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { QueryPropertiesDto } from './dto/query-properties.dto';
 import { Prisma } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class PropertiesService {
@@ -451,7 +452,9 @@ export class PropertiesService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,

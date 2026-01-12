@@ -27,13 +27,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         admin: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
       },

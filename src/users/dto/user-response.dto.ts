@@ -7,8 +7,14 @@ export class UserResponseDto {
   @ApiProperty()
   email: string;
 
-  @ApiProperty()
-  name: string;
+  @ApiPropertyOptional()
+  firstName?: string;
+
+  @ApiPropertyOptional()
+  lastName?: string;
+
+  @ApiPropertyOptional()
+  otherName?: string;
 
   @ApiProperty()
   createdAt: Date;
@@ -96,8 +102,14 @@ export class UserDetailsResponseDto {
   @ApiProperty()
   email: string;
 
-  @ApiProperty()
-  name: string;
+  @ApiPropertyOptional()
+  firstName?: string;
+
+  @ApiPropertyOptional()
+  lastName?: string;
+
+  @ApiPropertyOptional()
+  otherName?: string;
 
   @ApiPropertyOptional()
   phone?: string;

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { UpdateConfigDto } from './dto/update-config.dto';
 import { AddExceptionDto } from './dto/add-exception.dto';
 import { ConfigResponseDto, ExceptionUserDto } from './dto/config-response.dto';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class DisbursementConfigService {
@@ -139,12 +140,16 @@ export class DisbursementConfigService {
         email: true,
         admin: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
       },
@@ -153,7 +158,11 @@ export class DisbursementConfigService {
 
     return users.map((user) => ({
       id: user.id,
-      name: user.admin?.name || user.client?.name || 'Unknown',
+      name: user.admin
+        ? formatFullName(user.admin.firstName, user.admin.lastName, user.admin.otherName)
+        : user.client
+        ? formatFullName(user.client.firstName, user.client.lastName, user.client.otherName)
+        : 'Unknown',
       email: user.email,
       addedAt: config.createdAt, // Simplified: using config creation date
     }));

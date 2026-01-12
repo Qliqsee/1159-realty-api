@@ -12,6 +12,7 @@ import { BulkCreateDisbursementDto } from './dto/bulk-create-disbursement.dto';
 import { QueryDisbursementsDto } from './dto/query-disbursements.dto';
 import { ReleaseDisbursementDto, DisbursementReleaseResponseDto } from './dto/release-disbursement.dto';
 import { DisbursementResponseDto, DisbursementStatsDto } from './dto/disbursement-response.dto';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class DisbursementsService {
@@ -31,12 +32,12 @@ export class DisbursementsService {
     const commission = await this.prisma.commission.findUnique({
       where: { id: commissionId },
       include: {
-        agent: { select: { id: true, name: true, user: { select: { email: true } }, accountNumber: true } },
-        partner: { select: { id: true, name: true, user: { select: { email: true } }, accountNumber: true } },
+        agent: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } }, accountNumber: true } },
+        partner: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } }, accountNumber: true } },
         enrollment: {
           include: {
             property: { select: { name: true } },
-            client: { select: { name: true } },
+            client: { select: { firstName: true, lastName: true, otherName: true } },
           },
         },
       },
@@ -81,11 +82,11 @@ export class DisbursementsService {
         createdBy,
       },
       include: {
-        recipient: { select: { id: true, name: true, user: { select: { email: true } } } },
+        recipient: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
         enrollment: {
           include: {
             property: { select: { name: true } },
-            client: { select: { name: true } },
+            client: { select: { firstName: true, lastName: true, otherName: true } },
           },
         },
       },
@@ -153,7 +154,9 @@ export class DisbursementsService {
       ...(dateTo && { createdAt: { lte: new Date(dateTo) } }),
       ...(search && {
         OR: [
-          { recipient: { name: { contains: search, mode: 'insensitive' } } },
+          { recipient: { firstName: { contains: search, mode: 'insensitive' } } },
+          { recipient: { lastName: { contains: search, mode: 'insensitive' } } },
+          { recipient: { otherName: { contains: search, mode: 'insensitive' } } },
           { enrollment: { property: { name: { contains: search, mode: 'insensitive' } } } },
           { enrollmentId: { contains: search, mode: 'insensitive' } },
         ],
@@ -176,11 +179,11 @@ export class DisbursementsService {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
         include: {
-          recipient: { select: { id: true, name: true, user: { select: { email: true } } } },
+          recipient: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
           enrollment: {
             include: {
               property: { select: { name: true } },
-              client: { select: { name: true } },
+              client: { select: { firstName: true, lastName: true, otherName: true } },
             },
           },
           commission: {
@@ -215,11 +218,11 @@ export class DisbursementsService {
     const disbursement = await this.prisma.disbursement.findUnique({
       where: { id },
       include: {
-        recipient: { select: { id: true, name: true, user: { select: { email: true } } } },
+        recipient: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
         enrollment: {
           include: {
             property: { select: { name: true } },
-            client: { select: { name: true } },
+            client: { select: { firstName: true, lastName: true, otherName: true } },
           },
         },
         commission: {
@@ -255,7 +258,7 @@ export class DisbursementsService {
     const disbursement = await this.prisma.disbursement.findUnique({
       where: { id },
       include: {
-        recipient: { select: { name: true, user: { select: { email: true } } } },
+        recipient: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
         enrollment: { include: { property: { select: { name: true } } } },
         commission: { select: { id: true } },
       },
@@ -438,8 +441,8 @@ export class DisbursementsService {
       paystackResponse: disbursement.paystackResponse || undefined,
       recipientDetails: {
         id: disbursement.recipient.id,
-        name: disbursement.recipient.name,
-        email: disbursement.recipient.email,
+        name: formatFullName(disbursement.recipient.firstName, disbursement.recipient.lastName, disbursement.recipient.otherName),
+        email: disbursement.recipient.user?.email,
       },
       commissionDetails: commission
         ? {
@@ -452,7 +455,7 @@ export class DisbursementsService {
       enrollmentDetails: {
         id: disbursement.enrollment.id,
         propertyName: disbursement.enrollment.property.name,
-        clientName: disbursement.enrollment.client?.name,
+        clientName: formatFullName(disbursement.enrollment.client?.firstName, disbursement.enrollment.client?.lastName, disbursement.enrollment.client?.otherName),
         totalAmount: Number(disbursement.enrollment.totalAmount),
       },
       createdAt: disbursement.createdAt,

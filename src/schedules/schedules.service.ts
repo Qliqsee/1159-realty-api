@@ -10,6 +10,7 @@ import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { QuerySchedulesDto } from './dto/query-schedules.dto';
 import { ScheduleResponseDto } from './dto/schedule-response.dto';
 import { Prisma } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class SchedulesService {
@@ -61,7 +62,9 @@ export class SchedulesService {
         },
         creator: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
         _count: {
@@ -143,7 +146,9 @@ export class SchedulesService {
           },
           creator: {
             select: {
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
             },
           },
           _count: {
@@ -175,7 +180,9 @@ export class SchedulesService {
         },
         creator: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
         _count: {
@@ -234,7 +241,9 @@ export class SchedulesService {
         },
         creator: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
         _count: {
@@ -291,7 +300,11 @@ export class SchedulesService {
       message: schedule.message,
       appointmentsCount: schedule._count?.appointments || 0,
       createdBy: schedule.createdBy,
-      creatorName: schedule.creator?.name,
+      creatorName: formatFullName(
+        schedule.creator?.firstName,
+        schedule.creator?.lastName,
+        schedule.creator?.otherName,
+      ),
       createdAt: schedule.createdAt,
       updatedAt: schedule.updatedAt,
     };

@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { Partnership, PartnershipStatus, EnrollmentStatus } from '@prisma/client';
 import * as crypto from 'crypto';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class PartnershipService {
@@ -169,7 +170,9 @@ export class PartnershipService {
     if (search) {
       where.client = {
         OR: [
-          { name: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { otherName: { contains: search, mode: 'insensitive' } },
           { user: { email: { contains: search, mode: 'insensitive' } } },
         ],
       };
@@ -182,14 +185,18 @@ export class PartnershipService {
           client: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: { select: { email: true } },
             },
           },
           reviewer: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: { select: { email: true } },
             },
           },
@@ -201,8 +208,23 @@ export class PartnershipService {
       this.prisma.partnership.count({ where }),
     ]);
 
+    // Format the data to match DTO expectations
+    const formattedData = data.map((partnership) => ({
+      ...partnership,
+      client: partnership.client ? {
+        id: partnership.client.id,
+        name: formatFullName(partnership.client.firstName, partnership.client.lastName, partnership.client.otherName),
+        user: partnership.client.user,
+      } : undefined,
+      reviewer: partnership.reviewer ? {
+        id: partnership.reviewer.id,
+        name: formatFullName(partnership.reviewer.firstName, partnership.reviewer.lastName, partnership.reviewer.otherName),
+        user: partnership.reviewer.user,
+      } : undefined,
+    }));
+
     return {
-      data,
+      data: formattedData,
       page,
       limit,
       total,
@@ -217,14 +239,18 @@ export class PartnershipService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
         reviewer: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
@@ -235,7 +261,20 @@ export class PartnershipService {
       throw new NotFoundException('Partnership not found');
     }
 
-    return partnership;
+    // Format the data to match DTO expectations
+    return {
+      ...partnership,
+      client: partnership.client ? {
+        id: partnership.client.id,
+        name: formatFullName(partnership.client.firstName, partnership.client.lastName, partnership.client.otherName),
+        user: partnership.client.user,
+      } : undefined,
+      reviewer: partnership.reviewer ? {
+        id: partnership.reviewer.id,
+        name: formatFullName(partnership.reviewer.firstName, partnership.reviewer.lastName, partnership.reviewer.otherName),
+        user: partnership.reviewer.user,
+      } : undefined,
+    };
   }
 
   async approvePartnership(id: string, adminId: string): Promise<Partnership> {
@@ -381,8 +420,10 @@ export class PartnershipService {
 
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { otherName: { contains: search, mode: 'insensitive' } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -392,7 +433,9 @@ export class PartnershipService {
         select: {
           id: true,
           user: { select: { email: true } },
-          name: true,
+          firstName: true,
+          lastName: true,
+          otherName: true,
           createdAt: true,
           enrollmentsAsClient: {
             where: enrollmentStatus ? { status: enrollmentStatus } : {},
@@ -441,7 +484,7 @@ export class PartnershipService {
       return {
         id: client.id,
         email: client.user.email,
-        name: client.name,
+        name: formatFullName(client.firstName, client.lastName, client.otherName),
         createdAt: client.createdAt,
         totalEnrollments,
         activeEnrollments,
@@ -470,7 +513,9 @@ export class PartnershipService {
       select: {
         id: true,
         user: { select: { email: true } },
-        name: true,
+        firstName: true,
+        lastName: true,
+        otherName: true,
         createdAt: true,
         enrollmentsAsClient: {
           select: {
@@ -528,7 +573,7 @@ export class PartnershipService {
     return {
       id: client.id,
       email: client.user.email,
-      name: client.name,
+      name: formatFullName(client.firstName, client.lastName, client.otherName),
       createdAt: client.createdAt,
       enrollments: client.enrollmentsAsClient.map((e) => ({
         id: e.id,

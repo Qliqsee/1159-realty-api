@@ -6,6 +6,7 @@ import { CapabilitiesService } from '../capabilities/capabilities.service';
 import * as bcrypt from 'bcrypt';
 import { SignUpDto } from './dto/signup.dto';
 import { AdminSignUpDto } from './dto/admin-signup.dto';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class AuthService {
@@ -18,7 +19,7 @@ export class AuthService {
 
   // CLIENT SIGNUP
   async signUp(signUpDto: SignUpDto) {
-    const { email, password, name, partnerRefCode } = signUpDto;
+    const { email, password, firstName, lastName, otherName, partnerRefCode } = signUpDto;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -60,7 +61,9 @@ export class AuthService {
       const client = await tx.client.create({
         data: {
           userId: user.id,
-          name,
+          firstName,
+          lastName,
+          otherName,
           referredByPartnerId,
         },
       });
@@ -105,7 +108,9 @@ export class AuthService {
       user: {
         id: result.user.id,
         email: result.user.email,
-        name: result.client.name,
+        firstName: result.client.firstName,
+        lastName: result.client.lastName,
+        otherName: result.client.otherName,
       },
       capabilities,
       ...tokens,
@@ -181,7 +186,9 @@ export class AuthService {
       user: {
         id: result.user.id,
         email: result.user.email,
-        name: result.admin.name,
+        firstName: result.admin.firstName,
+        lastName: result.admin.lastName,
+        otherName: result.admin.otherName,
       },
       capabilities,
       ...tokens,
@@ -199,13 +206,17 @@ export class AuthService {
         admin: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
       },
@@ -232,7 +243,11 @@ export class AuthService {
   async login(user: any) {
     // Determine userType
     const userType = user.admin ? 'admin' : user.client ? 'client' : null;
-    const name = user.admin?.name || user.client?.name || null;
+    const name = user.admin
+      ? formatFullName(user.admin.firstName, user.admin.lastName, user.admin.otherName)
+      : user.client
+        ? formatFullName(user.client.firstName, user.client.lastName, user.client.otherName)
+        : null;
 
     if (!userType) {
       throw new UnauthorizedException('User type not found');
@@ -276,8 +291,8 @@ export class AuthService {
         id: true,
         email: true,
         isBanned: true,
-        client: { select: { id: true, name: true } },
-        admin: { select: { id: true, name: true } },
+        client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
+        admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
       },
     });
 
@@ -288,8 +303,8 @@ export class AuthService {
           id: true,
           email: true,
           isBanned: true,
-          client: { select: { id: true, name: true } },
-          admin: { select: { id: true, name: true } },
+          client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
+          admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
         },
       });
 
@@ -302,8 +317,8 @@ export class AuthService {
             id: true,
             email: true,
             isBanned: true,
-            client: { select: { id: true, name: true } },
-            admin: { select: { id: true, name: true } },
+            client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
+            admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
           },
         });
       } else {
@@ -317,10 +332,17 @@ export class AuthService {
             },
           });
 
+          // Parse Google profile name into firstName and lastName
+          const nameParts = profile.name.split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+
           const client = await tx.client.create({
             data: {
               userId: newUser.id,
-              name: profile.name,
+              firstName,
+              lastName,
+              otherName: '',
             },
           });
 
@@ -345,8 +367,8 @@ export class AuthService {
               id: true,
               email: true,
               isBanned: true,
-              client: { select: { id: true, name: true } },
-              admin: { select: { id: true, name: true } },
+              client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
+              admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
             },
           });
         });
@@ -366,8 +388,8 @@ export class AuthService {
         id: true,
         email: true,
         isBanned: true,
-        admin: { select: { id: true, name: true } },
-        client: { select: { id: true, name: true } },
+        admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
+        client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
       },
     });
 
@@ -378,8 +400,8 @@ export class AuthService {
           id: true,
           email: true,
           isBanned: true,
-          admin: { select: { id: true, name: true } },
-          client: { select: { id: true, name: true } },
+          admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
+          client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
         },
       });
 
@@ -392,8 +414,8 @@ export class AuthService {
             id: true,
             email: true,
             isBanned: true,
-            admin: { select: { id: true, name: true } },
-            client: { select: { id: true, name: true } },
+            admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
+            client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
           },
         });
       } else {
@@ -407,10 +429,17 @@ export class AuthService {
             },
           });
 
+          // Parse Google profile name into firstName and lastName
+          const nameParts = profile.name.split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+
           const admin = await tx.admin.create({
             data: {
               userId: newUser.id,
-              name: profile.name,
+              firstName,
+              lastName,
+              otherName: '',
             },
           });
 
@@ -435,8 +464,8 @@ export class AuthService {
               id: true,
               email: true,
               isBanned: true,
-              admin: { select: { id: true, name: true } },
-              client: { select: { id: true, name: true } },
+              admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
+              client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
             },
           });
         });
@@ -456,7 +485,11 @@ export class AuthService {
 
     // Determine userType
     const userType = user.admin ? 'admin' : user.client ? 'client' : null;
-    const name = user.admin?.name || user.client?.name || null;
+    const name = user.admin
+      ? formatFullName(user.admin.firstName, user.admin.lastName, user.admin.otherName)
+      : user.client
+        ? formatFullName(user.client.firstName, user.client.lastName, user.client.otherName)
+        : null;
 
     if (!userType) {
       throw new UnauthorizedException('User type not found');

@@ -18,6 +18,7 @@ import { SegmentPreviewResponseDto } from './dto/segment-preview-response.dto';
 import { SyncSegmentResponseDto } from './dto/sync-segment-response.dto';
 import { SegmentStatsDto } from './dto/segment-stats.dto';
 import { Prisma } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class CampaignsService {
@@ -136,7 +137,9 @@ export class CampaignsService {
           creator: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: {
                 select: {
                   email: true,
@@ -188,7 +191,9 @@ export class CampaignsService {
           creator: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: {
                 select: {
                   email: true,
@@ -220,7 +225,9 @@ export class CampaignsService {
         creator: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -340,7 +347,9 @@ export class CampaignsService {
         creator: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -400,7 +409,9 @@ export class CampaignsService {
         where,
         select: {
           id: true,
-          name: true,
+          firstName: true,
+          lastName: true,
+          otherName: true,
           phone: true,
           gender: true,
           country: true,
@@ -421,7 +432,7 @@ export class CampaignsService {
     return {
       data: clients.map((client) => ({
         id: client.id,
-        name: client.name || '',
+        name: formatFullName(client.firstName, client.lastName, client.otherName) || '',
         email: client.user?.email || '',
         phone: client.phone || '',
         gender: client.gender || '',
@@ -458,7 +469,9 @@ export class CampaignsService {
     const clients = await this.prisma.client.findMany({
       where,
       select: {
-        name: true,
+        firstName: true,
+        lastName: true,
+        otherName: true,
         phone: true,
         user: {
           select: {
@@ -477,7 +490,7 @@ export class CampaignsService {
       const contacts = clients.map((client) =>
         this.brevoService.formatContactForBrevo({
           email: client.user?.email || '',
-          name: client.name,
+          name: formatFullName(client.firstName, client.lastName, client.otherName),
           phone: client.phone,
         }),
       );
@@ -666,7 +679,7 @@ export class CampaignsService {
       brevoListId: segment.brevoListId,
       creator: {
         id: segment.creator.id,
-        name: segment.creator.name || '',
+        name: formatFullName(segment.creator.firstName, segment.creator.lastName, segment.creator.otherName) || '',
         email: segment.creator.user?.email || '',
       },
       createdAt: segment.createdAt,

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class SupportService {
@@ -20,7 +21,9 @@ export class SupportService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -72,7 +75,9 @@ export class SupportService {
           client: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               phone: true,
               user: {
                 select: {
@@ -146,7 +151,9 @@ export class SupportService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             phone: true,
             user: {
               select: {
@@ -185,7 +192,9 @@ export class SupportService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,

@@ -13,6 +13,7 @@ import { AddFeedbackDto } from './dto/add-feedback.dto';
 import { LeadQueryDto } from './dto/lead-query.dto';
 import { LeadStatus, Prisma } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class LeadsService {
@@ -40,14 +41,18 @@ export class LeadsService {
         creator: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
         reserver: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
@@ -193,21 +198,27 @@ export class LeadsService {
           creator: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: { select: { email: true } },
             },
           },
           reserver: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: { select: { email: true } },
             },
           },
           closer: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: { select: { email: true } },
             },
           },
@@ -246,28 +257,36 @@ export class LeadsService {
         creator: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
         reserver: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
         closer: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
@@ -276,7 +295,9 @@ export class LeadsService {
             agent: {
               select: {
                 id: true,
-                name: true,
+                firstName: true,
+                lastName: true,
+                otherName: true,
                 user: { select: { email: true } },
               },
             },
@@ -305,14 +326,18 @@ export class LeadsService {
         creator: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
         reserver: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
@@ -371,14 +396,18 @@ export class LeadsService {
         creator: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
         reserver: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
@@ -432,7 +461,9 @@ export class LeadsService {
         creator: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
@@ -498,21 +529,27 @@ export class LeadsService {
           creator: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: { select: { email: true } },
             },
           },
           closer: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: { select: { email: true } },
             },
           },
           client: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: { select: { email: true } },
             },
           },
@@ -550,7 +587,9 @@ export class LeadsService {
         agent: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { email: true } },
           },
         },
@@ -574,7 +613,9 @@ export class LeadsService {
           agent: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: {
                 select: {
                   email: true,
@@ -617,7 +658,9 @@ export class LeadsService {
           agent: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: {
                 select: {
                   email: true,

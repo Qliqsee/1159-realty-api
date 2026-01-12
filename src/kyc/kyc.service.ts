@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { Kyc, KycStatus, KycStep, Prisma } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 import { SavePersonalStepDto } from './dto/save-personal-step.dto';
 import { SaveAddressStepDto } from './dto/save-address-step.dto';
 import { SaveOccupationStepDto } from './dto/save-occupation-step.dto';
@@ -305,13 +306,18 @@ export class KycService {
     const adminEmail = this.configService.get<string>('ADMIN_EMAIL');
     const clientWithEmail = await this.prisma.client.findUnique({
       where: { userId },
-      include: { user: { select: { email: true } } },
+      select: {
+        firstName: true,
+        lastName: true,
+        otherName: true,
+        user: { select: { email: true } },
+      },
     });
 
     if (adminEmail && clientWithEmail) {
       await this.emailService.sendKycSubmittedEmail(
         adminEmail,
-        clientWithEmail.name || 'User',
+        formatFullName(clientWithEmail.firstName, clientWithEmail.lastName, clientWithEmail.otherName) || 'User',
         clientWithEmail.user.email,
         kyc.id,
       );
@@ -369,12 +375,20 @@ export class KycService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: { select: { id: true, email: true } },
           },
         },
         reviewer: {
-          select: { id: true, name: true, user: { select: { email: true } } },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
+            user: { select: { email: true } },
+          },
         },
         rejectionReasons: {
           orderBy: { createdAt: 'desc' },
@@ -383,7 +397,13 @@ export class KycService {
           orderBy: { createdAt: 'desc' },
           include: {
             reviewer: {
-              select: { id: true, name: true, user: { select: { email: true } } },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                otherName: true,
+                user: { select: { email: true } },
+              },
             },
           },
         },
@@ -403,9 +423,51 @@ export class KycService {
       createdAt: r.createdAt,
     }));
 
+    // Format client and reviewer data to include name field
+    const formattedClient = {
+      id: kyc.client.id,
+      name: formatFullName(
+        kyc.client.firstName,
+        kyc.client.lastName,
+        kyc.client.otherName,
+      ),
+      user: kyc.client.user,
+    };
+
+    const formattedReviewer = kyc.reviewer
+      ? {
+          id: kyc.reviewer.id,
+          name: formatFullName(
+            kyc.reviewer.firstName,
+            kyc.reviewer.lastName,
+            kyc.reviewer.otherName,
+          ),
+          user: kyc.reviewer.user,
+        }
+      : null;
+
+    // Format history items with reviewer names
+    const formattedHistory = kyc.history.map((item) => ({
+      ...item,
+      reviewer: item.reviewer
+        ? {
+            id: item.reviewer.id,
+            name: formatFullName(
+              item.reviewer.firstName,
+              item.reviewer.lastName,
+              item.reviewer.otherName,
+            ),
+            user: item.reviewer.user,
+          }
+        : null,
+    }));
+
     return {
       ...kyc,
+      client: formattedClient,
+      reviewer: formattedReviewer,
       rejectionReasons,
+      history: formattedHistory,
     };
   }
 
@@ -429,7 +491,9 @@ export class KycService {
     if (search) {
       where.OR = [
         { client: { user: { email: { contains: search, mode: 'insensitive' } } } },
-        { client: { name: { contains: search, mode: 'insensitive' } } },
+        { client: { firstName: { contains: search, mode: 'insensitive' } } },
+        { client: { lastName: { contains: search, mode: 'insensitive' } } },
+        { client: { otherName: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -460,7 +524,9 @@ export class KycService {
           client: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: { select: { id: true, email: true } },
             },
           },
@@ -472,9 +538,23 @@ export class KycService {
       this.prisma.kyc.count({ where }),
     ]);
 
+    // Format client data to include name field
+    const formattedData = data.map((kyc) => ({
+      ...kyc,
+      client: {
+        id: kyc.client.id,
+        name: formatFullName(
+          kyc.client.firstName,
+          kyc.client.lastName,
+          kyc.client.otherName,
+        ),
+        user: kyc.client.user,
+      },
+    }));
+
     const hasMore = page * limit < total;
 
-    return { data, total, page, limit, hasMore };
+    return { data: formattedData, total, page, limit, hasMore };
   }
 
   async approveKyc(kycId: string, adminId: string, feedback?: string): Promise<Kyc> {
@@ -522,13 +602,18 @@ export class KycService {
     // Send approval email to client
     const client = await this.prisma.client.findUnique({
       where: { id: kyc.clientId },
-      include: { user: { select: { email: true } } },
+      select: {
+        firstName: true,
+        lastName: true,
+        otherName: true,
+        user: { select: { email: true } },
+      },
     });
 
     if (client) {
       await this.emailService.sendKycApprovedEmail(
         client.user.email,
-        client.name || 'User',
+        formatFullName(client.firstName, client.lastName, client.otherName) || 'User',
         feedback,
       );
     }
@@ -596,13 +681,18 @@ export class KycService {
     // Send rejection email to client
     const client = await this.prisma.client.findUnique({
       where: { id: kyc.clientId },
-      include: { user: { select: { email: true } } },
+      select: {
+        firstName: true,
+        lastName: true,
+        otherName: true,
+        user: { select: { email: true } },
+      },
     });
 
     if (client) {
       await this.emailService.sendKycRejectedEmail(
         client.user.email,
-        client.name || 'User',
+        formatFullName(client.firstName, client.lastName, client.otherName) || 'User',
         reason,
         feedback,
       );
@@ -623,7 +713,13 @@ export class KycService {
       orderBy: { createdAt: 'desc' },
       include: {
         reviewer: {
-          select: { id: true, name: true, user: { select: { email: true } } },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
+            user: { select: { email: true } },
+          },
         },
       },
     });

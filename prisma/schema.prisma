@@ -194,7 +194,9 @@ model User {
 model Admin {
   id                String    @id @default(uuid())
   userId            String    @unique
-  name              String?
+  firstName         String?
+  lastName          String?
+  otherName         String?
   phone             String?
   dateOfBirth       DateTime?
   accountNumber     String?
@@ -247,7 +249,9 @@ model Admin {
 model Client {
   id                     String    @id @default(uuid())
   userId                 String    @unique
-  name                   String?
+  firstName              String?
+  lastName               String?
+  otherName              String?
   phone                  String?
   gender                 Gender?
   referralSource         String?

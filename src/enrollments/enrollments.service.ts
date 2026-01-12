@@ -14,6 +14,7 @@ import { EnrollmentStatsDto } from './dto/enrollment-stats.dto';
 import { EnrollmentDashboardDto } from './dto/enrollment-dashboard.dto';
 import { Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class EnrollmentsService {
@@ -289,7 +290,9 @@ export class EnrollmentsService {
         OR: [
           { id: { contains: search, mode: 'insensitive' } },
           { property: { name: { contains: search, mode: 'insensitive' } } },
-          { client: { name: { contains: search, mode: 'insensitive' } } },
+          { client: { firstName: { contains: search, mode: 'insensitive' } } },
+          { client: { lastName: { contains: search, mode: 'insensitive' } } },
+          { client: { otherName: { contains: search, mode: 'insensitive' } } },
           { client: { user: { email: { contains: search, mode: 'insensitive' } } } },
         ],
       }),
@@ -310,9 +313,9 @@ export class EnrollmentsService {
         orderBy: { [sortBy]: sortOrder },
         include: {
           property: { select: { name: true } },
-          agent: { select: { name: true } },
-          client: { select: { name: true, user: { select: { email: true } } } },
-          partner: { select: { name: true } },
+          agent: { select: { firstName: true, lastName: true, otherName: true } },
+          client: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+          partner: { select: { firstName: true, lastName: true, otherName: true } },
           unit: { select: { unitId: true } },
           invoices: {
             select: {
@@ -343,12 +346,12 @@ export class EnrollmentsService {
         unitId: enrollment.unitId,
         unitNumber: enrollment.unit?.unitId,
         agentId: enrollment.agentId,
-        agentName: enrollment.agent.name,
+        agentName: formatFullName(enrollment.agent.firstName, enrollment.agent.lastName, enrollment.agent.otherName),
         clientId: enrollment.clientId,
-        clientName: enrollment.client?.name,
+        clientName: enrollment.client ? formatFullName(enrollment.client.firstName, enrollment.client.lastName, enrollment.client.otherName) : null,
         clientEmail: enrollment.client?.user?.email,
         partnerId: enrollment.partnerId,
-        partnerName: enrollment.partner?.name,
+        partnerName: enrollment.partner ? formatFullName(enrollment.partner.firstName, enrollment.partner.lastName, enrollment.partner.otherName) : null,
         paymentType: enrollment.paymentType,
         selectedPaymentPlanId: enrollment.selectedPaymentPlanId,
         totalAmount: Number(enrollment.totalAmount),
@@ -484,20 +487,20 @@ export class EnrollmentsService {
         : undefined,
       agent: {
         id: enrollment.agent.id,
-        name: enrollment.agent.name,
+        name: formatFullName(enrollment.agent.firstName, enrollment.agent.lastName, enrollment.agent.otherName),
         email: enrollment.agent.user.email,
       },
       client: enrollment.client
         ? {
             id: enrollment.client.id,
-            name: enrollment.client.name,
+            name: formatFullName(enrollment.client.firstName, enrollment.client.lastName, enrollment.client.otherName),
             email: enrollment.client.user.email,
           }
         : undefined,
       partner: enrollment.partner
         ? {
             id: enrollment.partner.id,
-            name: enrollment.partner.name,
+            name: formatFullName(enrollment.partner.firstName, enrollment.partner.lastName, enrollment.partner.otherName),
             email: enrollment.partner.user.email,
           }
         : undefined,
@@ -762,8 +765,8 @@ export class EnrollmentsService {
       data: {
         enrollmentId: id,
         invoiceId: targetInvoice.id,
-        firstName: firstName || enrollment.client?.name.split(' ')[0] || 'Client',
-        lastName: lastName || enrollment.client?.name.split(' ')[1] || '',
+        firstName: firstName || enrollment.client?.firstName || 'Client',
+        lastName: lastName || enrollment.client?.lastName || '',
         token,
         expiresAt,
         isActive: true,
@@ -788,6 +791,49 @@ export class EnrollmentsService {
       ...(dateTo && { enrollmentDate: { lte: new Date(dateTo) } }),
       ...(agentId && { agentId }),
       ...(propertyId && { propertyId }),
+    };
+
+    const [
+      totalEnrollments,
+      ongoingEnrollments,
+      completedEnrollments,
+      suspendedEnrollments,
+      cancelledEnrollments,
+      revenueData,
+    ] = await Promise.all([
+      this.prisma.enrollment.count({ where }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'ONGOING' } }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'COMPLETED' } }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'SUSPENDED' } }),
+      this.prisma.enrollment.count({ where: { ...where, status: 'CANCELLED' } }),
+      this.prisma.enrollment.aggregate({
+        where,
+        _sum: {
+          totalAmount: true,
+          amountPaid: true,
+        },
+      }),
+    ]);
+
+    const totalRevenue = Number(revenueData._sum.totalAmount || 0);
+    const collectedRevenue = Number(revenueData._sum.amountPaid || 0);
+    const pendingRevenue = totalRevenue - collectedRevenue;
+
+    return {
+      totalEnrollments,
+      ongoingEnrollments,
+      completedEnrollments,
+      suspendedEnrollments,
+      cancelledEnrollments,
+      totalRevenue,
+      collectedRevenue,
+      pendingRevenue,
+    };
+  }
+
+  async getMyStats(agentId: string): Promise<EnrollmentStatsDto> {
+    const where: Prisma.EnrollmentWhereInput = {
+      agentId,
     };
 
     const [

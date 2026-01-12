@@ -23,7 +23,9 @@ export class AdminsService {
 
     if (query?.search) {
       where.OR = [
-        { name: { contains: query.search, mode: 'insensitive' } },
+        { firstName: { contains: query.search, mode: 'insensitive' } },
+        { lastName: { contains: query.search, mode: 'insensitive' } },
+        { otherName: { contains: query.search, mode: 'insensitive' } },
         { user: { email: { contains: query.search, mode: 'insensitive' } } },
         { phone: { contains: query.search, mode: 'insensitive' } },
       ];
@@ -300,7 +302,9 @@ export class AdminsService {
 
     if (query?.search) {
       where.OR = [
-        { name: { contains: query.search, mode: 'insensitive' } },
+        { firstName: { contains: query.search, mode: 'insensitive' } },
+        { lastName: { contains: query.search, mode: 'insensitive' } },
+        { otherName: { contains: query.search, mode: 'insensitive' } },
         { user: { email: { contains: query.search, mode: 'insensitive' } } },
         { phone: { contains: query.search, mode: 'insensitive' } },
       ];
@@ -401,13 +405,17 @@ export class AdminsService {
         closedByAgent: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
         referredByPartner: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
           },
         },
         enrollmentsAsClient: {
@@ -594,7 +602,9 @@ export class AdminsService {
       id: admin.id,
       userId: admin.userId,
       email: admin.user.email,
-      name: admin.name,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      otherName: admin.otherName,
       phone: admin.phone,
       dateOfBirth: admin.dateOfBirth,
       street: admin.street,

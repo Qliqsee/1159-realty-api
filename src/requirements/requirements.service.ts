@@ -8,6 +8,7 @@ import { CreateRequirementDto } from './dto/create-requirement.dto';
 import { UpdateRequirementDto } from './dto/update-requirement.dto';
 import { RejectDocumentDto } from './dto/reject-document.dto';
 import { FileUploadService } from '../file-upload/file-upload.service';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class RequirementsService {
@@ -75,7 +76,9 @@ export class RequirementsService {
             client: {
               select: {
                 id: true,
-                name: true,
+                firstName: true,
+                lastName: true,
+                otherName: true,
                 user: {
                   select: {
                     email: true,

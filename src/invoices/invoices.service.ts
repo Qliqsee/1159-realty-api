@@ -11,6 +11,7 @@ import { InvoiceResponseDto, InvoiceDetailResponseDto } from './dto/invoice-resp
 import { InvoiceStatsQueryDto, InvoiceStatsResponseDto } from './dto/invoice-stats.dto';
 import { InvoicePdfService } from './invoice-pdf.service';
 import { Prisma, InvoiceStatus, CommissionType, EnrollmentStatus, CommissionStatus } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class InvoicesService {
@@ -51,10 +52,16 @@ export class InvoicesService {
         OR: [
           { id: { contains: search, mode: 'insensitive' } },
           { enrollmentId: { contains: search, mode: 'insensitive' } },
-          { enrollment: { client: { name: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { client: { firstName: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { client: { lastName: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { client: { otherName: { contains: search, mode: 'insensitive' } } } },
           { enrollment: { client: { user: { email: { contains: search, mode: 'insensitive' } } } } },
-          { enrollment: { agent: { name: { contains: search, mode: 'insensitive' } } } },
-          { enrollment: { partner: { name: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { agent: { firstName: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { agent: { lastName: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { agent: { otherName: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { partner: { firstName: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { partner: { lastName: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { partner: { otherName: { contains: search, mode: 'insensitive' } } } },
           { enrollment: { property: { name: { contains: search, mode: 'insensitive' } } } },
         ],
       }),
@@ -104,9 +111,9 @@ export class InvoicesService {
           enrollment: {
             include: {
               property: { select: { name: true } },
-              agent: { select: { name: true } },
-              client: { select: { name: true, user: { select: { email: true } } } },
-              partner: { select: { name: true } },
+              agent: { select: { firstName: true, lastName: true, otherName: true } },
+              client: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+              partner: { select: { firstName: true, lastName: true, otherName: true } },
             },
           },
         },
@@ -133,10 +140,10 @@ export class InvoicesService {
         paidAt: invoice.paidAt,
         paymentReference: invoice.paymentReference,
         propertyName: invoice.enrollment.property.name,
-        clientName: invoice.enrollment.client?.name,
+        clientName: formatFullName(invoice.enrollment.client?.firstName, invoice.enrollment.client?.lastName, invoice.enrollment.client?.otherName),
         clientEmail: invoice.enrollment.client?.user?.email,
-        agentName: invoice.enrollment.agent.name,
-        partnerName: invoice.enrollment.partner?.name,
+        agentName: formatFullName(invoice.enrollment.agent.firstName, invoice.enrollment.agent.lastName, invoice.enrollment.agent.otherName),
+        partnerName: formatFullName(invoice.enrollment.partner?.firstName, invoice.enrollment.partner?.lastName, invoice.enrollment.partner?.otherName),
         createdAt: invoice.createdAt,
         updatedAt: invoice.updatedAt,
       };
@@ -160,9 +167,9 @@ export class InvoicesService {
         enrollment: {
           include: {
             property: { select: { id: true, name: true } },
-            agent: { select: { id: true, name: true } },
-            client: { select: { id: true, name: true, user: { select: { email: true } } } },
-            partner: { select: { name: true } },
+            agent: { select: { id: true, firstName: true, lastName: true, otherName: true } },
+            client: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+            partner: { select: { firstName: true, lastName: true, otherName: true } },
             invoices: {
               select: {
                 id: true,
@@ -223,10 +230,10 @@ export class InvoicesService {
       paidAt: invoice.paidAt,
       paymentReference: invoice.paymentReference,
       propertyName: invoice.enrollment.property.name,
-      clientName: invoice.enrollment.client?.name,
+      clientName: formatFullName(invoice.enrollment.client?.firstName, invoice.enrollment.client?.lastName, invoice.enrollment.client?.otherName),
       clientEmail: invoice.enrollment.client?.user?.email,
-      agentName: invoice.enrollment.agent.name,
-      partnerName: invoice.enrollment.partner?.name,
+      agentName: formatFullName(invoice.enrollment.agent.firstName, invoice.enrollment.agent.lastName, invoice.enrollment.agent.otherName),
+      partnerName: formatFullName(invoice.enrollment.partner?.firstName, invoice.enrollment.partner?.lastName, invoice.enrollment.partner?.otherName),
       createdAt: invoice.createdAt,
       updatedAt: invoice.updatedAt,
       enrollment: {
@@ -234,9 +241,9 @@ export class InvoicesService {
         propertyId: invoice.enrollment.propertyId,
         propertyName: invoice.enrollment.property.name,
         agentId: invoice.enrollment.agentId,
-        agentName: invoice.enrollment.agent.name,
+        agentName: formatFullName(invoice.enrollment.agent.firstName, invoice.enrollment.agent.lastName, invoice.enrollment.agent.otherName),
         clientId: invoice.enrollment.clientId,
-        clientName: invoice.enrollment.client?.name,
+        clientName: formatFullName(invoice.enrollment.client?.firstName, invoice.enrollment.client?.lastName, invoice.enrollment.client?.otherName),
         totalAmount: Number(invoice.enrollment.totalAmount),
         amountPaid: Number(invoice.enrollment.amountPaid),
         status: invoice.enrollment.status,
@@ -254,6 +261,9 @@ export class InvoicesService {
         enrollment: {
           include: {
             property: true,
+            agent: { select: { firstName: true, lastName: true, otherName: true } },
+            client: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+            partner: { select: { firstName: true, lastName: true, otherName: true } },
             invoices: {
               orderBy: { installmentNumber: 'asc' },
             },
@@ -313,9 +323,9 @@ export class InvoicesService {
           enrollment: {
             include: {
               property: { select: { name: true } },
-              agent: { select: { name: true } },
-              client: { select: { name: true, user: { select: { email: true } } } },
-              partner: { select: { name: true } },
+              agent: { select: { firstName: true, lastName: true, otherName: true } },
+              client: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+              partner: { select: { firstName: true, lastName: true, otherName: true } },
             },
           },
         },
@@ -390,10 +400,10 @@ export class InvoicesService {
         paidAt: updatedInvoice.paidAt,
         paymentReference: updatedInvoice.paymentReference,
         propertyName: updatedInvoice.enrollment.property.name,
-        clientName: updatedInvoice.enrollment.client?.name,
+        clientName: formatFullName(updatedInvoice.enrollment.client?.firstName, updatedInvoice.enrollment.client?.lastName, updatedInvoice.enrollment.client?.otherName),
         clientEmail: updatedInvoice.enrollment.client?.user?.email,
-        agentName: updatedInvoice.enrollment.agent.name,
-        partnerName: updatedInvoice.enrollment.partner?.name,
+        agentName: formatFullName(updatedInvoice.enrollment.agent.firstName, updatedInvoice.enrollment.agent.lastName, updatedInvoice.enrollment.agent.otherName),
+        partnerName: formatFullName(updatedInvoice.enrollment.partner?.firstName, updatedInvoice.enrollment.partner?.lastName, updatedInvoice.enrollment.partner?.otherName),
         createdAt: updatedInvoice.createdAt,
         updatedAt: updatedInvoice.updatedAt,
       };
@@ -407,9 +417,9 @@ export class InvoicesService {
         enrollment: {
           include: {
             property: { select: { name: true } },
-            agent: { select: { name: true } },
-            client: { select: { name: true, user: { select: { email: true } } } },
-            partner: { select: { name: true } },
+            agent: { select: { firstName: true, lastName: true, otherName: true } },
+            client: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+            partner: { select: { firstName: true, lastName: true, otherName: true } },
             invoices: {
               orderBy: { installmentNumber: 'asc' },
             },
@@ -464,9 +474,9 @@ export class InvoicesService {
           enrollment: {
             include: {
               property: { select: { name: true } },
-              agent: { select: { name: true } },
-              client: { select: { name: true, user: { select: { email: true } } } },
-              partner: { select: { name: true } },
+              agent: { select: { firstName: true, lastName: true, otherName: true } },
+              client: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+              partner: { select: { firstName: true, lastName: true, otherName: true } },
             },
           },
         },
@@ -507,10 +517,10 @@ export class InvoicesService {
         paidAt: updatedInvoice.paidAt,
         paymentReference: updatedInvoice.paymentReference,
         propertyName: updatedInvoice.enrollment.property.name,
-        clientName: updatedInvoice.enrollment.client?.name,
+        clientName: formatFullName(updatedInvoice.enrollment.client?.firstName, updatedInvoice.enrollment.client?.lastName, updatedInvoice.enrollment.client?.otherName),
         clientEmail: updatedInvoice.enrollment.client?.user?.email,
-        agentName: updatedInvoice.enrollment.agent.name,
-        partnerName: updatedInvoice.enrollment.partner?.name,
+        agentName: formatFullName(updatedInvoice.enrollment.agent.firstName, updatedInvoice.enrollment.agent.lastName, updatedInvoice.enrollment.agent.otherName),
+        partnerName: formatFullName(updatedInvoice.enrollment.partner?.firstName, updatedInvoice.enrollment.partner?.lastName, updatedInvoice.enrollment.partner?.otherName),
         createdAt: updatedInvoice.createdAt,
         updatedAt: updatedInvoice.updatedAt,
       };
@@ -596,9 +606,9 @@ export class InvoicesService {
         enrollment: {
           include: {
             property: { select: { name: true } },
-            agent: { select: { name: true } },
-            client: { select: { name: true, user: { select: { email: true } } } },
-            partner: { select: { name: true } },
+            agent: { select: { firstName: true, lastName: true, otherName: true } },
+            client: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+            partner: { select: { firstName: true, lastName: true, otherName: true } },
           },
         },
       },
@@ -628,11 +638,11 @@ export class InvoicesService {
       invoiceDate: invoice.createdAt,
       dueDate: invoice.dueDate,
       status: invoice.status,
-      clientName: invoice.enrollment.client?.name,
+      clientName: formatFullName(invoice.enrollment.client?.firstName, invoice.enrollment.client?.lastName, invoice.enrollment.client?.otherName),
       clientEmail: invoice.enrollment.client?.user?.email,
       propertyName: invoice.enrollment.property.name,
-      agentName: invoice.enrollment.agent.name,
-      partnerName: invoice.enrollment.partner?.name,
+      agentName: formatFullName(invoice.enrollment.agent.firstName, invoice.enrollment.agent.lastName, invoice.enrollment.agent.otherName),
+      partnerName: formatFullName(invoice.enrollment.partner?.firstName, invoice.enrollment.partner?.lastName, invoice.enrollment.partner?.otherName),
       installmentNumber: invoice.installmentNumber,
       amount: Number(invoice.amount),
       overdueFee: Number(invoice.overdueFee),

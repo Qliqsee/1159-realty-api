@@ -15,6 +15,7 @@ import { kycRejectedTemplate } from './templates/kyc-rejected.template';
 import { invoiceReminderTemplate } from './templates/invoice-reminder.template';
 import { invoiceOverdueTemplate } from './templates/invoice-overdue.template';
 import { appointmentReminderTemplate } from './templates/appointment-reminder.template';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class EmailService {
@@ -33,8 +34,8 @@ export class EmailService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        admin: { select: { name: true } },
-        client: { select: { name: true } },
+        admin: { select: { firstName: true, lastName: true, otherName: true } },
+        client: { select: { firstName: true, lastName: true, otherName: true } },
       },
     });
     if (!user) {
@@ -89,10 +90,16 @@ export class EmailService {
     });
 
     // Send email
+    const userName = user.admin
+      ? formatFullName(user.admin.firstName, user.admin.lastName, user.admin.otherName)
+      : user.client
+      ? formatFullName(user.client.firstName, user.client.lastName, user.client.otherName)
+      : undefined;
+
     await this.sendEmail(
       user.email,
       'Verify Your Email - 1159 Realty',
-      verificationOtpTemplate(code, user.admin?.name || user.client?.name || undefined),
+      verificationOtpTemplate(code, userName),
     );
 
     this.logger.log(`OTP sent to user ${userId} (${user.email})`);
@@ -157,8 +164,8 @@ export class EmailService {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: {
-        admin: { select: { name: true } },
-        client: { select: { name: true } },
+        admin: { select: { firstName: true, lastName: true, otherName: true } },
+        client: { select: { firstName: true, lastName: true, otherName: true } },
       },
     });
     if (!user) {
@@ -169,10 +176,16 @@ export class EmailService {
     const resetUrl = this.configService.get<string>('PASSWORD_RESET_URL');
     const resetLink = `${resetUrl}?token=${token}`;
 
+    const userName = user.admin
+      ? formatFullName(user.admin.firstName, user.admin.lastName, user.admin.otherName)
+      : user.client
+      ? formatFullName(user.client.firstName, user.client.lastName, user.client.otherName)
+      : undefined;
+
     await this.sendEmail(
       email,
       'Reset Your Password - 1159 Realty',
-      passwordResetTemplate(resetLink, user.admin?.name || user.client?.name || undefined),
+      passwordResetTemplate(resetLink, userName),
     );
 
     this.logger.log(`Password reset email sent to ${email}`);

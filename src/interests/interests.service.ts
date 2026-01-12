@@ -16,6 +16,7 @@ import {
 import { InterestStatsDto } from './dto/interest-stats.dto';
 import { PaginatedInterestResponseDto } from './dto/paginated-interest-response.dto';
 import { Prisma } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class InterestsService {
@@ -63,7 +64,9 @@ export class InterestsService {
           client: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               phone: true,
               user: { select: { email: true } },
             },
@@ -131,7 +134,23 @@ export class InterestsService {
       where.OR = [
         {
           client: {
-            name: {
+            firstName: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          client: {
+            lastName: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          client: {
+            otherName: {
               contains: search,
               mode: 'insensitive',
             },
@@ -169,7 +188,9 @@ export class InterestsService {
           client: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               phone: true,
               user: { select: { email: true } },
             },
@@ -188,7 +209,7 @@ export class InterestsService {
     const agents = agentIds.length > 0
       ? await this.prisma.admin.findMany({
           where: { id: { in: agentIds } },
-          select: { id: true, name: true, user: { select: { email: true } }, phone: true },
+          select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } }, phone: true },
         })
       : [];
 
@@ -235,7 +256,9 @@ export class InterestsService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             phone: true,
             user: { select: { email: true } },
           },
@@ -257,7 +280,7 @@ export class InterestsService {
     if (interest.agentId) {
       agent = await this.prisma.admin.findUnique({
         where: { id: interest.agentId },
-        select: { id: true, name: true, user: { select: { email: true } }, phone: true },
+        select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } }, phone: true },
       });
     }
 
@@ -292,7 +315,9 @@ export class InterestsService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             phone: true,
             user: { select: { email: true } },
           },
@@ -305,7 +330,7 @@ export class InterestsService {
     if (updatedInterest.agentId) {
       agent = await this.prisma.admin.findUnique({
         where: { id: updatedInterest.agentId },
-        select: { id: true, name: true, user: { select: { email: true } }, phone: true },
+        select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } }, phone: true },
       });
     }
 
@@ -339,7 +364,7 @@ export class InterestsService {
 
     const client: InterestClientDto = {
       id: interest.client.id,
-      name: interest.client.name,
+      name: formatFullName(interest.client.firstName, interest.client.lastName, interest.client.otherName),
       email: interest.client.user?.email,
       phone: interest.client.phone,
     };
@@ -348,7 +373,7 @@ export class InterestsService {
     if (interest.agentId && interest.agent) {
       agent = {
         id: interest.agent.id,
-        name: interest.agent.name,
+        name: formatFullName(interest.agent.firstName, interest.agent.lastName, interest.agent.otherName),
         email: interest.agent.user?.email,
         phone: interest.agent.phone,
       };

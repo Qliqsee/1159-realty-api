@@ -10,8 +10,14 @@ export class ClientResponseDto {
   @ApiProperty({ description: 'Email address', example: 'client@example.com' })
   email: string;
 
-  @ApiPropertyOptional({ description: 'Client name', example: 'Jane Doe' })
-  name?: string;
+  @ApiPropertyOptional({ description: 'First name', example: 'Jane' })
+  firstName?: string;
+
+  @ApiPropertyOptional({ description: 'Last name', example: 'Doe' })
+  lastName?: string;
+
+  @ApiPropertyOptional({ description: 'Other name', example: 'Marie' })
+  otherName?: string;
 
   @ApiPropertyOptional({ description: 'Phone number', example: '+2348012345678' })
   phone?: string;

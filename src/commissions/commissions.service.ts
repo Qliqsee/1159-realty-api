@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma.service';
 import { QueryCommissionsDto } from './dto/query-commissions.dto';
 import { CommissionResponseDto, CommissionStatsDto } from './dto/commission-response.dto';
 import { Prisma, CommissionStatus as PrismaCommissionStatus } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class CommissionsService {
@@ -45,10 +46,16 @@ export class CommissionsService {
       ...(search && {
         OR: [
           { enrollmentId: { contains: search, mode: 'insensitive' } },
-          { enrollment: { client: { name: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { client: { firstName: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { client: { lastName: { contains: search, mode: 'insensitive' } } } },
+          { enrollment: { client: { otherName: { contains: search, mode: 'insensitive' } } } },
           { enrollment: { property: { name: { contains: search, mode: 'insensitive' } } } },
-          { agent: { name: { contains: search, mode: 'insensitive' } } },
-          { partner: { name: { contains: search, mode: 'insensitive' } } },
+          { agent: { firstName: { contains: search, mode: 'insensitive' } } },
+          { agent: { lastName: { contains: search, mode: 'insensitive' } } },
+          { agent: { otherName: { contains: search, mode: 'insensitive' } } },
+          { partner: { firstName: { contains: search, mode: 'insensitive' } } },
+          { partner: { lastName: { contains: search, mode: 'insensitive' } } },
+          { partner: { otherName: { contains: search, mode: 'insensitive' } } },
         ],
       }),
     };
@@ -67,14 +74,14 @@ export class CommissionsService {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
         include: {
-          agent: { select: { name: true } },
-          partner: { select: { name: true } },
+          agent: { select: { firstName: true, lastName: true, otherName: true } },
+          partner: { select: { firstName: true, lastName: true, otherName: true } },
           enrollment: {
             include: {
               property: { select: { name: true } },
-              client: { select: { name: true } },
-              agent: { select: { name: true } },
-              partner: { select: { name: true } },
+              client: { select: { firstName: true, lastName: true, otherName: true } },
+              agent: { select: { firstName: true, lastName: true, otherName: true } },
+              partner: { select: { firstName: true, lastName: true, otherName: true } },
             },
           },
           invoice: {
@@ -103,9 +110,9 @@ export class CommissionsService {
       enrollmentId: commission.enrollmentId,
       invoiceId: commission.invoiceId,
       agentId: commission.agentId || undefined,
-      agentName: commission.agent?.name,
+      agentName: commission.agent ? formatFullName(commission.agent.firstName, commission.agent.lastName, commission.agent.otherName) : undefined,
       partnerId: commission.partnerId || undefined,
-      partnerName: commission.partner?.name,
+      partnerName: commission.partner ? formatFullName(commission.partner.firstName, commission.partner.lastName, commission.partner.otherName) : undefined,
       type: commission.type as any,
       percentage: Number(commission.percentage),
       amount: Number(commission.amount),
@@ -125,10 +132,10 @@ export class CommissionsService {
       enrollmentDetails: {
         id: commission.enrollment.id,
         propertyName: commission.enrollment.property.name,
-        clientName: commission.enrollment.client?.name,
+        clientName: commission.enrollment.client ? formatFullName(commission.enrollment.client.firstName, commission.enrollment.client.lastName, commission.enrollment.client.otherName) : undefined,
         totalAmount: Number(commission.enrollment.totalAmount),
-        agentName: commission.enrollment.agent?.name,
-        partnerName: commission.enrollment.partner?.name,
+        agentName: commission.enrollment.agent ? formatFullName(commission.enrollment.agent.firstName, commission.enrollment.agent.lastName, commission.enrollment.agent.otherName) : undefined,
+        partnerName: commission.enrollment.partner ? formatFullName(commission.enrollment.partner.firstName, commission.enrollment.partner.lastName, commission.enrollment.partner.otherName) : undefined,
       },
       invoiceDetails: {
         id: commission.invoice.id,
@@ -155,14 +162,14 @@ export class CommissionsService {
     const commission = await this.prisma.commission.findUnique({
       where: { id },
       include: {
-        agent: { select: { id: true, name: true, user: { select: { email: true } } } },
-        partner: { select: { id: true, name: true, user: { select: { email: true } } } },
+        agent: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+        partner: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
         enrollment: {
           include: {
             property: { select: { id: true, name: true } },
-            agent: { select: { name: true } },
-            partner: { select: { name: true } },
-            client: { select: { id: true, name: true, user: { select: { email: true } } } },
+            agent: { select: { firstName: true, lastName: true, otherName: true } },
+            partner: { select: { firstName: true, lastName: true, otherName: true } },
+            client: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
           },
         },
         invoice: {
@@ -204,9 +211,9 @@ export class CommissionsService {
       enrollmentId: commission.enrollmentId,
       invoiceId: commission.invoiceId,
       agentId: commission.agentId || undefined,
-      agentName: commission.agent?.name,
+      agentName: commission.agent ? formatFullName(commission.agent.firstName, commission.agent.lastName, commission.agent.otherName) : undefined,
       partnerId: commission.partnerId || undefined,
-      partnerName: commission.partner?.name,
+      partnerName: commission.partner ? formatFullName(commission.partner.firstName, commission.partner.lastName, commission.partner.otherName) : undefined,
       type: commission.type as any,
       percentage: Number(commission.percentage),
       amount: Number(commission.amount),
@@ -226,10 +233,10 @@ export class CommissionsService {
       enrollmentDetails: {
         id: commission.enrollment.id,
         propertyName: commission.enrollment.property.name,
-        clientName: commission.enrollment.client?.name,
+        clientName: commission.enrollment.client ? formatFullName(commission.enrollment.client.firstName, commission.enrollment.client.lastName, commission.enrollment.client.otherName) : undefined,
         totalAmount: Number(commission.enrollment.totalAmount),
-        agentName: commission.enrollment.agent?.name,
-        partnerName: commission.enrollment.partner?.name,
+        agentName: commission.enrollment.agent ? formatFullName(commission.enrollment.agent.firstName, commission.enrollment.agent.lastName, commission.enrollment.agent.otherName) : undefined,
+        partnerName: commission.enrollment.partner ? formatFullName(commission.enrollment.partner.firstName, commission.enrollment.partner.lastName, commission.enrollment.partner.otherName) : undefined,
       },
       invoiceDetails: {
         id: commission.invoice.id,

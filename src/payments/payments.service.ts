@@ -43,7 +43,9 @@ export class PaymentsService {
             property: true,
             client: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
+                otherName: true,
                 user: {
                   select: {
                     email: true
@@ -51,7 +53,7 @@ export class PaymentsService {
                 }
               }
             },
-            agent: { select: { name: true } },
+            agent: { select: { firstName: true, lastName: true, otherName: true } },
           },
         },
       },
@@ -163,8 +165,8 @@ export class PaymentsService {
             invoiceId: invoice.id,
             paymentUrl: data.data.authorization_url,
             paystackReference: reference,
-            firstName: invoice.enrollment.client?.name?.split(' ')[0] || 'Customer',
-            lastName: invoice.enrollment.client?.name?.split(' ').slice(1).join(' ') || '',
+            firstName: invoice.enrollment.client?.firstName || 'Customer',
+            lastName: invoice.enrollment.client?.lastName || '',
             token: crypto.randomBytes(32).toString('hex'),
             isActive: true,
             createdBy: userId || 'system',

@@ -14,6 +14,7 @@ import { TargetAchievementDto } from './dto/target-achievement.dto';
 import { BatchCreateResponseDto } from './dto/batch-create-response.dto';
 import { Prisma } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class SalesTargetsService {
@@ -154,7 +155,9 @@ export class SalesTargetsService {
         admin: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -221,7 +224,9 @@ export class SalesTargetsService {
       ...(search && {
         admin: {
           OR: [
-            { name: { contains: search, mode: 'insensitive' } },
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
+            { otherName: { contains: search, mode: 'insensitive' } },
             {
               user: {
                 email: { contains: search, mode: 'insensitive' },
@@ -252,7 +257,9 @@ export class SalesTargetsService {
           admin: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: {
                 select: {
                   email: true,
@@ -289,7 +296,9 @@ export class SalesTargetsService {
         admin: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -343,7 +352,9 @@ export class SalesTargetsService {
         admin: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -408,7 +419,9 @@ export class SalesTargetsService {
         admin: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,

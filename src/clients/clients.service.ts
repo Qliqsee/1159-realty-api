@@ -4,6 +4,7 @@ import { CapabilitiesService } from '../capabilities/capabilities.service';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { UpdateBankAccountDto } from './dto/bank-account.dto';
 import { ClientResponseDto, BankAccountResponseDto } from './dto/client-response.dto';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class ClientsService {
@@ -55,7 +56,9 @@ export class ClientsService {
         closedByAgent: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -66,7 +69,9 @@ export class ClientsService {
         referredByPartner: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -132,7 +137,9 @@ export class ClientsService {
         closedByAgent: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             phone: true,
             user: {
               select: {
@@ -162,7 +169,9 @@ export class ClientsService {
         referredByPartner: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             phone: true,
             partnerLink: true,
             user: {
@@ -305,7 +314,9 @@ export class ClientsService {
       id: client.id,
       userId: client.userId,
       email: client.user.email,
-      name: client.name,
+      firstName: client.firstName,
+      lastName: client.lastName,
+      otherName: client.otherName,
       phone: client.phone,
       gender: client.gender,
       referralSource: client.referralSource,

@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
 import { InvoiceStatus, EnrollmentStatus } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class CronService {
@@ -40,8 +41,8 @@ export class CronService {
               invoices: {
                 orderBy: { installmentNumber: 'asc' },
               },
-              client: { select: { name: true, user: { select: { email: true } } } },
-              agent: { select: { name: true, user: { select: { email: true } } } },
+              client: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+              agent: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
               property: { select: { name: true } },
             },
           },
@@ -105,9 +106,9 @@ export class CronService {
 
         // Send overdue notification emails
         const clientEmail = enrollment.client?.user?.email;
-        const clientName = enrollment.client?.name || 'Valued Client';
+        const clientName = formatFullName(enrollment.client?.firstName, enrollment.client?.lastName, enrollment.client?.otherName) || 'Valued Client';
         const agentEmail = enrollment.agent?.user?.email;
-        const agentName = enrollment.agent?.name || 'Agent';
+        const agentName = formatFullName(enrollment.agent?.firstName, enrollment.agent?.lastName, enrollment.agent?.otherName) || 'Agent';
         const propertyName = enrollment.property?.name || 'Property';
         const gracePeriodRemaining = Math.max(0, 32 - totalGraceDaysUsed);
 
@@ -187,8 +188,8 @@ export class CronService {
         include: {
           enrollment: {
             include: {
-              client: { select: { name: true, user: { select: { email: true } } } },
-              agent: { select: { name: true, user: { select: { email: true } } } },
+              client: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
+              agent: { select: { firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
               property: { select: { name: true } },
             },
           },
@@ -201,9 +202,9 @@ export class CronService {
       for (const invoice of upcomingInvoices) {
         const { enrollment } = invoice;
         const clientEmail = enrollment.client?.user?.email;
-        const clientName = enrollment.client?.name || 'Valued Client';
+        const clientName = formatFullName(enrollment.client?.firstName, enrollment.client?.lastName, enrollment.client?.otherName) || 'Valued Client';
         const agentEmail = enrollment.agent?.user?.email;
-        const agentName = enrollment.agent?.name || 'Agent';
+        const agentName = formatFullName(enrollment.agent?.firstName, enrollment.agent?.lastName, enrollment.agent?.otherName) || 'Agent';
         const propertyName = enrollment.property?.name || 'Property';
 
         const daysUntilDue = Math.ceil(
@@ -287,7 +288,9 @@ export class CronService {
         include: {
           client: {
             select: {
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: {
                 select: {
                   email: true,
@@ -317,7 +320,7 @@ export class CronService {
       // Send reminder emails to clients
       for (const appointment of upcomingAppointments) {
         const clientEmail = appointment.client?.user?.email;
-        const clientName = appointment.client?.name || 'Valued Client';
+        const clientName = formatFullName(appointment.client?.firstName, appointment.client?.lastName, appointment.client?.otherName) || 'Valued Client';
         const propertyName = appointment.property?.name || 'Property';
         const appointmentDate = appointment.schedule.dateTime;
         const location = appointment.schedule.location;

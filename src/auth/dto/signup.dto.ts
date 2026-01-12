@@ -11,10 +11,20 @@ export class SignUpDto {
   @MinLength(6)
   password: string;
 
-  @ApiPropertyOptional({ example: 'John Doe' })
+  @ApiPropertyOptional({ example: 'John' })
   @IsOptional()
   @IsString()
-  name?: string;
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Doe' })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiPropertyOptional({ example: 'Michael' })
+  @IsOptional()
+  @IsString()
+  otherName?: string;
 
   @ApiPropertyOptional({ example: 'ABC123XYZ', description: 'Partner referral code' })
   @IsOptional()

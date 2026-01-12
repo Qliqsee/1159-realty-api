@@ -9,6 +9,7 @@ import { UpdateCaseDto } from './dto/update-case.dto';
 import { UpdateCaseStatusDto } from './dto/update-case-status.dto';
 import { CaseQueryDto } from './dto/case-query.dto';
 import { Prisma } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class CasesService {
@@ -37,7 +38,9 @@ export class CasesService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -85,7 +88,9 @@ export class CasesService {
           client: {
             select: {
               id: true,
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: {
                 select: {
                   email: true,
@@ -124,7 +129,9 @@ export class CasesService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -174,7 +181,9 @@ export class CasesService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -200,7 +209,9 @@ export class CasesService {
         client: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,

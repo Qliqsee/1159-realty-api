@@ -10,6 +10,7 @@ import { BookAppointmentDto } from './dto/book-appointment.dto';
 import { QueryAppointmentsDto } from './dto/query-appointments.dto';
 import { AppointmentResponseDto } from './dto/appointment-response.dto';
 import { Prisma, AppointmentStatus } from '@prisma/client';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class AppointmentsService {
@@ -70,7 +71,9 @@ export class AppointmentsService {
           },
           client: {
             select: {
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: {
                 select: {
                   email: true,
@@ -101,7 +104,9 @@ export class AppointmentsService {
         },
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -176,7 +181,9 @@ export class AppointmentsService {
           },
           client: {
             select: {
-              name: true,
+              firstName: true,
+              lastName: true,
+              otherName: true,
               user: {
                 select: {
                   email: true,
@@ -220,7 +227,9 @@ export class AppointmentsService {
         },
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -279,7 +288,9 @@ export class AppointmentsService {
         },
         client: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
             user: {
               select: {
                 email: true,
@@ -300,7 +311,11 @@ export class AppointmentsService {
       propertyId: appointment.propertyId,
       propertyName: appointment.property?.name,
       userId: appointment.clientId,
-      clientName: appointment.client?.name,
+      clientName: formatFullName(
+        appointment.client?.firstName,
+        appointment.client?.lastName,
+        appointment.client?.otherName,
+      ),
       clientEmail: appointment.client?.user?.email,
       scheduleDateTime: appointment.schedule?.dateTime,
       scheduleLocation: appointment.schedule?.location,
