@@ -21,6 +21,15 @@ export class SchedulesService {
   ): Promise<ScheduleResponseDto> {
     const { propertyId, dateTime, location, message } = createScheduleDto;
 
+    // Get admin ID from user ID
+    const admin = await this.prisma.admin.findUnique({
+      where: { userId },
+    });
+
+    if (!admin) {
+      throw new NotFoundException('Admin profile not found');
+    }
+
     // Validate property exists
     const property = await this.prisma.property.findUnique({
       where: { id: propertyId },
@@ -42,7 +51,7 @@ export class SchedulesService {
         dateTime: scheduledDateTime,
         location,
         message,
-        createdBy: userId,
+        createdBy: admin.id,
       },
       include: {
         property: {

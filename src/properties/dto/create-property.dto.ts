@@ -162,10 +162,9 @@ export class CreatePropertyDto {
   @IsNotEmpty()
   subtype: string;
 
-  @ApiPropertyOptional({ enum: PropertyStatus })
+  @ApiProperty({ enum: PropertyStatus })
   @IsEnum(PropertyStatus)
-  @IsOptional()
-  status?: PropertyStatus;
+  status: PropertyStatus;
 
   @ApiProperty()
   @IsString()
@@ -178,20 +177,20 @@ export class CreatePropertyDto {
   @IsOptional()
   agriculturalFee?: AgriculturalFeeDto;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsArray()
   @IsString({ each: true })
-  requiredDocuments: string[];
+  @IsOptional()
+  requiredDocuments?: string[];
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
   country: string;
 
-  @ApiPropertyOptional()
+  @ApiProperty()
   @IsInt()
-  @IsOptional()
-  stateId?: number;
+  stateId: number;
 
   @ApiProperty()
   @IsString()
@@ -240,11 +239,12 @@ export class CreatePropertyDto {
   @ArrayMinSize(1)
   paymentPlans: PropertyPaymentPlanDto[];
 
-  @ApiProperty({ type: [PropertyFeatureDto] })
+  @ApiPropertyOptional({ type: [PropertyFeatureDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PropertyFeatureDto)
-  features: PropertyFeatureDto[];
+  @IsOptional()
+  features?: PropertyFeatureDto[];
 
   @ApiProperty({ type: [PropertyMediaDto] })
   @IsArray()
