@@ -18,7 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // Lightweight query - only fetch what's needed
+    // Lightweight query - only fetch what's needed (no roles query)
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
@@ -48,7 +48,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new ForbiddenException('Your account has been banned');
     }
 
-    // Return user info with admin/client for compatibility
+    // Use roles from JWT payload - no DB query needed
+    const roles = (payload.roles || []).map((roleName: string) => ({ name: roleName }));
+
+    // Return user info with roles from token
     return {
       id: payload.sub,
       userId: payload.sub,
@@ -56,6 +59,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userType: payload.userType,
       admin: user.admin || null,
       client: user.client || null,
+      roles,
     };
   }
 }

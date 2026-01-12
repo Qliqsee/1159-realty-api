@@ -5,18 +5,13 @@ import { PrismaService } from '../prisma.service';
 export class RolesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: { name: string; appContext: string; description?: string }) {
+  async create(data: { name: string; description?: string }) {
     const existing = await this.prisma.role.findUnique({
-      where: {
-        name_appContext: {
-          name: data.name,
-          appContext: data.appContext,
-        },
-      },
+      where: { name: data.name },
     });
 
     if (existing) {
-      throw new ConflictException('Role with this name and context already exists');
+      throw new ConflictException('Role with this name already exists');
     }
 
     return this.prisma.role.create({
@@ -26,7 +21,6 @@ export class RolesService {
 
   async findAll(query?: {
     search?: string;
-    appContext?: string;
     page?: string;
     limit?: string;
   }) {
@@ -38,10 +32,6 @@ export class RolesService {
 
     if (query?.search) {
       where.name = { contains: query.search, mode: 'insensitive' };
-    }
-
-    if (query?.appContext) {
-      where.appContext = query.appContext;
     }
 
     const [roles, total] = await Promise.all([
@@ -91,7 +81,7 @@ export class RolesService {
     return role;
   }
 
-  async update(id: string, data: { name?: string; appContext?: string; description?: string }) {
+  async update(id: string, data: { name?: string; description?: string }) {
     const role = await this.prisma.role.findUnique({ where: { id } });
 
     if (!role) {

@@ -287,8 +287,7 @@ model Client {
 
 model Role {
   id          String   @id @default(uuid())
-  name        String
-  appContext  String
+  name        String   @unique
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -296,7 +295,6 @@ model Role {
   userRoles       UserRole[]
   rolePermissions RolePermission[]
 
-  @@unique([name, appContext])
   @@map("roles")
 }
 
@@ -309,9 +307,37 @@ model Permission {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  rolePermissions RolePermission[]
+  rolePermissions       RolePermission[]
+  permissionCapabilities PermissionCapability[]
 
   @@map("permissions")
+}
+
+model Capability {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissionCapabilities PermissionCapability[]
+
+  @@map("capabilities")
+}
+
+model PermissionCapability {
+  id            String   @id @default(uuid())
+  permissionId  String
+  capabilityId  String
+  createdAt     DateTime @default(now())
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  capability Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([permissionId, capabilityId])
+  @@index([permissionId])
+  @@index([capabilityId])
+  @@map("permission_capabilities")
 }
 
 model UserRole {

@@ -7,9 +7,6 @@ export class RoleResponseDto {
   @ApiProperty()
   name: string;
 
-  @ApiProperty()
-  appContext: string;
-
   @ApiProperty({ required: false })
   description?: string;
 

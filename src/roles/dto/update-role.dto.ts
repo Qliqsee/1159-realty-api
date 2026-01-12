@@ -7,11 +7,6 @@ export class UpdateRoleDto {
   @IsOptional()
   name?: string;
 
-  @ApiPropertyOptional({ example: 'realty' })
-  @IsString()
-  @IsOptional()
-  appContext?: string;
-
   @ApiPropertyOptional({ example: 'Sales agent role' })
   @IsString()
   @IsOptional()

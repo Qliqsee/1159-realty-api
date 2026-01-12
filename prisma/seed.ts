@@ -440,248 +440,144 @@ async function main() {
     }),
   ]);
 
-  const customerRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'customer',
-        appContext: 'client',
-      },
-    },
-    update: {},
-    create: {
-      name: 'customer',
-      appContext: 'client',
-      description: 'Regular customer in client app',
-    },
-  });
-
   const adminRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'admin',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'admin' },
     update: {},
     create: {
       name: 'admin',
-      appContext: 'crm',
-      description: 'Administrator in CRM',
+      description: 'Administrator with full system access',
     },
   });
 
-  const supportRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'support',
-        appContext: 'crm',
-      },
-    },
+  const managerRole = await prisma.role.upsert({
+    where: { name: 'manager' },
     update: {},
     create: {
-      name: 'support',
-      appContext: 'crm',
-      description: 'Support staff in CRM',
+      name: 'manager',
+      description: 'Manager with broad system access',
     },
   });
 
   const agentRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'agent',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'agent' },
     update: {},
     create: {
       name: 'agent',
-      appContext: 'crm',
-      description: 'Sales agent in CRM',
+      description: 'Sales agent',
     },
   });
 
   const clientRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'client',
-        appContext: 'client',
-      },
-    },
+    where: { name: 'client' },
     update: {},
     create: {
       name: 'client',
-      appContext: 'client',
-      description: 'Client in client app',
+      description: 'Client user',
     },
   });
 
   const partnerRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'partner',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'partner' },
     update: {},
     create: {
       name: 'partner',
-      appContext: 'crm',
-      description: 'Business partner in CRM',
-    },
-  });
-
-  // Additional admin role types
-  const managerRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'manager',
-        appContext: 'crm',
-      },
-    },
-    update: {},
-    create: {
-      name: 'manager',
-      appContext: 'crm',
-      description: 'Manager in CRM',
+      description: 'Business partner',
     },
   });
 
   const operationsManagerRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'operations-manager',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'operations-manager' },
     update: {},
     create: {
       name: 'operations-manager',
-      appContext: 'crm',
-      description: 'Operations Manager in CRM',
+      description: 'Operations Manager',
     },
   });
 
   const hrRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'hr',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'hr' },
     update: {},
     create: {
       name: 'hr',
-      appContext: 'crm',
-      description: 'Human Resources in CRM',
+      description: 'Human Resources',
     },
   });
 
   const accountingRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'accounting',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'accounting' },
     update: {},
     create: {
       name: 'accounting',
-      appContext: 'crm',
-      description: 'Accounting in CRM',
+      description: 'Accounting staff',
     },
   });
 
   const accountingManagerRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'accounting-manager',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'accounting-manager' },
     update: {},
     create: {
       name: 'accounting-manager',
-      appContext: 'crm',
-      description: 'Accounting Manager in CRM',
+      description: 'Accounting Manager',
     },
   });
 
   const salesManagerRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'sales-manager',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'sales-manager' },
     update: {},
     create: {
       name: 'sales-manager',
-      appContext: 'crm',
-      description: 'Sales Manager in CRM',
+      description: 'Sales Manager',
     },
   });
 
   const mediaManagerRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'media-manager',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'media-manager' },
     update: {},
     create: {
       name: 'media-manager',
-      appContext: 'crm',
-      description: 'Media Manager in CRM',
+      description: 'Media Manager',
     },
   });
 
   const cstRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'cst',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'cst' },
     update: {},
     create: {
       name: 'cst',
-      appContext: 'crm',
-      description: 'Customer Service Team in CRM',
+      description: 'Customer Service Team',
     },
   });
 
   const cstManagerRole = await prisma.role.upsert({
-    where: {
-      name_appContext: {
-        name: 'cst-manager',
-        appContext: 'crm',
-      },
-    },
+    where: { name: 'cst-manager' },
     update: {},
     create: {
       name: 'cst-manager',
-      appContext: 'crm',
-      description: 'Customer Service Team Manager in CRM',
+      description: 'Customer Service Team Manager',
     },
   });
 
+  // Assign permissions to client role
   await Promise.all([
     ...customerPermissions.map((permission) =>
       prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
-            roleId: customerRole.id,
+            roleId: clientRole.id,
             permissionId: permission.id,
           },
         },
         update: {},
         create: {
-          roleId: customerRole.id,
+          roleId: clientRole.id,
           permissionId: permission.id,
         },
       })
     ),
+  ]);
+
+  // Assign admin permissions to admin and manager roles
+  await Promise.all([
     ...adminPermissions.map((permission) =>
       prisma.rolePermission.upsert({
         where: {
@@ -697,6 +593,21 @@ async function main() {
         },
       })
     ),
+    ...adminPermissions.map((permission) =>
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: managerRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: managerRole.id,
+          permissionId: permission.id,
+        },
+      })
+    ),
     ...customerPermissions.map((permission) =>
       prisma.rolePermission.upsert({
         where: {
@@ -712,23 +623,24 @@ async function main() {
         },
       })
     ),
+    ...customerPermissions.map((permission) =>
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: managerRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: managerRole.id,
+          permissionId: permission.id,
+        },
+      })
+    ),
   ]);
 
-  await prisma.rolePermission.upsert({
-    where: {
-      roleId_permissionId: {
-        roleId: supportRole.id,
-        permissionId: adminPermissions[0].id,
-      },
-    },
-    update: {},
-    create: {
-      roleId: supportRole.id,
-      permissionId: adminPermissions[0].id,
-    },
-  });
-
-  // Assign all enrollment, invoice, commission, payment permissions to admin
+  // Assign all enrollment, invoice, commission, payment permissions to admin and manager
   await Promise.all([
     ...enrollmentPermissions.map((permission) =>
       prisma.rolePermission.upsert({
@@ -741,6 +653,21 @@ async function main() {
         update: {},
         create: {
           roleId: adminRole.id,
+          permissionId: permission.id,
+        },
+      })
+    ),
+    ...enrollmentPermissions.map((permission) =>
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: managerRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: managerRole.id,
           permissionId: permission.id,
         },
       })
@@ -760,7 +687,52 @@ async function main() {
         },
       })
     ),
+    ...invoicePermissions.map((permission) =>
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: managerRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: managerRole.id,
+          permissionId: permission.id,
+        },
+      })
+    ),
     ...commissionPermissions.map((permission) =>
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: adminRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: adminRole.id,
+          permissionId: permission.id,
+        },
+      })
+    ),
+    ...commissionPermissions.map((permission) =>
+      prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: managerRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: managerRole.id,
+          permissionId: permission.id,
+        },
+      })
+    ),
+    ...paymentPermissions.map((permission) =>
       prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
@@ -779,13 +751,13 @@ async function main() {
       prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
-            roleId: adminRole.id,
+            roleId: managerRole.id,
             permissionId: permission.id,
           },
         },
         update: {},
         create: {
-          roleId: adminRole.id,
+          roleId: managerRole.id,
           permissionId: permission.id,
         },
       })
@@ -894,8 +866,222 @@ async function main() {
     )
   );
 
+  // Create capabilities
+  const capabilities = await Promise.all([
+    // Interest capabilities
+    prisma.capability.upsert({
+      where: { name: 'view:interest' },
+      update: {},
+      create: { name: 'view:interest', description: 'View interests' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'create:interest' },
+      update: {},
+      create: { name: 'create:interest', description: 'Create interests' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'update:interest' },
+      update: {},
+      create: { name: 'update:interest', description: 'Update interests' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'delete:interest' },
+      update: {},
+      create: { name: 'delete:interest', description: 'Delete interests' },
+    }),
+    // Appointment capabilities
+    prisma.capability.upsert({
+      where: { name: 'view:appointment' },
+      update: {},
+      create: { name: 'view:appointment', description: 'View appointments' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'create:appointment' },
+      update: {},
+      create: { name: 'create:appointment', description: 'Create appointments' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'update:appointment' },
+      update: {},
+      create: { name: 'update:appointment', description: 'Update appointments' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'delete:appointment' },
+      update: {},
+      create: { name: 'delete:appointment', description: 'Delete appointments' },
+    }),
+    // Enrollment capabilities
+    prisma.capability.upsert({
+      where: { name: 'view:enrollment' },
+      update: {},
+      create: { name: 'view:enrollment', description: 'View enrollments' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'create:enrollment' },
+      update: {},
+      create: { name: 'create:enrollment', description: 'Create enrollments' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'update:enrollment' },
+      update: {},
+      create: { name: 'update:enrollment', description: 'Update enrollments' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'cancel:enrollment' },
+      update: {},
+      create: { name: 'cancel:enrollment', description: 'Cancel enrollments' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'resume:enrollment' },
+      update: {},
+      create: { name: 'resume:enrollment', description: 'Resume enrollments' },
+    }),
+    // Invoice capabilities
+    prisma.capability.upsert({
+      where: { name: 'view:invoice' },
+      update: {},
+      create: { name: 'view:invoice', description: 'View invoices' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'resolve:invoice' },
+      update: {},
+      create: { name: 'resolve:invoice', description: 'Resolve invoices' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'download:invoice' },
+      update: {},
+      create: { name: 'download:invoice', description: 'Download invoices' },
+    }),
+    // Commission capabilities
+    prisma.capability.upsert({
+      where: { name: 'view:commission' },
+      update: {},
+      create: { name: 'view:commission', description: 'View commissions' },
+    }),
+    // Properties capabilities
+    prisma.capability.upsert({
+      where: { name: 'view:properties' },
+      update: {},
+      create: { name: 'view:properties', description: 'View properties' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'create:properties' },
+      update: {},
+      create: { name: 'create:properties', description: 'Create properties' },
+    }),
+    // KYC capabilities
+    prisma.capability.upsert({
+      where: { name: 'view:kyc' },
+      update: {},
+      create: { name: 'view:kyc', description: 'View KYC records' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'manage:kyc' },
+      update: {},
+      create: { name: 'manage:kyc', description: 'Manage own KYC' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'review:kyc' },
+      update: {},
+      create: { name: 'review:kyc', description: 'Review KYC submissions' },
+    }),
+    // Partnership capabilities
+    prisma.capability.upsert({
+      where: { name: 'view:partnership' },
+      update: {},
+      create: { name: 'view:partnership', description: 'View partnerships' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'create:partnership' },
+      update: {},
+      create: { name: 'create:partnership', description: 'Apply for partnership' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'manage:partnership' },
+      update: {},
+      create: { name: 'manage:partnership', description: 'Manage partnerships' },
+    }),
+    // User management capabilities
+    prisma.capability.upsert({
+      where: { name: 'view:users' },
+      update: {},
+      create: { name: 'view:users', description: 'View users' },
+    }),
+    prisma.capability.upsert({
+      where: { name: 'manage:users' },
+      update: {},
+      create: { name: 'manage:users', description: 'Manage users' },
+    }),
+    // Role management
+    prisma.capability.upsert({
+      where: { name: 'manage:roles' },
+      update: {},
+      create: { name: 'manage:roles', description: 'Manage roles and permissions' },
+    }),
+  ]);
+
+  // Map permissions to capabilities
+  const capabilityMap: Record<string, string[]> = {
+    'view:interest': ['properties:read'],
+    'create:interest': ['properties:create'],
+    'update:interest': ['properties:read'],
+    'delete:interest': ['properties:read'],
+    'view:appointment': ['properties:read'],
+    'create:appointment': ['properties:create'],
+    'update:appointment': ['properties:read'],
+    'delete:appointment': ['properties:read'],
+    'view:enrollment': ['enrollment:read', 'enrollment:read-own', 'enrollment:read-client', 'enrollment:read-detail'],
+    'create:enrollment': ['enrollment:create'],
+    'update:enrollment': ['enrollment:update', 'enrollment:link-client'],
+    'cancel:enrollment': ['enrollment:cancel'],
+    'resume:enrollment': ['enrollment:resume'],
+    'view:invoice': ['invoice:read', 'invoice:read-own', 'invoice:read-client', 'invoice:read-detail'],
+    'resolve:invoice': ['invoice:resolve', 'invoice:undo-payment'],
+    'download:invoice': ['invoice:read-detail'],
+    'view:commission': ['commission:read', 'commission:read-own', 'commission:read-detail', 'commission:stats'],
+    'view:properties': ['properties:read'],
+    'create:properties': ['properties:create'],
+    'view:kyc': ['kyc:view_all'],
+    'manage:kyc': ['kyc:view_own', 'kyc:manage'],
+    'review:kyc': ['kyc:review'],
+    'view:partnership': ['partnership:view_all', 'partnership:view_own', 'partnership:view_clients'],
+    'create:partnership': ['partnership:apply'],
+    'manage:partnership': ['partnership:review', 'partnership:suspend'],
+    'view:users': ['users:read'],
+    'manage:users': ['users:write', 'users:delete'],
+    'manage:roles': ['roles:manage'],
+  };
+
+  // Create permission-capability mappings
+  for (const [capabilityName, permissionNames] of Object.entries(capabilityMap)) {
+    const capability = capabilities.find(c => c.name === capabilityName);
+    if (!capability) continue;
+
+    for (const permissionName of permissionNames) {
+      const permission = await prisma.permission.findUnique({
+        where: { name: permissionName },
+      });
+
+      if (permission) {
+        await prisma.permissionCapability.upsert({
+          where: {
+            permissionId_capabilityId: {
+              permissionId: permission.id,
+              capabilityId: capability.id,
+            },
+          },
+          update: {},
+          create: {
+            permissionId: permission.id,
+            capabilityId: capability.id,
+          },
+        });
+      }
+    }
+  }
+
   // Create test admin user
-  const testUser = await prisma.user.upsert({
+  const adminUser = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
     create: {
@@ -905,45 +1091,64 @@ async function main() {
     },
   });
 
-  // Create Admin record for test user
   await prisma.admin.upsert({
-    where: { userId: testUser.id },
+    where: { userId: adminUser.id },
     update: {},
     create: {
-      userId: testUser.id,
+      userId: adminUser.id,
       name: 'Admin User',
       phone: '+2348012345678',
     },
   });
 
-  await Promise.all([
-    prisma.userRole.upsert({
-      where: {
-        userId_roleId: {
-          userId: testUser.id,
-          roleId: adminRole.id,
-        },
-      },
-      update: {},
-      create: {
-        userId: testUser.id,
+  await prisma.userRole.upsert({
+    where: {
+      userId_roleId: {
+        userId: adminUser.id,
         roleId: adminRole.id,
       },
-    }),
-    prisma.userRole.upsert({
-      where: {
-        userId_roleId: {
-          userId: testUser.id,
-          roleId: agentRole.id,
-        },
+    },
+    update: {},
+    create: {
+      userId: adminUser.id,
+      roleId: adminRole.id,
+    },
+  });
+
+  // Create test manager user
+  const managerUser = await prisma.user.upsert({
+    where: { email: 'manager@example.com' },
+    update: {},
+    create: {
+      email: 'manager@example.com',
+      password: hashedPassword,
+      isEmailVerified: true,
+    },
+  });
+
+  await prisma.admin.upsert({
+    where: { userId: managerUser.id },
+    update: {},
+    create: {
+      userId: managerUser.id,
+      name: 'Manager User',
+      phone: '+2348012345679',
+    },
+  });
+
+  await prisma.userRole.upsert({
+    where: {
+      userId_roleId: {
+        userId: managerUser.id,
+        roleId: managerRole.id,
       },
-      update: {},
-      create: {
-        userId: testUser.id,
-        roleId: agentRole.id,
-      },
-    }),
-  ]);
+    },
+    update: {},
+    create: {
+      userId: managerUser.id,
+      roleId: managerRole.id,
+    },
+  });
 
   // Create test client user
   const regularUser = await prisma.user.upsert({
@@ -1005,14 +1210,14 @@ async function main() {
   );
 
   console.log('Seed completed successfully!');
-  console.log('Test users:');
-  console.log('  Admin: admin@example.com / password123 (has admin + agent roles)');
-  console.log('  Client: user@example.com / password123 (has client role)');
-  console.log('\nAdmin roles created:');
-  console.log('  - admin, manager, operations-manager, hr, accounting');
-  console.log('  - accounting-manager, sales-manager, media-manager, cst, cst-manager, agent');
-  console.log('\nClient roles created:');
-  console.log('  - client, partner');
+  console.log('\nTest users:');
+  console.log('  Admin: admin@example.com / password123 (role: admin)');
+  console.log('  Manager: manager@example.com / password123 (role: manager)');
+  console.log('  Client: user@example.com / password123 (role: client)');
+  console.log('\nRoles created:');
+  console.log('  - admin, manager, agent, client, partner');
+  console.log('  - operations-manager, hr, accounting, accounting-manager');
+  console.log('  - sales-manager, media-manager, cst, cst-manager');
 }
 
 main()

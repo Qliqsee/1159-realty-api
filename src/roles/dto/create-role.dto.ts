@@ -7,11 +7,6 @@ export class CreateRoleDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'realty' })
-  @IsString()
-  @IsNotEmpty()
-  appContext: string;
-
   @ApiPropertyOptional({ example: 'Sales agent role' })
   @IsString()
   description?: string;

@@ -7,11 +7,6 @@ export class RoleQueryDto {
   @IsOptional()
   search?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by app context' })
-  @IsString()
-  @IsOptional()
-  appContext?: string;
-
   @ApiPropertyOptional({ description: 'Page number', example: '1', default: '1' })
   @IsString()
   @IsOptional()
