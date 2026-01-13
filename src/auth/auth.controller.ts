@@ -4,7 +4,7 @@ import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { AdminSignUpDto } from './dto/admin-signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { AuthResponseDto, RefreshTokenDto, RefreshTokenResponseDto } from './dto/auth-response.dto';
+import { AuthResponseDto, RefreshTokenDto, RefreshTokenResponseDto, GetMeResponseDto } from './dto/auth-response.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GoogleAdminAuthGuard } from './guards/google-admin-auth.guard';
@@ -118,9 +118,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'Current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current user profile with capabilities',
+    type: GetMeResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getProfile(@Req() req: Request) {
-    return req.user;
+    const user: any = req.user;
+    return this.authService.getMe(user.userId);
   }
 }

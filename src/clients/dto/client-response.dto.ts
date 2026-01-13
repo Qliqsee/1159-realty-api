@@ -1,4 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  AdminSummaryDto,
+  ClientSummaryDto,
+  KycSummaryDto,
+  PartnershipSummaryDto,
+  LeadSummaryDto,
+  EnrollmentSummaryDto,
+  PaginationMetaDto
+} from '../../common/dto';
 
 export class ClientResponseDto {
   @ApiProperty({ description: 'Client ID', example: 'uuid' })
@@ -9,6 +18,9 @@ export class ClientResponseDto {
 
   @ApiProperty({ description: 'Email address', example: 'client@example.com' })
   email: string;
+
+  @ApiProperty({ description: 'Is email verified', example: false })
+  isEmailVerified: boolean;
 
   @ApiPropertyOptional({ description: 'First name', example: 'Jane' })
   firstName?: string;
@@ -58,14 +70,52 @@ export class ClientResponseDto {
   @ApiProperty({ description: 'Roles assigned', example: ['client'] })
   roles: string[];
 
-  @ApiProperty({ description: 'Capabilities', example: ['view:properties', 'create:enrollment'] })
-  capabilities: string[];
-
   @ApiProperty({ description: 'Created at' })
   createdAt: Date;
 
   @ApiProperty({ description: 'Updated at' })
   updatedAt: Date;
+}
+
+export class ClientProfileResponseDto extends ClientResponseDto {
+  @ApiProperty({ description: 'Capabilities', example: ['properties:read', 'properties:create', 'enrollments:read'], type: [String] })
+  capabilities: string[];
+}
+
+export class ClientDetailResponseDto extends ClientResponseDto {
+  @ApiPropertyOptional({ type: KycSummaryDto })
+  kyc?: KycSummaryDto | null;
+
+  @ApiPropertyOptional({ type: PartnershipSummaryDto })
+  partnership?: PartnershipSummaryDto | null;
+
+  @ApiPropertyOptional({ type: LeadSummaryDto })
+  lead?: LeadSummaryDto | null;
+
+  @ApiPropertyOptional({ type: AdminSummaryDto })
+  closedByAgent?: AdminSummaryDto | null;
+
+  @ApiPropertyOptional({ type: ClientSummaryDto })
+  referredByPartner?: ClientSummaryDto | null;
+
+  @ApiProperty({ type: [EnrollmentSummaryDto] })
+  enrollments: EnrollmentSummaryDto[];
+}
+
+export class ReferralsResponseDto {
+  @ApiProperty({ example: 25 })
+  totalReferrals: number;
+
+  @ApiProperty({ type: [ClientSummaryDto] })
+  referrals: ClientSummaryDto[];
+}
+
+export class ClientListResponseDto {
+  @ApiProperty({ type: [ClientSummaryDto] })
+  data: ClientSummaryDto[];
+
+  @ApiProperty({ type: PaginationMetaDto })
+  meta: PaginationMetaDto;
 }
 
 export class BankAccountResponseDto {

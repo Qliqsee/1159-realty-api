@@ -4,7 +4,24 @@ import { CapabilitiesService } from '../capabilities/capabilities.service';
 import { AdminQueryDto, ClientQueryDto, MyClientsQueryDto, AdminSortOption } from './dto/admin-query.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { UpdateBankAccountDto } from './dto/bank-account.dto';
-import { AdminResponseDto, BankAccountResponseDto } from './dto/admin-response.dto';
+import {
+  AdminResponseDto,
+  AdminProfileResponseDto,
+  AdminListResponseDto,
+  BankAccountResponseDto,
+} from './dto/admin-response.dto';
+import {
+  ClientListResponseDto,
+  ClientDetailResponseDto,
+} from '../clients/dto/client-response.dto';
+import {
+  AdminSummaryDto,
+  ClientSummaryDto,
+  KycSummaryDto,
+  PartnershipSummaryDto,
+  LeadSummaryDto,
+  EnrollmentSummaryDto,
+} from '../common/dto';
 
 @Injectable()
 export class AdminsService {
@@ -13,7 +30,7 @@ export class AdminsService {
     private capabilitiesService: CapabilitiesService,
   ) {}
 
-  async findAll(query?: AdminQueryDto) {
+  async findAll(query?: AdminQueryDto): Promise<AdminListResponseDto> {
     const page = query?.page ? parseInt(query.page, 10) : 1;
     const limit = query?.limit ? parseInt(query.limit, 10) : 10;
     const skip = (page - 1) * limit;
@@ -133,7 +150,7 @@ export class AdminsService {
     return this.mapToAdminResponse(admin);
   }
 
-  async findByUserId(userId: string): Promise<AdminResponseDto> {
+  async findByUserId(userId: string): Promise<AdminProfileResponseDto> {
     const admin = await this.prisma.admin.findUnique({
       where: { userId },
       include: {
@@ -154,10 +171,10 @@ export class AdminsService {
     }
 
     const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
-    return this.mapToAdminResponse(admin, capabilities);
+    return this.mapToAdminProfileResponse(admin, capabilities);
   }
 
-  async updateProfile(userId: string, updateData: UpdateAdminDto) {
+  async updateProfile(userId: string, updateData: UpdateAdminDto): Promise<AdminProfileResponseDto> {
     const admin = await this.prisma.admin.findUnique({ where: { userId } });
 
     if (!admin) {
@@ -184,10 +201,10 @@ export class AdminsService {
     });
 
     const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
-    return this.mapToAdminResponse(updated, capabilities);
+    return this.mapToAdminProfileResponse(updated, capabilities);
   }
 
-  async getMyClients(adminId: string, query?: MyClientsQueryDto) {
+  async getMyClients(adminId: string, query?: MyClientsQueryDto): Promise<ClientListResponseDto> {
     const page = query?.page ? parseInt(query.page, 10) : 1;
     const limit = query?.limit ? parseInt(query.limit, 10) : 10;
     const skip = (page - 1) * limit;
@@ -265,16 +282,6 @@ export class AdminsService {
         take: limit,
         include: {
           user: true,
-          kyc: {
-            select: {
-              status: true,
-            },
-          },
-          partnership: {
-            select: {
-              status: true,
-            },
-          },
         },
         orderBy,
       }),
@@ -282,7 +289,7 @@ export class AdminsService {
     ]);
 
     return {
-      data: clients,
+      data: clients.map(client => this.mapToClientSummary(client)),
       meta: {
         total,
         page,
@@ -292,7 +299,7 @@ export class AdminsService {
     };
   }
 
-  async getAllClients(query?: ClientQueryDto) {
+  async getAllClients(query?: ClientQueryDto): Promise<ClientListResponseDto> {
     const page = query?.page ? parseInt(query.page, 10) : 1;
     const limit = query?.limit ? parseInt(query.limit, 10) : 10;
     const skip = (page - 1) * limit;
@@ -359,16 +366,6 @@ export class AdminsService {
         take: limit,
         include: {
           user: true,
-          kyc: {
-            select: {
-              status: true,
-            },
-          },
-          partnership: {
-            select: {
-              status: true,
-            },
-          },
         },
         orderBy,
       }),
@@ -376,7 +373,7 @@ export class AdminsService {
     ]);
 
     return {
-      data: clients,
+      data: clients.map(client => this.mapToClientSummary(client)),
       meta: {
         total,
         page,
@@ -386,7 +383,7 @@ export class AdminsService {
     };
   }
 
-  async getClientById(clientId: string) {
+  async getClientById(clientId: string): Promise<ClientDetailResponseDto> {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: {
@@ -439,7 +436,7 @@ export class AdminsService {
       throw new NotFoundException('Client not found');
     }
 
-    return client;
+    return this.mapToClientDetail(client);
   }
 
   async banAdmin(adminId: string) {
@@ -597,11 +594,12 @@ export class AdminsService {
     return { message: 'Bank account deleted successfully' };
   }
 
-  private mapToAdminResponse(admin: any, capabilities: string[] = []): AdminResponseDto {
+  private mapToAdminResponse(admin: any): AdminResponseDto {
     return {
       id: admin.id,
       userId: admin.userId,
       email: admin.user.email,
+      isEmailVerified: admin.user.isEmailVerified,
       firstName: admin.firstName,
       lastName: admin.lastName,
       otherName: admin.otherName,
@@ -616,9 +614,128 @@ export class AdminsService {
       isBanned: admin.user.isBanned,
       isSuspended: admin.user.isSuspended,
       roles: admin.user.userRoles?.map((ur: any) => ur.role.name) || [],
-      capabilities,
       createdAt: admin.createdAt,
       updatedAt: admin.updatedAt,
+    };
+  }
+
+  private mapToAdminProfileResponse(admin: any, capabilities: string[]): AdminProfileResponseDto {
+    const base = this.mapToAdminResponse(admin);
+    return {
+      ...base,
+      capabilities,
+    };
+  }
+
+  private mapToAdminSummary(admin: any): AdminSummaryDto {
+    return {
+      id: admin.id,
+      userId: admin.userId,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      otherName: admin.otherName,
+      email: admin.user?.email || '',
+      phone: admin.phone,
+      createdAt: admin.createdAt,
+    };
+  }
+
+  private mapToClientSummary(client: any): ClientSummaryDto {
+    return {
+      id: client.id,
+      userId: client.userId,
+      firstName: client.firstName,
+      lastName: client.lastName,
+      otherName: client.otherName,
+      email: client.user.email,
+      phone: client.phone,
+      gender: client.gender,
+      partnerLink: client.partnerLink,
+      hasCompletedOnboarding: client.hasCompletedOnboarding,
+      createdAt: client.createdAt,
+    };
+  }
+
+  private mapToClientDetail(client: any): ClientDetailResponseDto {
+    const enrollments: EnrollmentSummaryDto[] = client.enrollmentsAsClient?.map((enrollment: any) => ({
+      id: enrollment.id,
+      propertyId: enrollment.propertyId,
+      propertyName: enrollment.property?.name || '',
+      status: enrollment.status,
+      totalAmount: enrollment.totalAmount.toString(),
+      amountPaid: enrollment.amountPaid.toString(),
+      enrollmentDate: enrollment.enrollmentDate,
+    })) || [];
+
+    return {
+      id: client.id,
+      userId: client.userId,
+      email: client.user.email,
+      isEmailVerified: client.user.isEmailVerified,
+      firstName: client.firstName,
+      lastName: client.lastName,
+      otherName: client.otherName,
+      phone: client.phone,
+      gender: client.gender,
+      referralSource: client.referralSource,
+      country: client.country,
+      state: client.state,
+      hasCompletedOnboarding: client.hasCompletedOnboarding,
+      partnerLink: client.partnerLink,
+      referredByPartnerId: client.referredByPartnerId,
+      leadId: client.leadId,
+      closedBy: client.closedBy,
+      isSuspended: client.user.isSuspended,
+      isBanned: client.user.isBanned,
+      roles: client.user.userRoles?.map((ur: any) => ur.role.name) || [],
+      createdAt: client.createdAt,
+      updatedAt: client.updatedAt,
+      kyc: client.kyc ? {
+        id: client.kyc.id,
+        status: client.kyc.status,
+        currentStep: client.kyc.currentStep,
+        submittedAt: client.kyc.submittedAt,
+        reviewedAt: client.kyc.reviewedAt,
+      } : null,
+      partnership: client.partnership ? {
+        id: client.partnership.id,
+        status: client.partnership.status,
+        appliedAt: client.partnership.appliedAt,
+        reviewedAt: client.partnership.reviewedAt,
+        suspendedAt: client.partnership.suspendedAt,
+      } : null,
+      lead: client.lead ? {
+        id: client.lead.id,
+        email: client.lead.email,
+        firstName: client.lead.firstName,
+        lastName: client.lead.lastName,
+        phone: client.lead.phone,
+        status: client.lead.status,
+      } : null,
+      closedByAgent: client.closedByAgent ? {
+        id: client.closedByAgent.id,
+        userId: client.closedByAgent.userId || '',
+        firstName: client.closedByAgent.firstName,
+        lastName: client.closedByAgent.lastName,
+        otherName: client.closedByAgent.otherName,
+        email: '',
+        phone: null,
+        createdAt: new Date(),
+      } : null,
+      referredByPartner: client.referredByPartner ? {
+        id: client.referredByPartner.id,
+        userId: client.referredByPartner.userId || '',
+        firstName: client.referredByPartner.firstName,
+        lastName: client.referredByPartner.lastName,
+        otherName: client.referredByPartner.otherName,
+        email: '',
+        phone: null,
+        gender: client.referredByPartner.gender,
+        partnerLink: client.referredByPartner.partnerLink,
+        hasCompletedOnboarding: client.referredByPartner.hasCompletedOnboarding,
+        createdAt: client.referredByPartner.createdAt,
+      } : null,
+      enrollments,
     };
   }
 

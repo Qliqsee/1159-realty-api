@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PaginationMetaDto } from '../../common/dto';
 
 export class AdminResponseDto {
   @ApiProperty({ description: 'Admin ID', example: 'uuid' })
@@ -9,6 +10,9 @@ export class AdminResponseDto {
 
   @ApiProperty({ description: 'Email address', example: 'admin@example.com' })
   email: string;
+
+  @ApiProperty({ description: 'Is email verified', example: false })
+  isEmailVerified: boolean;
 
   @ApiPropertyOptional({ description: 'First name', example: 'John' })
   firstName?: string;
@@ -52,14 +56,24 @@ export class AdminResponseDto {
   @ApiProperty({ description: 'Roles assigned', example: ['agent', 'admin'] })
   roles: string[];
 
-  @ApiProperty({ description: 'Capabilities', example: ['view:users', 'manage:roles'] })
-  capabilities: string[];
-
   @ApiProperty({ description: 'Created at' })
   createdAt: Date;
 
   @ApiProperty({ description: 'Updated at' })
   updatedAt: Date;
+}
+
+export class AdminProfileResponseDto extends AdminResponseDto {
+  @ApiProperty({ description: 'Capabilities', example: ['properties:read', 'properties:create', 'enrollments:read'], type: [String] })
+  capabilities: string[];
+}
+
+export class AdminListResponseDto {
+  @ApiProperty({ type: [AdminResponseDto] })
+  data: AdminResponseDto[];
+
+  @ApiProperty({ type: PaginationMetaDto })
+  meta: PaginationMetaDto;
 }
 
 export class BankAccountResponseDto {

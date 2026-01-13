@@ -26,7 +26,16 @@ import { AdminQueryDto, ClientQueryDto, MyClientsQueryDto } from './dto/admin-qu
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { UpdateBankAccountDto } from './dto/bank-account.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
-import { AdminResponseDto, BankAccountResponseDto } from './dto/admin-response.dto';
+import {
+  AdminResponseDto,
+  AdminProfileResponseDto,
+  AdminListResponseDto,
+  BankAccountResponseDto,
+} from './dto/admin-response.dto';
+import {
+  ClientListResponseDto,
+  ClientDetailResponseDto,
+} from '../clients/dto/client-response.dto';
 
 @ApiTags('Admins')
 @ApiBearerAuth('JWT-auth')
@@ -39,29 +48,29 @@ export class AdminsController {
   @UseGuards(RolesGuard)
   @Roles('admin')
   @ApiOperation({ summary: 'List all admins with filters, search, and pagination (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Returns paginated admins list' })
+  @ApiResponse({ status: 200, description: 'Returns paginated admins list', type: AdminListResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
-  findAll(@Query() query: AdminQueryDto) {
+  findAll(@Query() query: AdminQueryDto): Promise<AdminListResponseDto> {
     return this.adminsService.findAll(query);
   }
 
   @Get('me')
   @ApiOperation({ summary: 'Get logged in admin profile' })
-  @ApiResponse({ status: 200, description: 'Admin profile retrieved successfully', type: AdminResponseDto })
+  @ApiResponse({ status: 200, description: 'Admin profile retrieved successfully', type: AdminProfileResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Admin not found' })
-  getProfile(@Req() req: Request) {
+  getProfile(@Req() req: Request): Promise<AdminProfileResponseDto> {
     return this.adminsService.findByUserId(req.user['id']);
   }
 
   @Patch('me')
   @ApiOperation({ summary: 'Update logged in admin profile including bank details' })
   @ApiBody({ type: UpdateAdminDto })
-  @ApiResponse({ status: 200, description: 'Admin profile updated successfully', type: AdminResponseDto })
+  @ApiResponse({ status: 200, description: 'Admin profile updated successfully', type: AdminProfileResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Admin not found' })
-  updateProfile(@Req() req: Request, @Body() updateData: UpdateAdminDto) {
+  updateProfile(@Req() req: Request, @Body() updateData: UpdateAdminDto): Promise<AdminProfileResponseDto> {
     return this.adminsService.updateProfile(req.user['id'], updateData);
   }
 
@@ -69,10 +78,10 @@ export class AdminsController {
   @UseGuards(RolesGuard)
   @Roles('agent')
   @ApiOperation({ summary: 'Get clients for logged in agent with filters, search, and pagination (Agent only)' })
-  @ApiResponse({ status: 200, description: 'Returns paginated list of agent clients' })
+  @ApiResponse({ status: 200, description: 'Returns paginated list of agent clients', type: ClientListResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
-  getMyClients(@Req() req: Request, @Query() query: MyClientsQueryDto) {
+  getMyClients(@Req() req: Request, @Query() query: MyClientsQueryDto): Promise<ClientListResponseDto> {
     const adminId = req.user['admin']?.id;
     return this.adminsService.getMyClients(adminId, query);
   }
@@ -81,19 +90,19 @@ export class AdminsController {
   @UseGuards(RolesGuard)
   @Roles('admin')
   @ApiOperation({ summary: 'Get all clients with filters, search, and pagination (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Returns paginated list of all clients' })
+  @ApiResponse({ status: 200, description: 'Returns paginated list of all clients', type: ClientListResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
-  getAllClients(@Query() query: ClientQueryDto) {
+  getAllClients(@Query() query: ClientQueryDto): Promise<ClientListResponseDto> {
     return this.adminsService.getAllClients(query);
   }
 
   @Get('clients/:id')
   @ApiOperation({ summary: 'Get client by ID with full details' })
-  @ApiResponse({ status: 200, description: 'Client details retrieved successfully' })
+  @ApiResponse({ status: 200, description: 'Client details retrieved successfully', type: ClientDetailResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Client not found' })
-  getClientById(@Param('id') id: string) {
+  getClientById(@Param('id') id: string): Promise<ClientDetailResponseDto> {
     return this.adminsService.getClientById(id);
   }
 
@@ -102,7 +111,7 @@ export class AdminsController {
   @ApiResponse({ status: 200, description: 'Admin retrieved successfully', type: AdminResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Admin not found' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string): Promise<AdminResponseDto> {
     return this.adminsService.findOne(id);
   }
 
