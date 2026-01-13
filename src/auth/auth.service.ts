@@ -349,7 +349,7 @@ export class AuthService {
 
           // Assign client role
           const clientRole = await tx.role.findUnique({
-            where: { name: 'client' },
+            where: { name_appContext: { name: 'client', appContext: 'SYSTEM' } },
             select: { id: true },
           });
 
@@ -446,7 +446,7 @@ export class AuthService {
 
           // Assign agent role
           const agentRole = await tx.role.findUnique({
-            where: { name: 'agent' },
+            where: { name_appContext: { name: 'agent', appContext: 'SYSTEM' } },
             select: { id: true },
           });
 

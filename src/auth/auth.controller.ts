@@ -9,6 +9,12 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GoogleAdminAuthGuard } from './guards/google-admin-auth.guard';
 import { Request, Response } from 'express';
+import {
+  ApiStandardResponse,
+  ApiBadRequestResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+} from '../common/decorators/api-standard-responses.decorator';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -18,12 +24,8 @@ export class AuthController {
   // CLIENT SIGNUP
   @Post('signup')
   @ApiOperation({ summary: 'Client sign up with email and password' })
-  @ApiResponse({
-    status: 201,
-    description: 'Client successfully registered',
-    type: AuthResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Email already exists' })
+  @ApiStandardResponse(201, 'Client successfully registered', AuthResponseDto)
+  @ApiBadRequestResponse('Email already exists')
   async signUp(@Body() signUpDto: SignUpDto) {
     return this.authService.signUp(signUpDto);
   }
@@ -31,12 +33,8 @@ export class AuthController {
   // ADMIN SIGNUP
   @Post('admin/signup')
   @ApiOperation({ summary: 'Admin sign up with email and password (Agent role by default)' })
-  @ApiResponse({
-    status: 201,
-    description: 'Admin successfully registered',
-    type: AuthResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Email already exists' })
+  @ApiStandardResponse(201, 'Admin successfully registered', AuthResponseDto)
+  @ApiBadRequestResponse('Email already exists')
   async adminSignUp(@Body() adminSignUpDto: AdminSignUpDto) {
     return this.authService.adminSignUp(adminSignUpDto);
   }
@@ -45,13 +43,9 @@ export class AuthController {
   @Post('login')
   @UseGuards(LocalAuthGuard)
   @ApiOperation({ summary: 'Login with email and password (Works for both admin and client)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Successfully logged in',
-    type: AuthResponseDto,
-  })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  @ApiResponse({ status: 403, description: 'Account has been banned' })
+  @ApiStandardResponse(200, 'Successfully logged in', AuthResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiForbiddenResponse()
   async login(@Body() loginDto: LoginDto, @Req() req: Request) {
     return this.authService.login(req.user);
   }
@@ -102,13 +96,9 @@ export class AuthController {
 
   @Post('refresh')
   @ApiOperation({ summary: 'Refresh JWT access token' })
-  @ApiResponse({
-    status: 200,
-    description: 'New tokens and user profile generated',
-    type: AuthResponseDto,
-  })
-  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
-  @ApiResponse({ status: 403, description: 'Account has been banned' })
+  @ApiStandardResponse(200, 'New tokens and user profile generated', AuthResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiForbiddenResponse()
   async refresh(@Body() body: RefreshTokenDto) {
     return this.authService.refreshToken(body.refreshToken);
   }

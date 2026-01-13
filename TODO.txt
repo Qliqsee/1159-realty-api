@@ -1,0 +1,1 @@
+Update remaining 26 controllers with standard response decorators (see CONTROLLER_UPDATE_GUIDE.md)

@@ -5,3 +5,4 @@ export * from './partnership-summary.dto';
 export * from './lead-summary.dto';
 export * from './enrollment-summary.dto';
 export * from './pagination.dto';
+export * from './api-response.dto';

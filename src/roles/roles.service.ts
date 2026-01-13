@@ -5,13 +5,13 @@ import { PrismaService } from '../prisma.service';
 export class RolesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: { name: string; description?: string }) {
+  async create(data: { name: string; appContext: string; description?: string }) {
     const existing = await this.prisma.role.findUnique({
-      where: { name: data.name },
+      where: { name_appContext: { name: data.name, appContext: data.appContext } },
     });
 
     if (existing) {
-      throw new ConflictException('Role with this name already exists');
+      throw new ConflictException('Role with this name and appContext already exists');
     }
 
     return this.prisma.role.create({
