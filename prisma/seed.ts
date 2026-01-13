@@ -441,118 +441,131 @@ async function main() {
   ]);
 
   const adminRole = await prisma.role.upsert({
-    where: { name: 'admin' },
+    where: { name_appContext: { name: 'admin', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'admin',
+      appContext: 'SYSTEM',
       description: 'Administrator with full system access',
     },
   });
 
   const managerRole = await prisma.role.upsert({
-    where: { name: 'manager' },
+    where: { name_appContext: { name: 'manager', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'manager',
+      appContext: 'SYSTEM',
       description: 'Manager with broad system access',
     },
   });
 
   const agentRole = await prisma.role.upsert({
-    where: { name: 'agent' },
+    where: { name_appContext: { name: 'agent', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'agent',
+      appContext: 'SYSTEM',
       description: 'Sales agent',
     },
   });
 
   const clientRole = await prisma.role.upsert({
-    where: { name: 'client' },
+    where: { name_appContext: { name: 'client', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'client',
+      appContext: 'SYSTEM',
       description: 'Client user',
     },
   });
 
   const partnerRole = await prisma.role.upsert({
-    where: { name: 'partner' },
+    where: { name_appContext: { name: 'partner', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'partner',
+      appContext: 'SYSTEM',
       description: 'Business partner',
     },
   });
 
   const operationsManagerRole = await prisma.role.upsert({
-    where: { name: 'operations-manager' },
+    where: { name_appContext: { name: 'operations-manager', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'operations-manager',
+      appContext: 'SYSTEM',
       description: 'Operations Manager',
     },
   });
 
   const hrRole = await prisma.role.upsert({
-    where: { name: 'hr' },
+    where: { name_appContext: { name: 'hr', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'hr',
+      appContext: 'SYSTEM',
       description: 'Human Resources',
     },
   });
 
   const accountingRole = await prisma.role.upsert({
-    where: { name: 'accounting' },
+    where: { name_appContext: { name: 'accounting', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'accounting',
+      appContext: 'SYSTEM',
       description: 'Accounting staff',
     },
   });
 
   const accountingManagerRole = await prisma.role.upsert({
-    where: { name: 'accounting-manager' },
+    where: { name_appContext: { name: 'accounting-manager', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'accounting-manager',
+      appContext: 'SYSTEM',
       description: 'Accounting Manager',
     },
   });
 
   const salesManagerRole = await prisma.role.upsert({
-    where: { name: 'sales-manager' },
+    where: { name_appContext: { name: 'sales-manager', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'sales-manager',
+      appContext: 'SYSTEM',
       description: 'Sales Manager',
     },
   });
 
   const mediaManagerRole = await prisma.role.upsert({
-    where: { name: 'media-manager' },
+    where: { name_appContext: { name: 'media-manager', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'media-manager',
+      appContext: 'SYSTEM',
       description: 'Media Manager',
     },
   });
 
   const cstRole = await prisma.role.upsert({
-    where: { name: 'cst' },
+    where: { name_appContext: { name: 'cst', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'cst',
+      appContext: 'SYSTEM',
       description: 'Customer Service Team',
     },
   });
 
   const cstManagerRole = await prisma.role.upsert({
-    where: { name: 'cst-manager' },
+    where: { name_appContext: { name: 'cst-manager', appContext: 'SYSTEM' } },
     update: {},
     create: {
       name: 'cst-manager',
+      appContext: 'SYSTEM',
       description: 'Customer Service Team Manager',
     },
   });

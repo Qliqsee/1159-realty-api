@@ -1,0 +1,296 @@
+ADMIN AUTH ENDPOINTS DOCUMENTATION
+
+AUTHENTICATION ENDPOINTS
+
+1. ADMIN SIGNUP
+Method: POST
+Endpoint: /auth/admin/signup
+Description: Admin sign up with email and password. Creates admin with Agent role by default
+Auth: None
+Request Body:
+  email: string (valid email format)
+  password: string (min 6 characters)
+Response: 201 Created
+  admin: AdminResponseDto object (includes id, userId, email, isEmailVerified, firstName, lastName, otherName, phone, dateOfBirth, street, city, state, country, postalCode, accountNumber, bankCode, accountName, bankName, canOnboardClients, isBanned, isSuspended, roles array, capabilities array, createdAt, updatedAt)
+  client: null
+  tokens: object with accessToken and refreshToken strings
+Errors:
+  400: Email already exists
+
+2. ADMIN LOGIN
+Method: POST
+Endpoint: /auth/login
+Description: Unified login for both admin and client using email and password
+Auth: None (uses LocalAuthGuard)
+Request Body:
+  email: string (valid email format)
+  password: string (min 6 characters)
+Response: 200 OK
+  admin: AdminResponseDto object if admin login OR null if client login
+  client: ClientResponseDto object if client login OR null if admin login
+  tokens: object with accessToken and refreshToken strings
+Errors:
+  401: Invalid credentials
+  403: Account has been banned
+
+3. ADMIN GOOGLE OAUTH INITIATE
+Method: GET
+Endpoint: /auth/google/admin
+Description: Initiates Google OAuth flow for admins
+Auth: None (uses GoogleAdminAuthGuard)
+Response: 302 Redirects to Google OAuth
+
+4. ADMIN GOOGLE OAUTH CALLBACK
+Method: GET
+Endpoint: /auth/google/admin/callback
+Description: Google OAuth callback handler for admins
+Auth: None (uses GoogleAdminAuthGuard)
+Response: 302 Redirects to frontend with query params accessToken, refreshToken, userType=admin
+Frontend redirect URL format: {FRONTEND_URL}/auth/callback?accessToken={token}&refreshToken={token}&userType=admin
+
+5. REFRESH TOKEN
+Method: POST
+Endpoint: /auth/refresh
+Description: Refresh JWT access token using refresh token
+Auth: None
+Request Body:
+  refreshToken: string (JWT refresh token)
+Response: 200 OK
+  admin: AdminResponseDto object if admin OR null if client
+  client: ClientResponseDto object if client OR null if admin
+  tokens: object with new accessToken and refreshToken strings
+Errors:
+  401: Invalid or expired refresh token
+  403: Account has been banned
+
+ADMIN PROFILE ENDPOINTS
+
+6. GET LOGGED IN ADMIN PROFILE
+Method: GET
+Endpoint: /admins/me
+Description: Get logged in admin profile. Capabilities always included
+Auth: JWT Bearer Token (JwtAuthGuard)
+Query Params: None
+Response: 200 OK
+  AdminResponseDto object with all fields including capabilities array
+Errors:
+  401: Unauthorized
+  404: Admin not found
+
+7. UPDATE LOGGED IN ADMIN PROFILE
+Method: PATCH
+Endpoint: /admins/me
+Description: Update logged in admin profile including bank details. Capabilities always included in response
+Auth: JWT Bearer Token (JwtAuthGuard)
+Request Body (all fields optional):
+  firstName: string
+  lastName: string
+  otherName: string
+  phone: string
+  dateOfBirth: string (ISO date format YYYY-MM-DD)
+  street: string
+  city: string
+  state: string
+  country: string
+  postalCode: string
+  accountNumber: string
+  bankCode: string
+  accountName: string
+  bankName: string
+Response: 200 OK
+  AdminResponseDto object with updated data including capabilities
+Errors:
+  401: Unauthorized
+  404: Admin not found
+
+ADMIN MANAGEMENT ENDPOINTS (Admin Role Required)
+
+8. LIST ALL ADMINS
+Method: GET
+Endpoint: /admins
+Description: List all admins with filters, search, and pagination. Admin only
+Auth: JWT Bearer Token + Admin role (JwtAuthGuard + RolesGuard)
+Query Params (all optional):
+  search: string (searches name, email, phone)
+  roleId: string (filter by role ID)
+  isSuspended: string (filter by suspension status)
+  isBanned: string (filter by ban status)
+  canOnboardClients: string (filter by onboarding capability)
+  country: string (filter by country)
+  state: string (filter by state)
+  sort: enum (latest or oldest, default latest)
+  page: string (page number, default 1)
+  limit: string (items per page, default 10)
+  includeCapabilities: boolean (include capabilities array, may impact performance)
+Response: 200 OK
+  data: array of AdminResponseDto objects
+  meta: object with page, limit, total, totalPages
+Errors:
+  401: Unauthorized
+  403: Forbidden (not admin role)
+
+9. GET SINGLE ADMIN BY ID
+Method: GET
+Endpoint: /admins/:id
+Description: Get single admin by ID with optional capabilities
+Auth: JWT Bearer Token (JwtAuthGuard)
+Path Params:
+  id: string (admin ID)
+Query Params:
+  includeCapabilities: boolean (include capabilities in response)
+Response: 200 OK
+  AdminResponseDto object
+Errors:
+  401: Unauthorized
+  404: Admin not found
+
+10. BAN ADMIN
+Method: POST
+Endpoint: /admins/:id/ban
+Description: Ban admin by setting isBanned true on User table. Admin only
+Auth: JWT Bearer Token + Admin role (JwtAuthGuard + RolesGuard)
+Path Params:
+  id: string (admin ID to ban)
+Request Body: None
+Response: 201 Created
+  Success message
+Errors:
+  401: Unauthorized
+  403: Forbidden (not admin role)
+  404: Admin not found
+
+11. UNBAN ADMIN
+Method: POST
+Endpoint: /admins/:id/unban
+Description: Unban admin by setting isBanned false on User table. Admin only
+Auth: JWT Bearer Token + Admin role (JwtAuthGuard + RolesGuard)
+Path Params:
+  id: string (admin ID to unban)
+Request Body: None
+Response: 201 Created
+  Success message
+Errors:
+  401: Unauthorized
+  403: Forbidden (not admin role)
+  404: Admin not found
+
+12. SUSPEND ADMIN
+Method: POST
+Endpoint: /admins/:id/suspend
+Description: Suspend admin by setting canOnboardClients false. Admin only
+Auth: JWT Bearer Token + Admin role (JwtAuthGuard + RolesGuard)
+Path Params:
+  id: string (admin ID to suspend)
+Request Body: None
+Response: 201 Created
+  Success message
+Errors:
+  401: Unauthorized
+  403: Forbidden (not admin role)
+  404: Admin not found
+
+13. UNSUSPEND ADMIN
+Method: POST
+Endpoint: /admins/:id/unsuspend
+Description: Unsuspend admin by setting canOnboardClients true. Admin only
+Auth: JWT Bearer Token + Admin role (JwtAuthGuard + RolesGuard)
+Path Params:
+  id: string (admin ID to unsuspend)
+Request Body: None
+Response: 201 Created
+  Success message
+Errors:
+  401: Unauthorized
+  403: Forbidden (not admin role)
+  404: Admin not found
+
+14. CHANGE ADMIN ROLE
+Method: PATCH
+Endpoint: /admins/:id/role
+Description: Change admin role. Admin only
+Auth: JWT Bearer Token + Admin role (JwtAuthGuard + RolesGuard)
+Path Params:
+  id: string (admin ID)
+Request Body:
+  roleId: string (role ID to assign, required)
+Response: 200 OK
+  Success message
+Errors:
+  401: Unauthorized
+  403: Forbidden (not admin role)
+  404: Admin or role not found
+
+CLIENT MANAGEMENT ENDPOINTS (Admin/Agent Access)
+
+15. GET MY CLIENTS
+Method: GET
+Endpoint: /admins/my-clients
+Description: Get clients for logged in agent with filters, search, and pagination. Agent only
+Auth: JWT Bearer Token + Agent role (JwtAuthGuard + RolesGuard)
+Query Params (all optional):
+  search: string (searches name, email, phone)
+  gender: string (MALE, FEMALE, PREFER_NOT_TO_SAY)
+  country: string (filter by country)
+  state: string (filter by state)
+  hasCompletedKYC: string (filter by KYC completion)
+  excludePartners: string (exclude partners from results)
+  sort: enum (latest or oldest, default latest)
+  page: string (page number, default 1)
+  limit: string (items per page, default 10)
+Response: 200 OK
+  data: array of ClientResponseDto objects
+  meta: object with page, limit, total, totalPages
+Errors:
+  401: Unauthorized
+  403: Forbidden (not agent role)
+
+16. GET ALL CLIENTS
+Method: GET
+Endpoint: /admins/clients
+Description: Get all clients with filters, search, and pagination. Admin only
+Auth: JWT Bearer Token + Admin role (JwtAuthGuard + RolesGuard)
+Query Params (all optional):
+  search: string (searches name, email, phone)
+  gender: string (MALE, FEMALE, PREFER_NOT_TO_SAY)
+  country: string (filter by country)
+  state: string (filter by state)
+  hasCompletedKYC: string (filter by KYC completion)
+  hasCompletedOnboarding: string (filter by onboarding completion)
+  excludePartners: string (exclude partners from results)
+  sort: enum (latest or oldest, default latest)
+  page: string (page number, default 1)
+  limit: string (items per page, default 10)
+Response: 200 OK
+  data: array of ClientResponseDto objects
+  meta: object with page, limit, total, totalPages
+Errors:
+  401: Unauthorized
+  403: Forbidden (not admin role)
+
+17. GET CLIENT BY ID
+Method: GET
+Endpoint: /admins/clients/:id
+Description: Get client by ID with optional includes for KYC, partnership, agent, partner
+Auth: JWT Bearer Token (JwtAuthGuard)
+Path Params:
+  id: string (client ID)
+Query Params (all optional boolean):
+  includeCapabilities: boolean (always empty for admin viewing clients)
+  includeKyc: boolean (include KYC summary)
+  includePartnership: boolean (include partnership summary)
+  includeAgent: boolean (include agent/closed by summary)
+  includePartner: boolean (include referring partner summary)
+Response: 200 OK
+  ClientResponseDto object with requested includes
+Errors:
+  401: Unauthorized
+  404: Client not found
+
+NOTES
+All JWT protected endpoints require Bearer token in Authorization header format: Authorization: Bearer {accessToken}
+All paginated endpoints return data array and meta object with pagination details
+All endpoints return appropriate HTTP status codes and error messages
+Date fields use ISO 8601 format
+Boolean query params accept string true or false
+Search is case insensitive and searches across multiple fields
+Filters support exact match on specified fields

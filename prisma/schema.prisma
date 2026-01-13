@@ -209,7 +209,6 @@ model Admin {
   country           String?
   postalCode        String?
   canOnboardClients Boolean   @default(true)
-  isBanned          Boolean   @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -285,7 +284,8 @@ model Client {
 
 model Role {
   id          String   @id @default(uuid())
-  name        String   @unique
+  name        String
+  appContext  String
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -293,6 +293,7 @@ model Role {
   userRoles       UserRole[]
   rolePermissions RolePermission[]
 
+  @@unique([name, appContext])
   @@map("roles")
 }
 
