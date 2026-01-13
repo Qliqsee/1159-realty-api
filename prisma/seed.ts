@@ -1096,7 +1096,8 @@ async function main() {
     update: {},
     create: {
       userId: adminUser.id,
-      name: 'Admin User',
+      firstName: 'Admin',
+      lastName: 'User',
       phone: '+2348012345678',
     },
   });
@@ -1131,7 +1132,8 @@ async function main() {
     update: {},
     create: {
       userId: managerUser.id,
-      name: 'Manager User',
+      firstName: 'Manager',
+      lastName: 'User',
       phone: '+2348012345679',
     },
   });
@@ -1167,7 +1169,8 @@ async function main() {
     update: {},
     create: {
       userId: regularUser.id,
-      name: 'Regular User',
+      firstName: 'Regular',
+      lastName: 'User',
       phone: '+2348087654321',
     },
   });

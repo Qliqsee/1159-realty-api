@@ -594,6 +594,39 @@ export class KycService {
         },
       });
 
+      // Sync data from KYC JSON to Client table for analytics
+      try {
+        const personal = kyc.personal as any;
+        const address = kyc.address as any;
+
+        const updateData: any = {};
+
+        if (personal) {
+          if (personal.firstName) updateData.firstName = personal.firstName;
+          if (personal.lastName) updateData.lastName = personal.lastName;
+          if (personal.otherName) updateData.otherName = personal.otherName;
+          if (personal.phone) updateData.phone = personal.phone;
+          if (personal.gender) updateData.gender = personal.gender;
+        }
+
+        if (address) {
+          if (address.country) updateData.country = address.country;
+          if (address.state) updateData.state = address.state;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await tx.client.update({
+            where: { id: kyc.clientId },
+            data: updateData,
+          });
+
+          this.logger.log(`Synced KYC data to Client table for client ${kyc.clientId}: ${Object.keys(updateData).join(', ')}`);
+        }
+      } catch (error) {
+        this.logger.error(`Failed to sync KYC data to Client table for client ${kyc.clientId}:`, error);
+        // Don't fail the approval if sync fails, just log the error
+      }
+
       return updatedKyc;
     });
 

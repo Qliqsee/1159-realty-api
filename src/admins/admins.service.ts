@@ -3,16 +3,15 @@ import { PrismaService } from '../prisma.service';
 import { CapabilitiesService } from '../capabilities/capabilities.service';
 import { AdminQueryDto, ClientQueryDto, MyClientsQueryDto, AdminSortOption } from './dto/admin-query.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
-import { UpdateBankAccountDto } from './dto/bank-account.dto';
+import { AdminIncludeQueryDto } from './dto/admin-include-query.dto';
+import { ClientIncludeQueryDto } from '../clients/dto/client-query.dto';
 import {
   AdminResponseDto,
-  AdminProfileResponseDto,
   AdminListResponseDto,
-  BankAccountResponseDto,
 } from './dto/admin-response.dto';
 import {
   ClientListResponseDto,
-  ClientDetailResponseDto,
+  ClientResponseDto,
 } from '../clients/dto/client-response.dto';
 import {
   AdminSummaryDto,
@@ -30,7 +29,7 @@ export class AdminsService {
     private capabilitiesService: CapabilitiesService,
   ) {}
 
-  async findAll(query?: AdminQueryDto): Promise<AdminListResponseDto> {
+  async findAll(query?: AdminQueryDto & AdminIncludeQueryDto): Promise<AdminListResponseDto> {
     const page = query?.page ? parseInt(query.page, 10) : 1;
     const limit = query?.limit ? parseInt(query.limit, 10) : 10;
     const skip = (page - 1) * limit;
@@ -116,8 +115,21 @@ export class AdminsService {
       this.prisma.admin.count({ where }),
     ]);
 
+    let adminData: AdminResponseDto[];
+
+    if (query?.includeCapabilities) {
+      adminData = await Promise.all(
+        admins.map(async admin => {
+          const capabilities = await this.capabilitiesService.getUserCapabilities(admin.userId);
+          return this.mapToAdminResponse(admin, capabilities);
+        })
+      );
+    } else {
+      adminData = admins.map(admin => this.mapToAdminResponse(admin));
+    }
+
     return {
-      data: admins.map(admin => this.mapToAdminResponse(admin)),
+      data: adminData,
       meta: {
         total,
         page,
@@ -127,7 +139,7 @@ export class AdminsService {
     };
   }
 
-  async findOne(id: string): Promise<AdminResponseDto> {
+  async findOne(id: string, query?: AdminIncludeQueryDto): Promise<AdminResponseDto> {
     const admin = await this.prisma.admin.findUnique({
       where: { id },
       include: {
@@ -147,10 +159,15 @@ export class AdminsService {
       throw new NotFoundException('Admin not found');
     }
 
+    if (query?.includeCapabilities) {
+      const capabilities = await this.capabilitiesService.getUserCapabilities(admin.userId);
+      return this.mapToAdminResponse(admin, capabilities);
+    }
+
     return this.mapToAdminResponse(admin);
   }
 
-  async findByUserId(userId: string): Promise<AdminProfileResponseDto> {
+  async findByUserId(userId: string): Promise<AdminResponseDto> {
     const admin = await this.prisma.admin.findUnique({
       where: { userId },
       include: {
@@ -171,10 +188,10 @@ export class AdminsService {
     }
 
     const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
-    return this.mapToAdminProfileResponse(admin, capabilities);
+    return this.mapToAdminResponse(admin, capabilities);
   }
 
-  async updateProfile(userId: string, updateData: UpdateAdminDto): Promise<AdminProfileResponseDto> {
+  async updateProfile(userId: string, updateData: UpdateAdminDto): Promise<AdminResponseDto> {
     const admin = await this.prisma.admin.findUnique({ where: { userId } });
 
     if (!admin) {
@@ -201,7 +218,7 @@ export class AdminsService {
     });
 
     const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
-    return this.mapToAdminProfileResponse(updated, capabilities);
+    return this.mapToAdminResponse(updated, capabilities);
   }
 
   async getMyClients(adminId: string, query?: MyClientsQueryDto): Promise<ClientListResponseDto> {
@@ -383,7 +400,12 @@ export class AdminsService {
     };
   }
 
-  async getClientById(clientId: string): Promise<ClientDetailResponseDto> {
+  async getClientById(clientId: string, query?: ClientIncludeQueryDto): Promise<ClientResponseDto> {
+    const includeKyc = query?.includeKyc === true;
+    const includePartnership = query?.includePartnership === true;
+    const includeAgent = query?.includeAgent === true;
+    const includePartner = query?.includePartner === true;
+
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: {
@@ -396,39 +418,18 @@ export class AdminsService {
             },
           },
         },
-        kyc: true,
-        partnership: true,
-        lead: true,
-        closedByAgent: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            otherName: true,
-          },
-        },
-        referredByPartner: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            otherName: true,
-          },
-        },
-        enrollmentsAsClient: {
+        kyc: includeKyc,
+        partnership: includePartnership,
+        closedByAgent: includeAgent ? {
           include: {
-            property: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
+            user: true,
           },
-          take: 10,
-          orderBy: {
-            enrollmentDate: 'desc',
+        } : false,
+        referredByPartner: includePartner ? {
+          include: {
+            user: true,
           },
-        },
+        } : false,
       },
     });
 
@@ -436,7 +437,16 @@ export class AdminsService {
       throw new NotFoundException('Client not found');
     }
 
-    return this.mapToClientDetail(client);
+    // When admin views client, capabilities should always be empty array
+    const capabilities: string[] = [];
+
+    return this.mapToClientResponse(client, {
+      capabilities,
+      includeKyc,
+      includePartnership,
+      includeAgent,
+      includePartner,
+    });
   }
 
   async banAdmin(adminId: string) {
@@ -526,75 +536,7 @@ export class AdminsService {
     return { message: 'Admin role changed successfully' };
   }
 
-  async updateBankAccount(adminId: string, bankData: UpdateBankAccountDto): Promise<BankAccountResponseDto> {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
-
-    if (!admin) {
-      throw new NotFoundException('Admin not found');
-    }
-
-    const updated = await this.prisma.admin.update({
-      where: { id: adminId },
-      data: {
-        accountNumber: bankData.accountNumber,
-        bankCode: bankData.bankCode,
-        accountName: bankData.accountName,
-        bankName: bankData.bankName,
-      },
-      select: {
-        accountNumber: true,
-        bankCode: true,
-        accountName: true,
-        bankName: true,
-      },
-    });
-
-    return this.maskBankAccount(updated);
-  }
-
-  async getBankAccount(adminId: string): Promise<BankAccountResponseDto> {
-    const admin = await this.prisma.admin.findUnique({
-      where: { id: adminId },
-      select: {
-        accountNumber: true,
-        bankCode: true,
-        accountName: true,
-        bankName: true,
-      },
-    });
-
-    if (!admin) {
-      throw new NotFoundException('Admin not found');
-    }
-
-    if (!admin.accountNumber) {
-      throw new NotFoundException('Bank account not configured');
-    }
-
-    return this.maskBankAccount(admin);
-  }
-
-  async deleteBankAccount(adminId: string) {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
-
-    if (!admin) {
-      throw new NotFoundException('Admin not found');
-    }
-
-    await this.prisma.admin.update({
-      where: { id: adminId },
-      data: {
-        accountNumber: null,
-        bankCode: null,
-        accountName: null,
-        bankName: null,
-      },
-    });
-
-    return { message: 'Bank account deleted successfully' };
-  }
-
-  private mapToAdminResponse(admin: any): AdminResponseDto {
+  private mapToAdminResponse(admin: any, capabilities?: string[]): AdminResponseDto {
     return {
       id: admin.id,
       userId: admin.userId,
@@ -610,20 +552,17 @@ export class AdminsService {
       state: admin.state,
       country: admin.country,
       postalCode: admin.postalCode,
+      accountNumber: admin.accountNumber,
+      bankCode: admin.bankCode,
+      accountName: admin.accountName,
+      bankName: admin.bankName,
       canOnboardClients: admin.canOnboardClients,
       isBanned: admin.user.isBanned,
       isSuspended: admin.user.isSuspended,
       roles: admin.user.userRoles?.map((ur: any) => ur.role.name) || [],
+      ...(capabilities !== undefined && { capabilities }),
       createdAt: admin.createdAt,
       updatedAt: admin.updatedAt,
-    };
-  }
-
-  private mapToAdminProfileResponse(admin: any, capabilities: string[]): AdminProfileResponseDto {
-    const base = this.mapToAdminResponse(admin);
-    return {
-      ...base,
-      capabilities,
     };
   }
 
@@ -656,18 +595,17 @@ export class AdminsService {
     };
   }
 
-  private mapToClientDetail(client: any): ClientDetailResponseDto {
-    const enrollments: EnrollmentSummaryDto[] = client.enrollmentsAsClient?.map((enrollment: any) => ({
-      id: enrollment.id,
-      propertyId: enrollment.propertyId,
-      propertyName: enrollment.property?.name || '',
-      status: enrollment.status,
-      totalAmount: enrollment.totalAmount.toString(),
-      amountPaid: enrollment.amountPaid.toString(),
-      enrollmentDate: enrollment.enrollmentDate,
-    })) || [];
-
-    return {
+  private mapToClientResponse(
+    client: any,
+    options?: {
+      capabilities?: string[];
+      includeKyc?: boolean;
+      includePartnership?: boolean;
+      includeAgent?: boolean;
+      includePartner?: boolean;
+    },
+  ): ClientResponseDto {
+    const response: ClientResponseDto = {
       id: client.id,
       userId: client.userId,
       email: client.user.email,
@@ -683,73 +621,48 @@ export class AdminsService {
       hasCompletedOnboarding: client.hasCompletedOnboarding,
       partnerLink: client.partnerLink,
       referredByPartnerId: client.referredByPartnerId,
-      leadId: client.leadId,
       closedBy: client.closedBy,
       isSuspended: client.user.isSuspended,
       isBanned: client.user.isBanned,
       roles: client.user.userRoles?.map((ur: any) => ur.role.name) || [],
       createdAt: client.createdAt,
       updatedAt: client.updatedAt,
-      kyc: client.kyc ? {
+    };
+
+    // Add optional fields if requested
+    if (options?.capabilities !== undefined) {
+      response.capabilities = options.capabilities;
+    }
+
+    if (options?.includeKyc && client.kyc) {
+      response.kyc = {
         id: client.kyc.id,
         status: client.kyc.status,
         currentStep: client.kyc.currentStep,
         submittedAt: client.kyc.submittedAt,
         reviewedAt: client.kyc.reviewedAt,
-      } : null,
-      partnership: client.partnership ? {
+      };
+    }
+
+    if (options?.includePartnership && client.partnership) {
+      response.partnership = {
         id: client.partnership.id,
         status: client.partnership.status,
         appliedAt: client.partnership.appliedAt,
         reviewedAt: client.partnership.reviewedAt,
         suspendedAt: client.partnership.suspendedAt,
-      } : null,
-      lead: client.lead ? {
-        id: client.lead.id,
-        email: client.lead.email,
-        firstName: client.lead.firstName,
-        lastName: client.lead.lastName,
-        phone: client.lead.phone,
-        status: client.lead.status,
-      } : null,
-      closedByAgent: client.closedByAgent ? {
-        id: client.closedByAgent.id,
-        userId: client.closedByAgent.userId || '',
-        firstName: client.closedByAgent.firstName,
-        lastName: client.closedByAgent.lastName,
-        otherName: client.closedByAgent.otherName,
-        email: '',
-        phone: null,
-        createdAt: new Date(),
-      } : null,
-      referredByPartner: client.referredByPartner ? {
-        id: client.referredByPartner.id,
-        userId: client.referredByPartner.userId || '',
-        firstName: client.referredByPartner.firstName,
-        lastName: client.referredByPartner.lastName,
-        otherName: client.referredByPartner.otherName,
-        email: '',
-        phone: null,
-        gender: client.referredByPartner.gender,
-        partnerLink: client.referredByPartner.partnerLink,
-        hasCompletedOnboarding: client.referredByPartner.hasCompletedOnboarding,
-        createdAt: client.referredByPartner.createdAt,
-      } : null,
-      enrollments,
-    };
-  }
-
-  private maskBankAccount(bankData: any): BankAccountResponseDto {
-    if (!bankData.accountNumber) {
-      return null;
+      };
     }
 
-    const masked = '****' + bankData.accountNumber.slice(-4);
-    return {
-      accountNumber: masked,
-      bankCode: bankData.bankCode,
-      accountName: bankData.accountName,
-      bankName: bankData.bankName,
-    };
+    if (options?.includeAgent && client.closedByAgent) {
+      response.closedByAgent = this.mapToAdminSummary(client.closedByAgent);
+    }
+
+    if (options?.includePartner && client.referredByPartner) {
+      response.referredByPartner = this.mapToClientSummary(client.referredByPartner);
+    }
+
+    return response;
   }
+
 }

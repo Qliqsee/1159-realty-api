@@ -281,15 +281,6 @@ export class LeadsService {
             user: { select: { email: true } },
           },
         },
-        client: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            otherName: true,
-            user: { select: { email: true } },
-          },
-        },
         feedbacks: {
           include: {
             agent: {
@@ -478,50 +469,36 @@ export class LeadsService {
       throw new BadRequestException('Lead is already closed');
     }
 
-    // Find client by email
+    // Validate that client email exists in the system
     const client = await this.prisma.user.findUnique({
       where: { email: closeLeadDto.clientEmail },
+      include: {
+        client: { select: { id: true } },
+      },
     });
 
-    if (!client) {
+    if (!client || !client.client) {
       throw new NotFoundException(
         'Client with this email does not exist in the system',
       );
     }
 
-    // Check if another lead is already closed with this email
-    const existingClosedLead = await this.prisma.lead.findFirst({
-      where: {
-        clientId: client.id,
-        status: LeadStatus.CLOSED,
-        id: { not: id },
-      },
-    });
-
-    if (existingClosedLead) {
-      throw new BadRequestException(
-        'Another lead is already closed with this client email',
-      );
-    }
-
-    // Update lead and link to client
+    // Update lead and close it
     const updatedLead = await this.prisma.$transaction(async (tx) => {
-      // Update client with lead information
+      // Update client's closedBy field to track which admin closed them
       await tx.client.update({
-        where: { id: client.id },
+        where: { id: client.client.id },
         data: {
-          leadId: id,
           closedBy: userId,
         },
       });
 
-      // Update lead
+      // Update lead to closed status
       const closedLead = await tx.lead.update({
         where: { id },
         data: {
           status: LeadStatus.CLOSED,
           closedBy: userId,
-          clientId: client.id,
           statusChangedAt: new Date(),
           statusChangedBy: userId,
         },
@@ -536,15 +513,6 @@ export class LeadsService {
             },
           },
           closer: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              otherName: true,
-              user: { select: { email: true } },
-            },
-          },
-          client: {
             select: {
               id: true,
               firstName: true,

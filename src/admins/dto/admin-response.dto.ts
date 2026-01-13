@@ -44,6 +44,18 @@ export class AdminResponseDto {
   @ApiPropertyOptional({ description: 'Postal code' })
   postalCode?: string;
 
+  @ApiPropertyOptional({ description: 'Bank account number', example: '0123456789' })
+  accountNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Bank code', example: '058' })
+  bankCode?: string;
+
+  @ApiPropertyOptional({ description: 'Account name', example: 'John Doe' })
+  accountName?: string;
+
+  @ApiPropertyOptional({ description: 'Bank name', example: 'GTBank' })
+  bankName?: string;
+
   @ApiProperty({ description: 'Can onboard clients', example: true })
   canOnboardClients: boolean;
 
@@ -56,16 +68,14 @@ export class AdminResponseDto {
   @ApiProperty({ description: 'Roles assigned', example: ['agent', 'admin'] })
   roles: string[];
 
+  @ApiPropertyOptional({ description: 'Capabilities', example: ['properties:read', 'properties:create', 'enrollments:read'], type: [String] })
+  capabilities?: string[];
+
   @ApiProperty({ description: 'Created at' })
   createdAt: Date;
 
   @ApiProperty({ description: 'Updated at' })
   updatedAt: Date;
-}
-
-export class AdminProfileResponseDto extends AdminResponseDto {
-  @ApiProperty({ description: 'Capabilities', example: ['properties:read', 'properties:create', 'enrollments:read'], type: [String] })
-  capabilities: string[];
 }
 
 export class AdminListResponseDto {
@@ -74,18 +84,4 @@ export class AdminListResponseDto {
 
   @ApiProperty({ type: PaginationMetaDto })
   meta: PaginationMetaDto;
-}
-
-export class BankAccountResponseDto {
-  @ApiProperty({ description: 'Masked account number', example: '****6789' })
-  accountNumber: string;
-
-  @ApiProperty({ description: 'Bank code', example: '058' })
-  bankCode: string;
-
-  @ApiProperty({ description: 'Account name', example: 'John Doe' })
-  accountName: string;
-
-  @ApiProperty({ description: 'Bank name', example: 'GTBank' })
-  bankName: string;
 }

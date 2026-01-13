@@ -16,6 +16,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { AdminsService } from './admins.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -24,18 +25,17 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Request } from 'express';
 import { AdminQueryDto, ClientQueryDto, MyClientsQueryDto } from './dto/admin-query.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
-import { UpdateBankAccountDto } from './dto/bank-account.dto';
+import { AdminIncludeQueryDto } from './dto/admin-include-query.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
 import {
   AdminResponseDto,
-  AdminProfileResponseDto,
   AdminListResponseDto,
-  BankAccountResponseDto,
 } from './dto/admin-response.dto';
 import {
   ClientListResponseDto,
-  ClientDetailResponseDto,
+  ClientResponseDto,
 } from '../clients/dto/client-response.dto';
+import { ClientIncludeQueryDto } from '../clients/dto/client-query.dto';
 
 @ApiTags('Admins')
 @ApiBearerAuth('JWT-auth')
@@ -47,30 +47,31 @@ export class AdminsController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'List all admins with filters, search, and pagination (Admin only)' })
+  @ApiOperation({ summary: 'List all admins with filters, search, and pagination (Admin only). Use includeCapabilities=true to include capabilities (may impact performance).' })
+  @ApiQuery({ name: 'includeCapabilities', required: false, type: Boolean, description: 'Include capabilities for each admin (may impact performance on large lists)' })
   @ApiResponse({ status: 200, description: 'Returns paginated admins list', type: AdminListResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
-  findAll(@Query() query: AdminQueryDto): Promise<AdminListResponseDto> {
+  findAll(@Query() query: AdminQueryDto & AdminIncludeQueryDto): Promise<AdminListResponseDto> {
     return this.adminsService.findAll(query);
   }
 
   @Get('me')
-  @ApiOperation({ summary: 'Get logged in admin profile' })
-  @ApiResponse({ status: 200, description: 'Admin profile retrieved successfully', type: AdminProfileResponseDto })
+  @ApiOperation({ summary: 'Get logged in admin profile. Capabilities are always included for this endpoint.' })
+  @ApiResponse({ status: 200, description: 'Admin profile retrieved successfully', type: AdminResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Admin not found' })
-  getProfile(@Req() req: Request): Promise<AdminProfileResponseDto> {
+  getProfile(@Req() req: Request): Promise<AdminResponseDto> {
     return this.adminsService.findByUserId(req.user['id']);
   }
 
   @Patch('me')
-  @ApiOperation({ summary: 'Update logged in admin profile including bank details' })
+  @ApiOperation({ summary: 'Update logged in admin profile including bank details. Capabilities are always included in response.' })
   @ApiBody({ type: UpdateAdminDto })
-  @ApiResponse({ status: 200, description: 'Admin profile updated successfully', type: AdminProfileResponseDto })
+  @ApiResponse({ status: 200, description: 'Admin profile updated successfully', type: AdminResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Admin not found' })
-  updateProfile(@Req() req: Request, @Body() updateData: UpdateAdminDto): Promise<AdminProfileResponseDto> {
+  updateProfile(@Req() req: Request, @Body() updateData: UpdateAdminDto): Promise<AdminResponseDto> {
     return this.adminsService.updateProfile(req.user['id'], updateData);
   }
 
@@ -98,21 +99,27 @@ export class AdminsController {
   }
 
   @Get('clients/:id')
-  @ApiOperation({ summary: 'Get client by ID with full details' })
-  @ApiResponse({ status: 200, description: 'Client details retrieved successfully', type: ClientDetailResponseDto })
+  @ApiOperation({ summary: 'Get client by ID. Use query params to include optional fields (includeKyc, includePartnership, includeAgent, includePartner).' })
+  @ApiQuery({ name: 'includeCapabilities', required: false, type: Boolean, description: 'Include capabilities (always empty for admin viewing clients)' })
+  @ApiQuery({ name: 'includeKyc', required: false, type: Boolean, description: 'Include KYC summary' })
+  @ApiQuery({ name: 'includePartnership', required: false, type: Boolean, description: 'Include partnership summary' })
+  @ApiQuery({ name: 'includeAgent', required: false, type: Boolean, description: 'Include agent (closed by) summary' })
+  @ApiQuery({ name: 'includePartner', required: false, type: Boolean, description: 'Include referring partner summary' })
+  @ApiResponse({ status: 200, description: 'Client details retrieved successfully', type: ClientResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Client not found' })
-  getClientById(@Param('id') id: string): Promise<ClientDetailResponseDto> {
-    return this.adminsService.getClientById(id);
+  getClientById(@Param('id') id: string, @Query() query: ClientIncludeQueryDto): Promise<ClientResponseDto> {
+    return this.adminsService.getClientById(id, query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get single admin by ID' })
+  @ApiOperation({ summary: 'Get single admin by ID. Use includeCapabilities=true to include capabilities.' })
+  @ApiQuery({ name: 'includeCapabilities', required: false, type: Boolean, description: 'Include capabilities in response' })
   @ApiResponse({ status: 200, description: 'Admin retrieved successfully', type: AdminResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Admin not found' })
-  findOne(@Param('id') id: string): Promise<AdminResponseDto> {
-    return this.adminsService.findOne(id);
+  findOne(@Param('id') id: string, @Query() query: AdminIncludeQueryDto): Promise<AdminResponseDto> {
+    return this.adminsService.findOne(id, query);
   }
 
   @Post(':id/ban')
@@ -174,42 +181,5 @@ export class AdminsController {
   @ApiResponse({ status: 404, description: 'Admin or role not found' })
   changeRole(@Param('id') id: string, @Body() body: ChangeRoleDto) {
     return this.adminsService.changeRole(id, body.roleId);
-  }
-
-  @Patch(':id/bank-account')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Update admin bank account details (Admin only)' })
-  @ApiBody({ type: UpdateBankAccountDto })
-  @ApiResponse({ status: 200, description: 'Bank account updated successfully', type: BankAccountResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Admin not found' })
-  updateBankAccount(@Param('id') id: string, @Body() bankData: UpdateBankAccountDto) {
-    return this.adminsService.updateBankAccount(id, bankData);
-  }
-
-  @Get(':id/bank-account')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Get admin bank account details masked (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Bank account retrieved successfully', type: BankAccountResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Admin or bank account not found' })
-  getBankAccount(@Param('id') id: string) {
-    return this.adminsService.getBankAccount(id);
-  }
-
-  @Delete(':id/bank-account')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Remove admin bank account details (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Bank account deleted successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Admin not found' })
-  deleteBankAccount(@Param('id') id: string) {
-    return this.adminsService.deleteBankAccount(id);
   }
 }

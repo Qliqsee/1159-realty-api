@@ -1,14 +1,13 @@
 import { Controller, Post, Get, Body, UseGuards, Req, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { AdminSignUpDto } from './dto/admin-signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { AuthResponseDto, RefreshTokenDto, RefreshTokenResponseDto, GetMeResponseDto } from './dto/auth-response.dto';
+import { AuthResponseDto, RefreshTokenDto } from './dto/auth-response.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GoogleAdminAuthGuard } from './guards/google-admin-auth.guard';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Request, Response } from 'express';
 
 @ApiTags('Authentication')
@@ -75,7 +74,7 @@ export class AuthController {
 
     // Redirect to frontend with tokens
     res.redirect(
-      `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}&userType=client`
+      `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback?accessToken=${result.tokens.accessToken}&refreshToken=${result.tokens.refreshToken}&userType=client`
     );
   }
 
@@ -97,7 +96,7 @@ export class AuthController {
 
     // Redirect to frontend with tokens
     res.redirect(
-      `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}&userType=admin`
+      `${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback?accessToken=${result.tokens.accessToken}&refreshToken=${result.tokens.refreshToken}&userType=admin`
     );
   }
 
@@ -105,27 +104,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Refresh JWT access token' })
   @ApiResponse({
     status: 200,
-    description: 'New tokens generated',
-    type: RefreshTokenResponseDto,
+    description: 'New tokens and user profile generated',
+    type: AuthResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   @ApiResponse({ status: 403, description: 'Account has been banned' })
   async refresh(@Body() body: RefreshTokenDto) {
     return this.authService.refreshToken(body.refreshToken);
-  }
-
-  @Get('me')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({
-    status: 200,
-    description: 'Current user profile with capabilities',
-    type: GetMeResponseDto,
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getProfile(@Req() req: Request) {
-    const user: any = req.user;
-    return this.authService.getMe(user.userId);
   }
 }

@@ -37,24 +37,4 @@ export class UpdateClientDto {
   @IsString()
   @IsOptional()
   state?: string;
-
-  @ApiPropertyOptional({ description: 'Bank account number', example: '0123456789' })
-  @IsString()
-  @IsOptional()
-  accountNumber?: string;
-
-  @ApiPropertyOptional({ description: 'Bank code', example: '058' })
-  @IsString()
-  @IsOptional()
-  bankCode?: string;
-
-  @ApiPropertyOptional({ description: 'Account name', example: 'Jane Doe' })
-  @IsString()
-  @IsOptional()
-  accountName?: string;
-
-  @ApiPropertyOptional({ description: 'Bank name', example: 'GTBank' })
-  @IsString()
-  @IsOptional()
-  bankName?: string;
 }

@@ -33,7 +33,7 @@ export class DisbursementsService {
       where: { id: commissionId },
       include: {
         agent: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } }, accountNumber: true } },
-        partner: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } }, accountNumber: true } },
+        partner: { select: { id: true, firstName: true, lastName: true, otherName: true, user: { select: { email: true } } } },
         enrollment: {
           include: {
             property: { select: { name: true } },
@@ -63,11 +63,13 @@ export class DisbursementsService {
       throw new BadRequestException('Commission recipient not found');
     }
 
-    // Check if recipient has bank details
-    if (!recipient.accountNumber) {
-      throw new BadRequestException(
-        `${commission.type === 'AGENT' ? 'Agent' : 'Partner'} does not have bank details configured`,
-      );
+    // Check if recipient has bank details (only agents have bank details in the system)
+    if (commission.type === 'AGENT' && !commission.agent?.accountNumber) {
+      throw new BadRequestException('Agent does not have bank details configured');
+    }
+
+    if (commission.type === 'PARTNER') {
+      throw new BadRequestException('Partner disbursements are not supported (partners do not have bank details in the system)');
     }
 
     // Create disbursement

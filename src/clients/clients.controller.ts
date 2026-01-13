@@ -2,11 +2,11 @@ import {
   Controller,
   Get,
   Patch,
-  Delete,
   Param,
   Body,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -14,17 +14,16 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Request } from 'express';
 import { UpdateClientDto } from './dto/update-client.dto';
-import { UpdateBankAccountDto } from './dto/bank-account.dto';
+import { ClientIncludeQueryDto } from './dto/client-query.dto';
 import {
-  ClientProfileResponseDto,
-  ClientDetailResponseDto,
+  ClientResponseDto,
   ReferralsResponseDto,
-  BankAccountResponseDto,
 } from './dto/client-response.dto';
 import { AdminSummaryDto, ClientSummaryDto } from '../common/dto';
 
@@ -36,21 +35,28 @@ export class ClientsController {
   constructor(private clientsService: ClientsService) {}
 
   @Get('me')
-  @ApiOperation({ summary: 'Get logged in client profile' })
-  @ApiResponse({ status: 200, description: 'Client profile retrieved successfully', type: ClientProfileResponseDto })
+  @ApiOperation({
+    summary: 'Get logged in client profile',
+    description: 'Returns authenticated client profile. Capabilities are always included. Use query params to selectively include related data (kyc, partnership, agent, partner).'
+  })
+  @ApiQuery({ name: 'includeKyc', required: false, type: Boolean, description: 'Include KYC summary' })
+  @ApiQuery({ name: 'includePartnership', required: false, type: Boolean, description: 'Include partnership summary' })
+  @ApiQuery({ name: 'includeAgent', required: false, type: Boolean, description: 'Include agent (closed by) summary' })
+  @ApiQuery({ name: 'includePartner', required: false, type: Boolean, description: 'Include referring partner summary' })
+  @ApiResponse({ status: 200, description: 'Client profile retrieved successfully', type: ClientResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Client not found' })
-  getProfile(@Req() req: Request): Promise<ClientProfileResponseDto> {
-    return this.clientsService.findByUserId(req.user['id']);
+  getProfile(@Req() req: Request, @Query() query: ClientIncludeQueryDto): Promise<ClientResponseDto> {
+    return this.clientsService.findByUserId(req.user['id'], query);
   }
 
   @Patch('me')
   @ApiOperation({ summary: 'Update logged in client profile' })
   @ApiBody({ type: UpdateClientDto })
-  @ApiResponse({ status: 200, description: 'Client profile updated successfully', type: ClientProfileResponseDto })
+  @ApiResponse({ status: 200, description: 'Client profile updated successfully', type: ClientResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Client not found' })
-  updateProfile(@Req() req: Request, @Body() updateData: UpdateClientDto): Promise<ClientProfileResponseDto> {
+  updateProfile(@Req() req: Request, @Body() updateData: UpdateClientDto): Promise<ClientResponseDto> {
     return this.clientsService.updateProfile(req.user['id'], updateData);
   }
 
@@ -84,43 +90,20 @@ export class ClientsController {
     return this.clientsService.getMyReferrals(clientId);
   }
 
-  @Patch('bank-account')
-  @ApiOperation({ summary: 'Update client bank account details' })
-  @ApiBody({ type: UpdateBankAccountDto })
-  @ApiResponse({ status: 200, description: 'Bank account updated successfully', type: BankAccountResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
-  updateBankAccount(@Req() req: Request, @Body() bankData: UpdateBankAccountDto) {
-    const clientId = req.user['client']?.id;
-    return this.clientsService.updateBankAccount(clientId, bankData);
-  }
-
-  @Get('bank-account')
-  @ApiOperation({ summary: 'Get client bank account details masked' })
-  @ApiResponse({ status: 200, description: 'Bank account retrieved successfully', type: BankAccountResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Client or bank account not found' })
-  getBankAccount(@Req() req: Request) {
-    const clientId = req.user['client']?.id;
-    return this.clientsService.getBankAccount(clientId);
-  }
-
-  @Delete('bank-account')
-  @ApiOperation({ summary: 'Remove client bank account details' })
-  @ApiResponse({ status: 200, description: 'Bank account deleted successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
-  deleteBankAccount(@Req() req: Request) {
-    const clientId = req.user['client']?.id;
-    return this.clientsService.deleteBankAccount(clientId);
-  }
-
   @Get(':id')
-  @ApiOperation({ summary: 'Get client by ID with full details' })
-  @ApiResponse({ status: 200, description: 'Client details retrieved successfully', type: ClientDetailResponseDto })
+  @ApiOperation({
+    summary: 'Get client by ID',
+    description: 'Returns client details by ID. Use query params to selectively include related data. Capabilities will be empty unless explicitly requested (and will be empty even if requested since viewing another user).'
+  })
+  @ApiQuery({ name: 'includeCapabilities', required: false, type: Boolean, description: 'Include capabilities (will be empty for non-owner)' })
+  @ApiQuery({ name: 'includeKyc', required: false, type: Boolean, description: 'Include KYC summary' })
+  @ApiQuery({ name: 'includePartnership', required: false, type: Boolean, description: 'Include partnership summary' })
+  @ApiQuery({ name: 'includeAgent', required: false, type: Boolean, description: 'Include agent (closed by) summary' })
+  @ApiQuery({ name: 'includePartner', required: false, type: Boolean, description: 'Include referring partner summary' })
+  @ApiResponse({ status: 200, description: 'Client details retrieved successfully', type: ClientResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Client not found' })
-  findOne(@Param('id') id: string): Promise<ClientDetailResponseDto> {
-    return this.clientsService.findOne(id);
+  findOne(@Param('id') id: string, @Query() query: ClientIncludeQueryDto): Promise<ClientResponseDto> {
+    return this.clientsService.findOne(id, query);
   }
 }

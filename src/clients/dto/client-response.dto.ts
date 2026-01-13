@@ -4,8 +4,6 @@ import {
   ClientSummaryDto,
   KycSummaryDto,
   PartnershipSummaryDto,
-  LeadSummaryDto,
-  EnrollmentSummaryDto,
   PaginationMetaDto
 } from '../../common/dto';
 
@@ -55,9 +53,6 @@ export class ClientResponseDto {
   @ApiPropertyOptional({ description: 'Referred by partner ID' })
   referredByPartnerId?: string;
 
-  @ApiPropertyOptional({ description: 'Lead ID' })
-  leadId?: string;
-
   @ApiPropertyOptional({ description: 'Closed by admin ID' })
   closedBy?: string;
 
@@ -75,31 +70,22 @@ export class ClientResponseDto {
 
   @ApiProperty({ description: 'Updated at' })
   updatedAt: Date;
-}
 
-export class ClientProfileResponseDto extends ClientResponseDto {
-  @ApiProperty({ description: 'Capabilities', example: ['properties:read', 'properties:create', 'enrollments:read'], type: [String] })
-  capabilities: string[];
-}
+  // Optional fields that can be included via query parameters
+  @ApiPropertyOptional({ description: 'Capabilities', example: ['properties:read', 'enrollments:read'], type: [String] })
+  capabilities?: string[];
 
-export class ClientDetailResponseDto extends ClientResponseDto {
-  @ApiPropertyOptional({ type: KycSummaryDto })
+  @ApiPropertyOptional({ type: () => KycSummaryDto })
   kyc?: KycSummaryDto | null;
 
-  @ApiPropertyOptional({ type: PartnershipSummaryDto })
+  @ApiPropertyOptional({ type: () => PartnershipSummaryDto })
   partnership?: PartnershipSummaryDto | null;
 
-  @ApiPropertyOptional({ type: LeadSummaryDto })
-  lead?: LeadSummaryDto | null;
-
-  @ApiPropertyOptional({ type: AdminSummaryDto })
+  @ApiPropertyOptional({ type: () => AdminSummaryDto })
   closedByAgent?: AdminSummaryDto | null;
 
-  @ApiPropertyOptional({ type: ClientSummaryDto })
+  @ApiPropertyOptional({ type: () => ClientSummaryDto })
   referredByPartner?: ClientSummaryDto | null;
-
-  @ApiProperty({ type: [EnrollmentSummaryDto] })
-  enrollments: EnrollmentSummaryDto[];
 }
 
 export class ReferralsResponseDto {
@@ -116,18 +102,4 @@ export class ClientListResponseDto {
 
   @ApiProperty({ type: PaginationMetaDto })
   meta: PaginationMetaDto;
-}
-
-export class BankAccountResponseDto {
-  @ApiProperty({ description: 'Masked account number', example: '****6789' })
-  accountNumber: string;
-
-  @ApiProperty({ description: 'Bank code', example: '058' })
-  bankCode: string;
-
-  @ApiProperty({ description: 'Account name', example: 'Jane Doe' })
-  accountName: string;
-
-  @ApiProperty({ description: 'Bank name', example: 'GTBank' })
-  bankName: string;
 }

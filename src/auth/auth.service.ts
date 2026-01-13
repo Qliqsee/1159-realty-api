@@ -3,6 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { CapabilitiesService } from '../capabilities/capabilities.service';
+import { ClientsService } from '../clients/clients.service';
+import { AdminsService } from '../admins/admins.service';
 import * as bcrypt from 'bcrypt';
 import { SignUpDto } from './dto/signup.dto';
 import { AdminSignUpDto } from './dto/admin-signup.dto';
@@ -14,6 +16,8 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private capabilitiesService: CapabilitiesService,
+    private clientsService: ClientsService,
+    private adminsService: AdminsService,
   ) {}
 
   // CLIENT SIGNUP
@@ -85,17 +89,10 @@ export class AuthService {
       return { user, client };
     });
 
-    // Fetch complete user data with roles
+    // Fetch roles for token generation
     const userWithRoles = await this.prisma.user.findUnique({
       where: { id: result.user.id },
       select: {
-        id: true,
-        email: true,
-        isEmailVerified: true,
-        isSuspended: true,
-        isBanned: true,
-        createdAt: true,
-        updatedAt: true,
         userRoles: {
           select: {
             role: {
@@ -103,30 +100,23 @@ export class AuthService {
             },
           },
         },
-        client: true,
       },
     });
     const roles = userWithRoles?.userRoles.map(ur => ur.role.name) || [];
 
+    // Generate tokens
     const tokens = await this.generateTokens(result.user.id, result.user.email, 'client', roles);
-    const capabilities = await this.capabilitiesService.getUserCapabilities(result.user.id);
+
+    // Fetch client profile with capabilities using ClientsService
+    const clientProfile = await this.clientsService.findByUserId(result.user.id);
 
     return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: {
-        id: userWithRoles.id,
-        email: userWithRoles.email,
-        isEmailVerified: userWithRoles.isEmailVerified,
-        isSuspended: userWithRoles.isSuspended,
-        isBanned: userWithRoles.isBanned,
-        userType: 'client' as const,
-        roles,
-        createdAt: userWithRoles.createdAt,
-        updatedAt: userWithRoles.updatedAt,
-        client: userWithRoles.client,
+      client: clientProfile,
+      admin: null,
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
-      capabilities,
     };
   }
 
@@ -177,17 +167,10 @@ export class AuthService {
       return { user, admin };
     });
 
-    // Fetch complete user data with roles
+    // Fetch roles for token generation
     const userWithRoles = await this.prisma.user.findUnique({
       where: { id: result.user.id },
       select: {
-        id: true,
-        email: true,
-        isEmailVerified: true,
-        isSuspended: true,
-        isBanned: true,
-        createdAt: true,
-        updatedAt: true,
         userRoles: {
           select: {
             role: {
@@ -195,30 +178,23 @@ export class AuthService {
             },
           },
         },
-        admin: true,
       },
     });
     const roles = userWithRoles?.userRoles.map(ur => ur.role.name) || [];
 
+    // Generate tokens
     const tokens = await this.generateTokens(result.user.id, result.user.email, 'admin', roles);
-    const capabilities = await this.capabilitiesService.getUserCapabilities(result.user.id);
+
+    // Fetch admin profile with capabilities using AdminsService
+    const adminProfile = await this.adminsService.findByUserId(result.user.id);
 
     return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: {
-        id: userWithRoles.id,
-        email: userWithRoles.email,
-        isEmailVerified: userWithRoles.isEmailVerified,
-        isSuspended: userWithRoles.isSuspended,
-        isBanned: userWithRoles.isBanned,
-        userType: 'admin' as const,
-        roles,
-        createdAt: userWithRoles.createdAt,
-        updatedAt: userWithRoles.updatedAt,
-        admin: userWithRoles.admin,
+      client: null,
+      admin: adminProfile,
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
-      capabilities,
     };
   }
 
@@ -275,17 +251,10 @@ export class AuthService {
       throw new UnauthorizedException('User type not found');
     }
 
-    // Fetch complete user data with roles
+    // Fetch roles for token generation
     const userWithRoles = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: {
-        id: true,
-        email: true,
-        isEmailVerified: true,
-        isSuspended: true,
-        isBanned: true,
-        createdAt: true,
-        updatedAt: true,
         userRoles: {
           select: {
             role: {
@@ -293,32 +262,25 @@ export class AuthService {
             },
           },
         },
-        admin: true,
-        client: true,
       },
     });
     const roles = userWithRoles?.userRoles.map(ur => ur.role.name) || [];
 
+    // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email, userType, roles);
-    const capabilities = await this.capabilitiesService.getUserCapabilities(user.id);
+
+    // Fetch user profile with capabilities using appropriate service
+    const userProfile = userType === 'client'
+      ? await this.clientsService.findByUserId(user.id)
+      : await this.adminsService.findByUserId(user.id);
 
     return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: {
-        id: userWithRoles.id,
-        email: userWithRoles.email,
-        isEmailVerified: userWithRoles.isEmailVerified,
-        isSuspended: userWithRoles.isSuspended,
-        isBanned: userWithRoles.isBanned,
-        userType,
-        roles,
-        createdAt: userWithRoles.createdAt,
-        updatedAt: userWithRoles.updatedAt,
-        admin: userWithRoles.admin,
-        client: userWithRoles.client,
+      client: userType === 'client' ? userProfile : null,
+      admin: userType === 'admin' ? userProfile : null,
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
-      capabilities,
     };
   }
 
@@ -529,17 +491,10 @@ export class AuthService {
       throw new UnauthorizedException('User type not found');
     }
 
-    // Fetch complete user data with roles
+    // Fetch roles for token generation
     const userWithRoles = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: {
-        id: true,
-        email: true,
-        isEmailVerified: true,
-        isSuspended: true,
-        isBanned: true,
-        createdAt: true,
-        updatedAt: true,
         userRoles: {
           select: {
             role: {
@@ -547,32 +502,25 @@ export class AuthService {
             },
           },
         },
-        admin: true,
-        client: true,
       },
     });
     const roles = userWithRoles?.userRoles.map(ur => ur.role.name) || [];
 
+    // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email, userType, roles);
-    const capabilities = await this.capabilitiesService.getUserCapabilities(user.id);
+
+    // Fetch user profile with capabilities using appropriate service
+    const userProfile = userType === 'client'
+      ? await this.clientsService.findByUserId(user.id)
+      : await this.adminsService.findByUserId(user.id);
 
     return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: {
-        id: userWithRoles.id,
-        email: userWithRoles.email,
-        isEmailVerified: userWithRoles.isEmailVerified,
-        isSuspended: userWithRoles.isSuspended,
-        isBanned: userWithRoles.isBanned,
-        userType,
-        roles,
-        createdAt: userWithRoles.createdAt,
-        updatedAt: userWithRoles.updatedAt,
-        admin: userWithRoles.admin,
-        client: userWithRoles.client,
+      client: userType === 'client' ? userProfile : null,
+      admin: userType === 'admin' ? userProfile : null,
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
-      capabilities,
     };
   }
 
@@ -619,11 +567,19 @@ export class AuthService {
       const roles = user.userRoles.map(ur => ur.role.name);
 
       const tokens = await this.generateTokens(user.id, user.email, userType, roles);
-      const capabilities = await this.capabilitiesService.getUserCapabilities(user.id);
+
+      // Fetch user profile with capabilities using appropriate service
+      const userProfile = userType === 'client'
+        ? await this.clientsService.findByUserId(user.id)
+        : await this.adminsService.findByUserId(user.id);
 
       return {
-        ...tokens,
-        capabilities,
+        client: userType === 'client' ? userProfile : null,
+        admin: userType === 'admin' ? userProfile : null,
+        tokens: {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        },
       };
     } catch (error) {
       if (error instanceof ForbiddenException) {
@@ -631,60 +587,6 @@ export class AuthService {
       }
       throw new UnauthorizedException('Invalid refresh token');
     }
-  }
-
-  async getMe(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        isEmailVerified: true,
-        isSuspended: true,
-        isBanned: true,
-        createdAt: true,
-        updatedAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: { name: true },
-            },
-          },
-        },
-        admin: true,
-        client: true,
-      },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    const userType = user.admin ? 'admin' : user.client ? 'client' : null;
-
-    if (!userType) {
-      throw new UnauthorizedException('User type not found');
-    }
-
-    const roles = user.userRoles.map(ur => ur.role.name);
-    const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        isEmailVerified: user.isEmailVerified,
-        isSuspended: user.isSuspended,
-        isBanned: user.isBanned,
-        userType,
-        roles,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        admin: user.admin,
-        client: user.client,
-      },
-      capabilities,
-    };
   }
 
   private async generateTokens(userId: string, email: string, userType: 'admin' | 'client', roles: string[]) {

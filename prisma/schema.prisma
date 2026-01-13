@@ -260,11 +260,6 @@ model Client {
   hasCompletedOnboarding Boolean   @default(false)
   partnerLink            String?   @unique
   referredByPartnerId    String?
-  accountNumber          String?
-  bankCode               String?
-  accountName            String?
-  bankName               String?
-  leadId                 String?   @unique
   closedBy               String?
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
@@ -272,7 +267,6 @@ model Client {
   user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   kyc                   Kyc?
   propertyInterests     PropertyInterest[]
-  lead                  Lead?              @relation("LeadToClient", fields: [leadId], references: [id])
   closedByAgent         Admin?             @relation("ClosedByAgent", fields: [closedBy], references: [id])
   partnership           Partnership?
   referredByPartner     Client?            @relation("ReferredByPartner", fields: [referredByPartnerId], references: [id])
@@ -643,7 +637,6 @@ model Lead {
   reservationExpiresAt DateTime?
   addedBy              String
   closedBy             String?
-  clientId             String?    @unique
   statusChangedAt      DateTime?
   statusChangedBy      String?
   createdAt            DateTime   @default(now())
@@ -653,7 +646,6 @@ model Lead {
   closer        Admin?             @relation("LeadClosedBy", fields: [closedBy], references: [id])
   reserver      Admin?             @relation("LeadReservedBy", fields: [reservedBy], references: [id])
   statusChanger Admin?             @relation("LeadStatusChangedBy", fields: [statusChangedBy], references: [id])
-  client        Client?            @relation("LeadToClient")
   feedbacks     LeadFeedback[]
   agentHistory  LeadAgentHistory[]
 
