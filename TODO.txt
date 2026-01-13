@@ -114,6 +114,14 @@ Check Swagger docs to ensure query parameters are documented properly.
 Verify performance improvement by checking SQL queries logged by Prisma - should see fewer joins when query params not specified.
 Test analytics queries on Client table using firstName, lastName, phone, gender, country, state columns to ensure they work efficiently.
 
+IMPORTANT NOTE - ADMIN CONTROLLER DEPENDENCY:
+The Admin module has client-related endpoints that depend on ClientResponseDto and ClientDetailResponseDto:
+- GET /admins/my-clients returns ClientListResponseDto
+- GET /admins/clients returns ClientListResponseDto
+- GET /admins/clients/:id returns ClientDetailResponseDto
+These will be affected by the client DTO refactoring. The admin controller updates are documented in the separate admin TODO file (TODO-ADMIN-REFACTOR.txt).
+After completing client refactoring, the admin refactoring must follow to ensure consistency.
+
 IMPLEMENTATION NOTES:
 Do not create any progress tracking in terminal or conversation. Only update this TODO.txt file.
 Remove completed tasks from this file as you finish them.
