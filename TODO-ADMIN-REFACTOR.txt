@@ -136,13 +136,26 @@ Check Swagger docs to ensure all query parameters are documented properly.
 Verify performance improvement by checking that capabilities service is not called when includeCapabilities not specified.
 Test that admins viewing clients via /admins/clients/:id?includeCapabilities=true get empty capabilities array (not the client's actual capabilities).
 
-IMPORTANT NOTE - CLIENT MODULE DEPENDENCY:
+IMPORTANT NOTE - MODULE DEPENDENCIES:
+This admin refactoring has dependencies on other modules:
+
+1. CLIENT MODULE DEPENDENCY (PREREQUISITE):
 This admin refactoring depends on the client module refactoring documented in TODO.txt.
 The client module must be completed first because:
 - ClientDetailResponseDto is being removed and unified into ClientResponseDto
 - ClientResponseDto now accepts query parameters for optional fields
 - Admin controller endpoints /admins/my-clients, /admins/clients, and /admins/clients/:id use client DTOs
 Do not start admin refactoring until client refactoring is complete and tested.
+
+2. AUTH MODULE DEPENDENCY (SUBSEQUENT):
+The Auth module will need AdminResponseDto after this refactoring is complete.
+Auth endpoints (signup, login, Google OAuth, token refresh) will reuse AdminResponseDto directly.
+Auth refactoring is documented in TODO-AUTH-REFACTOR.txt and must be done after this admin refactoring.
+
+REFACTORING ORDER:
+1. Complete client refactoring first (TODO.txt)
+2. Complete admin refactoring second (this file)
+3. Complete auth refactoring last (TODO-AUTH-REFACTOR.txt)
 
 IMPLEMENTATION NOTES:
 Do not create any progress tracking in terminal or conversation. Only update this TODO-ADMIN-REFACTOR.txt file.
