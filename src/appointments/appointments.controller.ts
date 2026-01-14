@@ -20,8 +20,8 @@ import { BookAppointmentDto } from './dto/book-appointment.dto';
 import { QueryAppointmentsDto } from './dto/query-appointments.dto';
 import { AppointmentResponseDto } from './dto/appointment-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 
 @ApiTags('Appointments')
 @Controller('appointments')
@@ -32,8 +32,7 @@ export class AppointmentsController {
 
   // Client endpoints
   @Post('book')
-  @UseGuards(RolesGuard)
-  @Roles('client', 'partner')
+  @UseGuards(PermissionsGuard)
   @ApiOperation({ summary: 'Book an appointment (Client/Partner)' })
   @ApiResponse({
     status: 201,
@@ -54,8 +53,7 @@ export class AppointmentsController {
   }
 
   @Get('my-appointments')
-  @UseGuards(RolesGuard)
-  @Roles('client', 'partner')
+  @UseGuards(PermissionsGuard)
   @ApiOperation({
     summary: 'Get my appointments with filters and pagination (Client/Partner)',
   })
@@ -88,8 +86,7 @@ export class AppointmentsController {
   }
 
   @Delete(':id/cancel')
-  @UseGuards(RolesGuard)
-  @Roles('client', 'partner')
+  @UseGuards(PermissionsGuard)
   @ApiOperation({ summary: 'Cancel my appointment (Client/Partner)' })
   @ApiResponse({
     status: 200,
@@ -111,8 +108,8 @@ export class AppointmentsController {
 
   // Admin endpoints
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('appointments', 'manage')
   @ApiOperation({
     summary: 'Get all appointments with filters and pagination (Admin only)',
   })
@@ -142,8 +139,8 @@ export class AppointmentsController {
   }
 
   @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('appointments', 'manage')
   @ApiOperation({ summary: 'Get appointment by ID (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -156,8 +153,8 @@ export class AppointmentsController {
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('appointments', 'manage')
   @ApiOperation({ summary: 'Cancel any appointment (Admin only)' })
   @ApiResponse({
     status: 200,

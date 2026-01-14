@@ -8,8 +8,8 @@ import {
 import { DashboardService } from './dashboard.service';
 import { AdminStatsResponseDto } from './dto/admin-stats-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 
 @ApiTags('Dashboard')
 @Controller('dashboard')
@@ -18,8 +18,8 @@ export class DashboardController {
 
   @Get('admin-stats')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('dashboard', 'manage')
   @ApiOperation({
     summary: 'Get admin dashboard statistics',
     description:

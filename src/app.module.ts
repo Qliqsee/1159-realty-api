@@ -33,6 +33,8 @@ import { CampaignsModule } from './campaigns/campaigns.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AdminsModule } from './admins/admins.module';
 import { ClientsModule } from './clients/clients.module';
+import { PermissionsModule } from './permissions/permissions.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -41,6 +43,7 @@ import { ClientsModule } from './clients/clients.module';
       envFilePath: '.env',
     }),
     ScheduleModule.forRoot(),
+    CommonModule,
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -71,6 +74,7 @@ import { ClientsModule } from './clients/clients.module';
     DashboardModule,
     AdminsModule,
     ClientsModule,
+    PermissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

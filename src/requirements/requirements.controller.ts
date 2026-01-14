@@ -25,8 +25,8 @@ import { UpdateRequirementDto } from './dto/update-requirement.dto';
 import { ApproveDocumentDto } from './dto/approve-document.dto';
 import { RejectDocumentDto } from './dto/reject-document.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 
 @ApiTags('Requirements Management')
 @ApiBearerAuth('JWT-auth')
@@ -36,8 +36,8 @@ export class RequirementsController {
   constructor(private readonly requirementsService: RequirementsService) {}
 
   @Post('cases/:caseId')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @ApiOperation({ summary: 'Add requirement to case (Admin only)' })
   @ApiResponse({ status: 201, description: 'Requirement created successfully' })
   @ApiResponse({ status: 404, description: 'Case not found' })
@@ -49,8 +49,8 @@ export class RequirementsController {
   }
 
   @Get('cases/:caseId')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @ApiOperation({ summary: 'Get all requirements for a case (Admin only)' })
   @ApiResponse({ status: 200, description: 'Returns requirements list' })
   @ApiResponse({ status: 404, description: 'Case not found' })
@@ -67,8 +67,8 @@ export class RequirementsController {
   }
 
   @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @ApiOperation({ summary: 'Get requirement detail (Admin only)' })
   @ApiResponse({ status: 200, description: 'Returns requirement details' })
   @ApiResponse({ status: 404, description: 'Requirement not found' })
@@ -77,8 +77,8 @@ export class RequirementsController {
   }
 
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @ApiOperation({ summary: 'Update requirement (Admin only)' })
   @ApiResponse({ status: 200, description: 'Requirement updated successfully' })
   @ApiResponse({ status: 404, description: 'Requirement not found' })
@@ -90,8 +90,8 @@ export class RequirementsController {
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @ApiOperation({ summary: 'Delete requirement (Admin only)' })
   @ApiResponse({ status: 200, description: 'Requirement deleted successfully' })
   @ApiResponse({ status: 404, description: 'Requirement not found' })
@@ -100,8 +100,8 @@ export class RequirementsController {
   }
 
   @Post(':id/samples')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload sample document (Admin only)' })
@@ -115,8 +115,8 @@ export class RequirementsController {
   }
 
   @Delete('samples/:id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @ApiOperation({ summary: 'Delete sample document (Admin only)' })
   @ApiResponse({ status: 200, description: 'Sample document deleted successfully' })
   @ApiResponse({ status: 404, description: 'Sample document not found' })
@@ -151,8 +151,8 @@ export class RequirementsController {
   }
 
   @Patch('documents/:id/approve')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @ApiOperation({ summary: 'Approve document (Admin only)' })
   @ApiResponse({ status: 200, description: 'Document approved successfully' })
   @ApiResponse({ status: 404, description: 'Document not found' })
@@ -165,8 +165,8 @@ export class RequirementsController {
   }
 
   @Patch('documents/:id/reject')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @ApiOperation({ summary: 'Reject document (Admin only)' })
   @ApiResponse({ status: 200, description: 'Document rejected successfully' })
   @ApiResponse({ status: 404, description: 'Document not found' })
@@ -183,8 +183,8 @@ export class RequirementsController {
   }
 
   @Get(':id/documents/stats')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('documentation', 'manage')
   @ApiOperation({ summary: 'Get document statistics for requirement (Admin only)' })
   @ApiResponse({ status: 200, description: 'Returns document statistics' })
   @ApiResponse({ status: 404, description: 'Requirement not found' })

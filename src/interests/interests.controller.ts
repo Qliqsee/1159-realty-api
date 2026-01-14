@@ -22,8 +22,8 @@ import { InterestResponseDto } from './dto/interest-response.dto';
 import { InterestStatsDto } from './dto/interest-stats.dto';
 import { PaginatedInterestResponseDto } from './dto/paginated-interest-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 
 @ApiTags('Interests')
 @Controller('interests')
@@ -34,8 +34,7 @@ export class InterestsController {
 
   // Client endpoints
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('client', 'partner')
+  @UseGuards(PermissionsGuard)
   @ApiOperation({
     summary: 'Express interest in a property (Client/Partner)',
     description: 'Client or partner expresses interest in a property with an optional message',
@@ -58,8 +57,7 @@ export class InterestsController {
   }
 
   @Get('my-interests')
-  @UseGuards(RolesGuard)
-  @Roles('client', 'partner')
+  @UseGuards(PermissionsGuard)
   @ApiOperation({
     summary: 'Get my interests with filters and pagination (Client/Partner)',
     description: 'View all interests expressed by the authenticated client',
@@ -78,8 +76,8 @@ export class InterestsController {
 
   // Admin endpoints
   @Get('stats')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'manager')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('client-interests', 'manage')
   @ApiOperation({
     summary: 'Get interest statistics (Admin/Manager)',
     description: 'Returns total interests, open interests, and closed interests',
@@ -94,8 +92,8 @@ export class InterestsController {
   }
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'manager', 'agent')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('client-interests', 'create')
   @ApiOperation({
     summary: 'Get all interests with filters and pagination (Admin/Manager/Agent)',
     description: 'Admin and managers can view all interests. Supports search on client name, property name, agent name, and message. Supports filters by status, propertyId, clientId, agentId, and date range.',
@@ -130,8 +128,8 @@ export class InterestsController {
   }
 
   @Post(':id/mark-attended')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'manager')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('client-interests', 'manage')
   @ApiOperation({
     summary: 'Mark interest as attended (Admin/Manager)',
     description: 'Changes the status to CLOSED and sets contactedAt timestamp',

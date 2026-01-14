@@ -20,8 +20,8 @@ import { ResolveInvoiceDto } from './dto/resolve-invoice.dto';
 import { InvoiceResponseDto, InvoiceDetailResponseDto } from './dto/invoice-response.dto';
 import { InvoiceStatsQueryDto, InvoiceStatsResponseDto } from './dto/invoice-stats.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Request } from 'express';
 
 @ApiTags('Invoices')
@@ -31,8 +31,8 @@ export class InvoicesController {
 
   @Get()
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('invoices', 'manage')
   @ApiOperation({
     summary: 'List all invoices (admin only)',
     description: 'Returns paginated invoices with filters, search, and sorting',
@@ -50,8 +50,8 @@ export class InvoicesController {
 
   @Get('my-invoices')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('agent')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('invoices', 'view_mines')
   @ApiOperation({
     summary: 'List own invoices (agent only)',
     description: 'Returns paginated invoices for enrollments where the authenticated agent is assigned',
@@ -70,8 +70,7 @@ export class InvoicesController {
 
   @Get('client')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('client')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'List client invoices (client only)',
     description: 'Returns paginated invoices for enrollments where the authenticated client is linked',
@@ -90,8 +89,7 @@ export class InvoicesController {
 
   @Get('partner')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('partner')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'List partner invoices (partner only)',
     description: 'Returns paginated invoices for enrollments where the authenticated partner onboarded the client',
@@ -110,8 +108,8 @@ export class InvoicesController {
 
   @Get('stats')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('invoices', 'manage')
   @ApiOperation({
     summary: 'Get invoice statistics (admin only)',
     description: 'Returns invoice statistics including counts by status and revenue breakdown. Supports optional filtering by date range, property, agent, or partner.',
@@ -129,8 +127,8 @@ export class InvoicesController {
 
   @Get(':id')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent', 'client', 'partner')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('invoices', 'create')
   @ApiOperation({
     summary: 'Get invoice by ID (admin/agent/client/partner)',
     description: 'Returns detailed invoice information with enrollment details and payment history. Access is role-based.',
@@ -151,8 +149,8 @@ export class InvoicesController {
 
   @Post(':id/resolve')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('invoices', 'manage')
   @ApiOperation({
     summary: 'Resolve invoice manually (admin only)',
     description: 'Marks invoice as paid with manual payment reference. Validates sequential payment, creates commissions, and updates enrollment status if all invoices are paid. Applies overdue fee if applicable.',
@@ -177,8 +175,8 @@ export class InvoicesController {
 
   @Post(':id/undo')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('invoices', 'manage')
   @ApiOperation({
     summary: 'Undo invoice payment (admin only)',
     description: 'Reverses a paid invoice. Only works for the most recent payment (sequential rule). Updates enrollment status and cancels associated commissions.',
@@ -199,8 +197,8 @@ export class InvoicesController {
 
   @Get(':id/download')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent', 'client', 'partner')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('invoices', 'create')
   @ApiOperation({
     summary: 'Download invoice as PDF (admin/agent/client/partner)',
     description: 'Generates and downloads a professional PDF invoice. Access is role-based: admin (all), agent (own), client (own), partner (onboarded clients).',

@@ -1,33 +1,47 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
+import { PERMISSION_KEY } from '../decorators/require-permission.decorator';
+import { PermissionsService } from '../../permissions/permissions.service';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private permissionsService: PermissionsService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const permission = this.reflector.getAllAndOverride<{
+      resource: string;
+      action: string;
+    }>(PERMISSION_KEY, [context.getHandler(), context.getClass()]);
 
-    if (!requiredPermissions) {
+    if (!permission) {
       return true;
     }
 
     const { user } = context.switchToHttp().getRequest();
 
-    if (!user || !user.permissions) {
-      throw new ForbiddenException('Access denied: No permissions found');
+    if (!user || !user.roles) {
+      throw new ForbiddenException('Access denied: No roles found');
     }
 
-    const hasPermission = requiredPermissions.every((permission) =>
-      user.permissions.some((userPerm: any) => userPerm.name === permission)
+    const roleNames = user.roles.map((r: any) => r.name);
+    const hasPermission = await this.permissionsService.checkPermission(
+      roleNames,
+      permission.resource,
+      permission.action,
     );
 
     if (!hasPermission) {
-      throw new ForbiddenException('Access denied: Insufficient permissions');
+      throw new ForbiddenException(
+        `Access denied: Missing permission ${permission.resource}:${permission.action}`,
+      );
     }
 
     return true;

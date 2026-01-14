@@ -603,9 +603,9 @@ export class UsersService {
           include: {
             role: {
               include: {
-                rolePermissions: {
+                roleResources: {
                   include: {
-                    permission: true,
+                    resource: true,
                   },
                 },
               },
@@ -620,7 +620,10 @@ export class UsersService {
     }
 
     const permissions = user.userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => rp.permission)
+      ur.role.roleResources.map((rr) => ({
+        resource: rr.resource.name,
+        actions: rr.actions,
+      }))
     );
 
     return permissions;
@@ -1008,9 +1011,9 @@ export class UsersService {
           include: {
             role: {
               include: {
-                rolePermissions: {
+                roleResources: {
                   include: {
-                    permission: true,
+                    resource: true,
                   },
                 },
               },
@@ -1025,7 +1028,10 @@ export class UsersService {
     }
 
     const permissions = user.userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => rp.permission)
+      ur.role.roleResources.map((rr) => ({
+        resource: rr.resource.name,
+        actions: rr.actions,
+      }))
     );
 
     return permissions;

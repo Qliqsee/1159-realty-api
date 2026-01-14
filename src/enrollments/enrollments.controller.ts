@@ -21,8 +21,8 @@ import { QueryEnrollmentsDto } from './dto/query-enrollments.dto';
 import { LinkClientDto } from './dto/link-client.dto';
 import { GeneratePaymentLinkDto } from './dto/generate-payment-link.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Request } from 'express';
 
 @ApiTags('Enrollments')
@@ -32,8 +32,8 @@ export class EnrollmentsController {
 
   @Post()
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'create')
   @ApiOperation({
     summary: 'Create enrollment (admin/agent)',
     description:
@@ -78,8 +78,8 @@ export class EnrollmentsController {
 
   @Get()
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'manage')
   @ApiOperation({
     summary: 'List all enrollments (admin only)',
     description: 'Returns paginated enrollments with filters and search',
@@ -139,8 +139,8 @@ export class EnrollmentsController {
 
   @Get('my-enrollments')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('agent')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'view_mines')
   @ApiOperation({
     summary: 'List own enrollments (agent only)',
     description: 'Returns paginated enrollments for the authenticated agent',
@@ -195,8 +195,7 @@ export class EnrollmentsController {
 
   @Get('client')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('client')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'List own enrollments (client only)',
     description: 'Returns paginated enrollments for the authenticated client',
@@ -244,8 +243,8 @@ export class EnrollmentsController {
 
   @Get('dashboard')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent', 'partner')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'create')
   @ApiOperation({
     summary: 'Get enrollment dashboard with metrics and trends',
     description: 'Returns comprehensive dashboard data including enrollments, revenue, commissions, monthly trends, and conversion rates. Role-based: agents/partners see only their own data.',
@@ -286,8 +285,8 @@ export class EnrollmentsController {
 
   @Get('stats')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'manage')
   @ApiOperation({
     summary: 'Get enrollment statistics (admin only)',
     description: 'Returns enrollment counts and revenue metrics for all enrollments across the app',
@@ -321,8 +320,8 @@ export class EnrollmentsController {
 
   @Get('stats/me')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('agent')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'view_mines')
   @ApiOperation({
     summary: 'Get my enrollment statistics (agent only)',
     description: 'Returns enrollment counts and revenue metrics for enrollments where the authenticated user is the agent. No query parameters required.',
@@ -352,8 +351,8 @@ export class EnrollmentsController {
 
   @Get(':id')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent', 'client')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'create')
   @ApiOperation({
     summary: 'Get enrollment details',
     description:
@@ -445,8 +444,8 @@ export class EnrollmentsController {
 
   @Patch(':id/cancel')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'manage')
   @ApiOperation({
     summary: 'Cancel enrollment (admin only)',
     description: 'Cancels an enrollment and tracks who cancelled it',
@@ -475,8 +474,8 @@ export class EnrollmentsController {
 
   @Patch(':id/resume')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'manage')
   @ApiOperation({
     summary: 'Resume suspended enrollment (admin only)',
     description: 'Resumes a suspended enrollment and resets grace period',
@@ -507,8 +506,8 @@ export class EnrollmentsController {
 
   @Patch(':id/link-client')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'manage')
   @ApiOperation({
     summary: 'Link client to enrollment (admin only)',
     description: 'Links a client to an enrollment and disables payment links',
@@ -537,8 +536,8 @@ export class EnrollmentsController {
 
   @Post(':id/generate-payment-link')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('enrollments', 'create')
   @ApiOperation({
     summary: 'Generate payment link (admin/agent)',
     description:

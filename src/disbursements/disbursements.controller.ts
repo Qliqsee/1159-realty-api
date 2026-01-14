@@ -21,8 +21,8 @@ import { QueryDisbursementsDto } from './dto/query-disbursements.dto';
 import { ReleaseDisbursementDto, DisbursementReleaseResponseDto } from './dto/release-disbursement.dto';
 import { DisbursementResponseDto, DisbursementStatsDto } from './dto/disbursement-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Request } from 'express';
 
 @ApiTags('Disbursements')
@@ -32,8 +32,8 @@ export class DisbursementsController {
 
   @Post()
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'manage')
   @ApiOperation({
     summary: 'Create disbursement from commission (admin only)',
     description: 'Creates a disbursement record for a single commission',
@@ -54,8 +54,8 @@ export class DisbursementsController {
 
   @Post('bulk')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'manage')
   @ApiOperation({
     summary: 'Create disbursements from multiple commissions (admin only)',
     description: 'Creates disbursement records for multiple commissions in bulk',
@@ -73,8 +73,8 @@ export class DisbursementsController {
 
   @Get()
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'manage')
   @ApiOperation({
     summary: 'List all disbursements (admin only)',
     description: 'Returns paginated disbursements with filters, search, and sorting',
@@ -92,8 +92,8 @@ export class DisbursementsController {
 
   @Get('my-disbursements')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('agent')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'view_mines')
   @ApiOperation({
     summary: 'List own disbursements (agent only)',
     description: 'Returns paginated disbursements for the authenticated agent',
@@ -130,8 +130,8 @@ export class DisbursementsController {
 
   @Get('stats')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent', 'partner')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'create')
   @ApiOperation({
     summary: 'Get disbursement statistics',
     description: 'Returns disbursement statistics with optional date range filtering. Role-based: agent/partner see only their own stats.',
@@ -155,8 +155,8 @@ export class DisbursementsController {
 
   @Get(':id')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent', 'partner')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'create')
   @ApiOperation({
     summary: 'Get disbursement by ID',
     description: 'Returns detailed disbursement information. Access is role-based: agents and partners can only view their own disbursements.',
@@ -177,8 +177,8 @@ export class DisbursementsController {
 
   @Post(':id/release')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'manage')
   @ApiOperation({
     summary: 'Release disbursement payment via Paystack Transfer (admin only)',
     description: 'Transfers disbursement amount to recipient bank account using Paystack Transfer API. Updates disbursement status to RELEASED and records transfer details. If commission disbursement, also marks commission as PAID.',

@@ -24,8 +24,8 @@ import { CloseLeadDto } from './dto/close-lead.dto';
 import { AddFeedbackDto } from './dto/add-feedback.dto';
 import { LeadQueryDto } from './dto/lead-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { SuspendedAgentGuard } from './guards/suspended-agent.guard';
 import { MaxLeadReservationGuard } from './guards/max-lead-reservation.guard';
 
@@ -37,8 +37,8 @@ export class LeadsController {
   constructor(private readonly leadsService: LeadsService) {}
 
   @Post()
-  @UseGuards(RolesGuard, SuspendedAgentGuard)
-  @Roles('admin', 'agent')
+  @UseGuards(PermissionsGuard, SuspendedAgentGuard)
+  @RequirePermission('leads', 'create')
   @ApiOperation({ summary: 'Create a new lead (auto-reserves for 1 week)' })
   @ApiResponse({ status: 201, description: 'Lead created successfully' })
   @ApiResponse({ status: 403, description: 'Suspended agents cannot create leads' })
@@ -47,8 +47,8 @@ export class LeadsController {
   }
 
   @Post('batch')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'manage')
   @ApiOperation({ summary: 'Batch create leads from array' })
   @ApiResponse({ status: 201, description: 'Leads batch created with success/failure arrays' })
   batchCreate(@Body() batchCreateLeadsDto: BatchCreateLeadsDto, @Request() req) {
@@ -56,8 +56,8 @@ export class LeadsController {
   }
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'manage')
   @ApiOperation({ summary: 'Get all leads with pagination, search, and filters' })
   @ApiResponse({ status: 200, description: 'Returns paginated leads list' })
   findAll(@Query() query: LeadQueryDto) {
@@ -65,8 +65,8 @@ export class LeadsController {
   }
 
   @Get('my')
-  @UseGuards(RolesGuard)
-  @Roles('agent', 'admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'view_mines')
   @ApiOperation({ summary: 'Get my leads (reserved by current agent)' })
   @ApiResponse({ status: 200, description: 'Returns paginated leads list' })
   findMyLeads(@Query() query: LeadQueryDto, @Request() req) {
@@ -74,8 +74,8 @@ export class LeadsController {
   }
 
   @Get('stats')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'manage')
   @ApiOperation({ summary: 'Get overall lead statistics' })
   @ApiResponse({ status: 200, description: 'Returns total, closed, available, reserved, and conversion rate' })
   getStats() {
@@ -83,8 +83,8 @@ export class LeadsController {
   }
 
   @Get('my-stats')
-  @UseGuards(RolesGuard)
-  @Roles('agent', 'admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'view_mines')
   @ApiOperation({ summary: 'Get my lead statistics (agent)' })
   @ApiResponse({ status: 200, description: 'Returns myTotal, myClosed, myConversionRate' })
   getMyStats(@Request() req) {
@@ -92,8 +92,8 @@ export class LeadsController {
   }
 
   @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales', 'agent')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'view_detail')
   @ApiOperation({ summary: 'Get single lead details with feedbacks' })
   @ApiResponse({ status: 200, description: 'Returns lead details' })
   @ApiResponse({ status: 404, description: 'Lead not found' })
@@ -102,8 +102,8 @@ export class LeadsController {
   }
 
   @Put(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales', 'agent')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'update_mines')
   @ApiOperation({ summary: 'Update lead details' })
   @ApiResponse({ status: 200, description: 'Lead updated successfully' })
   @ApiResponse({ status: 404, description: 'Lead not found' })
@@ -112,8 +112,8 @@ export class LeadsController {
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'manage')
   @ApiOperation({ summary: 'Delete a lead' })
   @ApiResponse({ status: 200, description: 'Lead deleted successfully' })
   @ApiResponse({ status: 404, description: 'Lead not found' })
@@ -122,8 +122,8 @@ export class LeadsController {
   }
 
   @Post(':id/reserve')
-  @UseGuards(RolesGuard, SuspendedAgentGuard, MaxLeadReservationGuard)
-  @Roles('agent', 'admin')
+  @UseGuards(PermissionsGuard, SuspendedAgentGuard, MaxLeadReservationGuard)
+  @RequirePermission('leads', 'update_mines')
   @ApiOperation({ summary: 'Reserve a lead (48-hour reservation, max 3 leads per agent)' })
   @ApiResponse({ status: 200, description: 'Lead reserved successfully' })
   @ApiResponse({ status: 400, description: 'Max 3 leads or already reserved' })
@@ -133,8 +133,8 @@ export class LeadsController {
   }
 
   @Put(':id/make-available')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'manage')
   @ApiOperation({ summary: 'Make reserved lead available (HoS override)' })
   @ApiResponse({ status: 200, description: 'Lead made available' })
   @ApiResponse({ status: 400, description: 'Cannot make closed lead available' })
@@ -143,8 +143,8 @@ export class LeadsController {
   }
 
   @Post(':id/close')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales', 'agent')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'update_mines')
   @ApiOperation({ summary: 'Close lead by linking to existing client' })
   @ApiResponse({ status: 200, description: 'Lead closed and linked to client' })
   @ApiResponse({ status: 400, description: 'Already closed or duplicate email' })
@@ -158,8 +158,8 @@ export class LeadsController {
   }
 
   @Post(':id/feedback')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales', 'agent')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'update_mines')
   @ApiOperation({ summary: 'Add feedback to a lead' })
   @ApiResponse({ status: 201, description: 'Feedback added successfully' })
   addFeedback(
@@ -171,8 +171,8 @@ export class LeadsController {
   }
 
   @Get(':id/feedback')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales', 'agent')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'view_detail')
   @ApiOperation({ summary: 'Get all feedbacks for a lead with pagination' })
   @ApiResponse({ status: 200, description: 'Returns paginated feedbacks list' })
   getFeedbacks(@Param('id') id: string, @Query() query: LeadQueryDto) {
@@ -180,8 +180,8 @@ export class LeadsController {
   }
 
   @Get(':id/history')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('leads', 'manage')
   @ApiOperation({ summary: 'Get agent assignment history for a lead with pagination' })
   @ApiResponse({ status: 200, description: 'Returns paginated agent history' })
   getAgentHistory(@Param('id') id: string, @Query() query: LeadQueryDto) {

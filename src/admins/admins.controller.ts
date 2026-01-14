@@ -16,11 +16,12 @@ import {
   ApiOperation,
   ApiBody,
   ApiQuery,
+  ApiExtraModels,
 } from '@nestjs/swagger';
 import { AdminsService } from './admins.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Request } from 'express';
 import { AdminQueryDto, ClientQueryDto, MyClientsQueryDto } from './dto/admin-query.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
@@ -44,14 +45,15 @@ import {
 
 @ApiTags('Admins')
 @ApiBearerAuth('JWT-auth')
+@ApiExtraModels(AdminResponseDto, AdminListResponseDto, ClientResponseDto, ClientListResponseDto)
 @Controller('admins')
 @UseGuards(JwtAuthGuard)
 export class AdminsController {
   constructor(private adminsService: AdminsService) {}
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'List all admins with filters, search, and pagination (Admin only). Use includeCapabilities=true to include capabilities (may impact performance).' })
   @ApiQuery({ name: 'includeCapabilities', required: false, type: Boolean, description: 'Include capabilities for each admin (may impact performance on large lists)' })
   @ApiStandardResponse(200, 'Returns paginated admins list', AdminListResponseDto)
@@ -81,8 +83,8 @@ export class AdminsController {
   }
 
   @Get('my-clients')
-  @UseGuards(RolesGuard)
-  @Roles('agent')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('clients', 'view_mines')
   @ApiOperation({ summary: 'Get clients for logged in agent with filters, search, and pagination (Agent only)' })
   @ApiStandardResponse(200, 'Returns paginated list of agent clients', ClientListResponseDto)
   @ApiUnauthorizedResponse()
@@ -93,8 +95,8 @@ export class AdminsController {
   }
 
   @Get('clients')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Get all clients with filters, search, and pagination (Admin only)' })
   @ApiStandardResponse(200, 'Returns paginated list of all clients', ClientListResponseDto)
   @ApiUnauthorizedResponse()
@@ -128,8 +130,8 @@ export class AdminsController {
   }
 
   @Post(':id/ban')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Ban admin - sets isBanned true on User table (Admin only)' })
   @ApiStandardResponse(201, 'Admin banned successfully')
   @ApiUnauthorizedResponse()
@@ -140,8 +142,8 @@ export class AdminsController {
   }
 
   @Post(':id/unban')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Unban admin - sets isBanned false on User table (Admin only)' })
   @ApiStandardResponse(201, 'Admin unbanned successfully')
   @ApiUnauthorizedResponse()
@@ -152,8 +154,8 @@ export class AdminsController {
   }
 
   @Post(':id/suspend')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Suspend admin - sets canOnboardClients false (Admin only)' })
   @ApiStandardResponse(201, 'Admin suspended successfully')
   @ApiUnauthorizedResponse()
@@ -164,8 +166,8 @@ export class AdminsController {
   }
 
   @Post(':id/unsuspend')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Unsuspend admin - sets canOnboardClients true (Admin only)' })
   @ApiStandardResponse(201, 'Admin unsuspended successfully')
   @ApiUnauthorizedResponse()
@@ -176,8 +178,8 @@ export class AdminsController {
   }
 
   @Patch(':id/role')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Change admin role (Admin only)' })
   @ApiBody({ type: ChangeRoleDto })
   @ApiStandardResponse(200, 'Admin role changed successfully')

@@ -17,31 +17,25 @@ import {
 } from '@nestjs/swagger';
 import { RolesService } from './roles.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { RoleQueryDto } from './dto/role-query.dto';
 import {
-  CreatePermissionDto,
-  AssignPermissionDto,
-  PermissionQueryDto,
-} from './dto/permission.dto';
-import {
   RoleResponseDto,
   DeleteRoleResponseDto,
-  RemovePermissionResponseDto,
 } from './dto/role-response.dto';
 
-@ApiTags('Roles & Permissions')
+@ApiTags('Roles Management')
 @ApiBearerAuth('JWT-auth')
 @Controller('roles')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RolesController {
   constructor(private rolesService: RolesService) {}
 
   @Post()
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Create a new role' })
   @ApiResponse({
     status: 201,
@@ -56,6 +50,7 @@ export class RolesController {
   }
 
   @Get()
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'List all roles with pagination, search, and filters' })
   @ApiResponse({
     status: 200,
@@ -68,6 +63,7 @@ export class RolesController {
   }
 
   @Get(':id')
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Get role by ID with permissions' })
   @ApiResponse({
     status: 200,
@@ -82,6 +78,7 @@ export class RolesController {
   }
 
   @Patch(':id')
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Update role details' })
   @ApiResponse({
     status: 200,
@@ -96,6 +93,7 @@ export class RolesController {
   }
 
   @Delete(':id')
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Delete role' })
   @ApiResponse({
     status: 200,
@@ -107,49 +105,5 @@ export class RolesController {
   @ApiResponse({ status: 404, description: 'Role not found' })
   remove(@Param('id') id: string) {
     return this.rolesService.remove(id);
-  }
-
-  @Post(':id/permissions')
-  @ApiOperation({ summary: 'Assign permission to role' })
-  @ApiResponse({ status: 201, description: 'Permission assigned successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Role or permission not found' })
-  @ApiResponse({ status: 409, description: 'Role already has this permission' })
-  assignPermission(@Param('id') roleId: string, @Body() body: AssignPermissionDto) {
-    return this.rolesService.assignPermission(roleId, body.permissionId);
-  }
-
-  @Delete(':id/permissions/:permissionId')
-  @ApiOperation({ summary: 'Remove permission from role' })
-  @ApiResponse({
-    status: 200,
-    description: 'Permission removed successfully',
-    type: RemovePermissionResponseDto,
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Role does not have this permission' })
-  removePermission(@Param('id') roleId: string, @Param('permissionId') permissionId: string) {
-    return this.rolesService.removePermission(roleId, permissionId);
-  }
-
-  @Post('permissions')
-  @ApiOperation({ summary: 'Create a new permission' })
-  @ApiResponse({ status: 201, description: 'Permission created successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 409, description: 'Permission with this name already exists' })
-  createPermission(@Body() data: CreatePermissionDto) {
-    return this.rolesService.createPermission(data);
-  }
-
-  @Get('permissions/all')
-  @ApiOperation({ summary: 'List all permissions with pagination and search' })
-  @ApiResponse({ status: 200, description: 'Returns paginated permissions list' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  findAllPermissions(@Query() query: PermissionQueryDto) {
-    return this.rolesService.findAllPermissions(query);
   }
 }

@@ -16,8 +16,8 @@ import { CommissionsService } from './commissions.service';
 import { QueryCommissionsDto } from './dto/query-commissions.dto';
 import { CommissionResponseDto, CommissionStatsDto } from './dto/commission-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Request } from 'express';
 
 @ApiTags('Commissions')
@@ -27,8 +27,8 @@ export class CommissionsController {
 
   @Get()
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('commissions', 'manage')
   @ApiOperation({
     summary: 'List all commissions (admin only)',
     description: 'Returns paginated commissions with filters, search, and sorting',
@@ -46,8 +46,8 @@ export class CommissionsController {
 
   @Get('my-commissions')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('agent')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('commissions', 'view_mines')
   @ApiOperation({
     summary: 'List own commissions (agent only)',
     description: 'Returns paginated commissions for the authenticated agent',
@@ -84,8 +84,8 @@ export class CommissionsController {
 
   @Get('stats')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent', 'partner')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('commissions', 'create')
   @ApiOperation({
     summary: 'Get commission statistics',
     description: 'Returns commission statistics with optional date range filtering. Role-based: agent/partner see only their own stats.',
@@ -109,8 +109,8 @@ export class CommissionsController {
 
   @Get(':id')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'agent', 'partner')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('commissions', 'create')
   @ApiOperation({
     summary: 'Get commission by ID',
     description: 'Returns detailed commission information. Access is role-based: agents and partners can only view their own commissions.',

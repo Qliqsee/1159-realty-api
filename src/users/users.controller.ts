@@ -19,8 +19,8 @@ import {
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Request } from 'express';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto, MyClientsQueryDto } from './dto/user-query.dto';
@@ -199,8 +199,8 @@ export class UsersController {
   // These endpoints still work with the new schema
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'delete')
   @ApiOperation({ summary: 'Delete user (admin only)' })
   @ApiResponse({
     status: 200,
@@ -215,8 +215,8 @@ export class UsersController {
   }
 
   @Post(':id/roles')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'manager', 'hr-manager')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'assign_roles_hr')
   @ApiOperation({ summary: 'Assign role to user (admin, manager, hr-manager)' })
   @ApiResponse({ status: 201, description: 'Role assigned successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -231,8 +231,8 @@ export class UsersController {
   }
 
   @Delete(':id/roles/:roleId')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'manager', 'hr-manager')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'assign_roles_hr')
   @ApiOperation({ summary: 'Remove role from user (admin, manager, hr-manager)' })
   @ApiResponse({
     status: 200,
@@ -248,8 +248,8 @@ export class UsersController {
   }
 
   @Get(':id/permissions')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'manage')
   @ApiOperation({ summary: 'Get all permissions for a user (admin only)' })
   @ApiResponse({ status: 200, description: 'Returns user permissions list' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -260,8 +260,8 @@ export class UsersController {
   }
 
   @Post(':id/ban')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'manager', 'hr-manager')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'ban')
   @ApiOperation({ summary: 'Ban user (admin, manager, hr-manager)' })
   @ApiResponse({ status: 200, description: 'User banned successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -273,8 +273,8 @@ export class UsersController {
   }
 
   @Post(':id/unban')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'manager', 'hr-manager')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'ban')
   @ApiOperation({ summary: 'Unban user (admin, manager, hr-manager)' })
   @ApiResponse({ status: 200, description: 'User unbanned successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -286,8 +286,8 @@ export class UsersController {
   }
 
   @Post(':id/suspend')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'manager', 'hr-manager')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'suspend')
   @ApiOperation({ summary: 'Suspend user (admin, manager, hr-manager)' })
   @ApiResponse({ status: 200, description: 'User suspended successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -299,8 +299,8 @@ export class UsersController {
   }
 
   @Post(':id/unsuspend')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'manager', 'hr-manager')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users', 'suspend')
   @ApiOperation({ summary: 'Unsuspend user (admin, manager, hr-manager)' })
   @ApiResponse({ status: 200, description: 'User unsuspended successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

@@ -24,8 +24,8 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { FileUploadService } from '../file-upload/file-upload.service';
 
 @ApiTags('Support Tickets')
@@ -66,8 +66,8 @@ export class SupportController {
   }
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({
     summary:
       'Get all support tickets with pagination, search, and filters (Admin only)',
@@ -78,8 +78,8 @@ export class SupportController {
   }
 
   @Get('stats')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Get support ticket statistics (Admin only)' })
   @ApiResponse({ status: 200, description: 'Returns ticket statistics' })
   getStats() {
@@ -97,8 +97,8 @@ export class SupportController {
   }
 
   @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Get single ticket details (Admin only)' })
   @ApiResponse({ status: 200, description: 'Returns ticket details' })
   @ApiResponse({ status: 404, description: 'Ticket not found' })
@@ -107,8 +107,8 @@ export class SupportController {
   }
 
   @Patch(':id/status')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Update ticket status (Admin only)' })
   @ApiResponse({ status: 200, description: 'Ticket status updated successfully' })
   @ApiResponse({ status: 404, description: 'Ticket not found' })

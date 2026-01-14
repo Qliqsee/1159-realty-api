@@ -20,8 +20,8 @@ import { UpdateUnitDto } from './dto/update-unit.dto';
 import { BatchCreateUnitsDto } from './dto/batch-create-units.dto';
 import { QueryUnitsDto } from './dto/query-units.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 
 @ApiTags('Units')
 @Controller()
@@ -52,8 +52,8 @@ export class UnitsController {
 
   @Post('properties/:propertyId/units')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Create a new unit for property (admin only)' })
   @ApiResponse({ status: 201, description: 'Unit created successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -69,8 +69,8 @@ export class UnitsController {
 
   @Post('properties/:propertyId/units/batch')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Batch create units for property (admin only)' })
   @ApiResponse({ status: 201, description: 'Units batch created successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -85,8 +85,8 @@ export class UnitsController {
 
   @Patch('units/:id')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Update unit details (admin only)' })
   @ApiResponse({ status: 200, description: 'Unit updated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -98,8 +98,8 @@ export class UnitsController {
 
   @Patch('units/:id/archive')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Archive unit (admin only)' })
   @ApiResponse({ status: 200, description: 'Unit archived successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

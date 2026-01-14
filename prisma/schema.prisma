@@ -290,53 +290,50 @@ model Role {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  userRoles       UserRole[]
-  rolePermissions RolePermission[]
+  userRoles     UserRole[]
+  roleResources RoleResource[]
 
   @@unique([name, appContext])
   @@map("roles")
 }
 
-model Permission {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  resource    String
-  action      String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  rolePermissions       RolePermission[]
-  permissionCapabilities PermissionCapability[]
-
-  @@map("permissions")
-}
-
-model Capability {
+model Resource {
   id          String   @id @default(uuid())
   name        String   @unique
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  permissionCapabilities PermissionCapability[]
+  roleResources RoleResource[]
 
-  @@map("capabilities")
+  @@map("resources")
 }
 
-model PermissionCapability {
-  id            String   @id @default(uuid())
-  permissionId  String
-  capabilityId  String
-  createdAt     DateTime @default(now())
+model Action {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  capability Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+  @@map("actions")
+}
 
-  @@unique([permissionId, capabilityId])
-  @@index([permissionId])
-  @@index([capabilityId])
-  @@map("permission_capabilities")
+model RoleResource {
+  id         String   @id @default(uuid())
+  roleId     String
+  resourceId String
+  actions    String[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  role     Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, resourceId])
+  @@index([roleId])
+  @@index([resourceId])
+  @@map("role_resources")
 }
 
 model UserRole {
@@ -352,21 +349,6 @@ model UserRole {
   @@index([userId])
   @@index([roleId])
   @@map("user_roles")
-}
-
-model RolePermission {
-  id           String   @id @default(uuid())
-  roleId       String
-  permissionId String
-  createdAt    DateTime @default(now())
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-  @@unique([roleId, permissionId])
-  @@index([roleId])
-  @@index([permissionId])
-  @@map("role_permissions")
 }
 
 model EmailOtp {

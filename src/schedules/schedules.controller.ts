@@ -22,8 +22,8 @@ import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { QuerySchedulesDto } from './dto/query-schedules.dto';
 import { ScheduleResponseDto } from './dto/schedule-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 
 @ApiTags('Schedules')
 @ApiBearerAuth('JWT-auth')
@@ -33,8 +33,8 @@ export class SchedulesController {
   constructor(private readonly schedulesService: SchedulesService) {}
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('schedules', 'manage')
   @ApiOperation({ summary: 'Create a new schedule (Admin only)' })
   @ApiResponse({
     status: 201,
@@ -54,8 +54,8 @@ export class SchedulesController {
   }
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('schedules', 'manage')
   @ApiOperation({
     summary: 'Get all schedules with filters and pagination (Admin only)',
   })
@@ -85,8 +85,8 @@ export class SchedulesController {
   }
 
   @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('schedules', 'manage')
   @ApiOperation({ summary: 'Get schedule by ID (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -99,8 +99,8 @@ export class SchedulesController {
   }
 
   @Put(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('schedules', 'manage')
   @ApiOperation({ summary: 'Update schedule (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -121,8 +121,8 @@ export class SchedulesController {
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('schedules', 'manage')
   @ApiOperation({
     summary: 'Delete schedule and auto-cancel linked appointments (Admin only)',
   })

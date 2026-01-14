@@ -28,14 +28,14 @@ import { SegmentPreviewResponseDto } from './dto/segment-preview-response.dto';
 import { SyncSegmentResponseDto } from './dto/sync-segment-response.dto';
 import { SegmentStatsDto } from './dto/segment-stats.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 
 @ApiTags('Campaigns')
 @Controller('campaigns')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin', 'manager')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('campaigns', 'manage')
 export class CampaignsController {
   constructor(private readonly campaignsService: CampaignsService) {}
 

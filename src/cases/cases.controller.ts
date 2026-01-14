@@ -22,8 +22,8 @@ import { UpdateCaseDto } from './dto/update-case.dto';
 import { UpdateCaseStatusDto } from './dto/update-case-status.dto';
 import { CaseQueryDto } from './dto/case-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 
 @ApiTags('Cases Management')
 @ApiBearerAuth('JWT-auth')
@@ -33,8 +33,8 @@ export class CasesController {
   constructor(private readonly casesService: CasesService) {}
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Create a new case (Admin only)' })
   @ApiResponse({ status: 201, description: 'Case created successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -43,8 +43,8 @@ export class CasesController {
   }
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Get all cases with pagination, search, and filters (Admin only)' })
   @ApiResponse({ status: 200, description: 'Returns paginated cases list' })
   findAll(@Query() query: CaseQueryDto) {
@@ -52,8 +52,8 @@ export class CasesController {
   }
 
   @Get('stats')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Get case statistics (Admin only)' })
   @ApiResponse({ status: 200, description: 'Returns case statistics' })
   getStats() {
@@ -76,8 +76,8 @@ export class CasesController {
   }
 
   @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Get single case details (Admin only)' })
   @ApiResponse({ status: 200, description: 'Returns case details' })
   @ApiResponse({ status: 404, description: 'Case not found' })
@@ -86,8 +86,8 @@ export class CasesController {
   }
 
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Update case (Admin only)' })
   @ApiResponse({ status: 200, description: 'Case updated successfully' })
   @ApiResponse({ status: 404, description: 'Case not found' })
@@ -96,8 +96,8 @@ export class CasesController {
   }
 
   @Patch(':id/status')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Update case status (Admin only)' })
   @ApiResponse({ status: 200, description: 'Case status updated successfully' })
   @ApiResponse({ status: 404, description: 'Case not found' })
@@ -109,8 +109,8 @@ export class CasesController {
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('support', 'manage')
   @ApiOperation({ summary: 'Delete case (Admin only)' })
   @ApiResponse({ status: 200, description: 'Case deleted successfully' })
   @ApiResponse({ status: 404, description: 'Case not found' })

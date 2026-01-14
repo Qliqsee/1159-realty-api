@@ -26,8 +26,8 @@ import { TargetStatsDto } from './dto/target-stats.dto';
 import { TargetAchievementDto } from './dto/target-achievement.dto';
 import { BatchCreateResponseDto } from './dto/batch-create-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 
 @ApiTags('Sales Management')
 @ApiBearerAuth('JWT-auth')
@@ -38,8 +38,8 @@ export class SalesTargetsController {
 
   // Admin/CRM endpoints
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'manage')
   @ApiOperation({ summary: 'Create a new sales target' })
   @ApiResponse({
     status: 201,
@@ -59,8 +59,8 @@ export class SalesTargetsController {
   }
 
   @Post('batch')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'manage')
   @ApiOperation({ summary: 'Batch create sales targets from JSON array' })
   @ApiResponse({
     status: 201,
@@ -75,8 +75,8 @@ export class SalesTargetsController {
   }
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'manage')
   @ApiOperation({
     summary: 'Get all sales targets with pagination, search, and filters',
   })
@@ -89,8 +89,8 @@ export class SalesTargetsController {
   }
 
   @Get('stats')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'manage')
   @ApiOperation({ summary: 'Get overall sales target statistics' })
   @ApiResponse({
     status: 200,
@@ -102,8 +102,8 @@ export class SalesTargetsController {
   }
 
   @Get('my')
-  @UseGuards(RolesGuard)
-  @Roles('agent', 'admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'create')
   @ApiOperation({ summary: 'Get my sales targets with pagination and filters' })
   @ApiResponse({
     status: 200,
@@ -114,8 +114,8 @@ export class SalesTargetsController {
   }
 
   @Get('my-stats')
-  @UseGuards(RolesGuard)
-  @Roles('agent', 'admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'create')
   @ApiOperation({ summary: 'Get my sales target statistics' })
   @ApiResponse({
     status: 200,
@@ -127,8 +127,8 @@ export class SalesTargetsController {
   }
 
   @Get('my-current')
-  @UseGuards(RolesGuard)
-  @Roles('agent', 'admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'create')
   @ApiOperation({ summary: 'Get my current active sales target' })
   @ApiResponse({
     status: 200,
@@ -140,8 +140,8 @@ export class SalesTargetsController {
   }
 
   @Get('achievement-history/:userId')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'manage')
   @ApiOperation({ summary: 'Get achievement history for a user' })
   @ApiResponse({
     status: 200,
@@ -155,8 +155,8 @@ export class SalesTargetsController {
   }
 
   @Get('my-achievement-history')
-  @UseGuards(RolesGuard)
-  @Roles('agent', 'admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'create')
   @ApiOperation({ summary: 'Get my achievement history' })
   @ApiResponse({
     status: 200,
@@ -168,8 +168,8 @@ export class SalesTargetsController {
   }
 
   @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'manage')
   @ApiOperation({ summary: 'Get single sales target by ID' })
   @ApiResponse({
     status: 200,
@@ -182,8 +182,8 @@ export class SalesTargetsController {
   }
 
   @Put(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'manage')
   @ApiOperation({ summary: 'Update sales target' })
   @ApiResponse({
     status: 200,
@@ -203,8 +203,8 @@ export class SalesTargetsController {
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'head-of-sales')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('sales', 'manage')
   @ApiOperation({
     summary: 'Delete sales target (archives to achievement history)',
   })

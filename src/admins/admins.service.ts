@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { CapabilitiesService } from '../capabilities/capabilities.service';
 import { AdminQueryDto, ClientQueryDto, MyClientsQueryDto, AdminSortOption } from './dto/admin-query.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { AdminIncludeQueryDto } from './dto/admin-include-query.dto';
@@ -26,7 +25,6 @@ import {
 export class AdminsService {
   constructor(
     private prisma: PrismaService,
-    private capabilitiesService: CapabilitiesService,
   ) {}
 
   async findAll(query?: AdminQueryDto & AdminIncludeQueryDto): Promise<AdminListResponseDto> {
@@ -120,7 +118,7 @@ export class AdminsService {
     if (query?.includeCapabilities) {
       adminData = await Promise.all(
         admins.map(async admin => {
-          const capabilities = await this.capabilitiesService.getUserCapabilities(admin.userId);
+          const capabilities = [];
           return this.mapToAdminResponse(admin, capabilities);
         })
       );
@@ -160,7 +158,7 @@ export class AdminsService {
     }
 
     if (query?.includeCapabilities) {
-      const capabilities = await this.capabilitiesService.getUserCapabilities(admin.userId);
+      const capabilities = [];
       return this.mapToAdminResponse(admin, capabilities);
     }
 
@@ -187,7 +185,7 @@ export class AdminsService {
       throw new NotFoundException('Admin profile not found');
     }
 
-    const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
+    const capabilities = [];
     return this.mapToAdminResponse(admin, capabilities);
   }
 
@@ -217,7 +215,7 @@ export class AdminsService {
       },
     });
 
-    const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
+    const capabilities = [];
     return this.mapToAdminResponse(updated, capabilities);
   }
 

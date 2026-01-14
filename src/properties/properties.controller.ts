@@ -27,8 +27,8 @@ import { PropertyStatsDto } from './dto/property-stats.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailVerifiedGuard } from '../common/guards/email-verified.guard';
 import { KycCompletionGuard } from '../common/guards/kyc-completion.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Request } from 'express';
 
 @ApiTags('Properties')
@@ -84,8 +84,8 @@ export class PropertiesController {
 
   @Post()
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Create a new property (admin only)' })
   @ApiResponse({ status: 201, description: 'Property created successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -97,8 +97,8 @@ export class PropertiesController {
 
   @Patch(':id')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Update property details (admin only)' })
   @ApiResponse({ status: 200, description: 'Property updated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -115,8 +115,8 @@ export class PropertiesController {
 
   @Patch(':id/archive')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Archive property (admin only)' })
   @ApiResponse({ status: 200, description: 'Property archived successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -130,8 +130,8 @@ export class PropertiesController {
   // Inspection dates management
   @Get(':id/inspections')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Get property inspection dates (admin only)' })
   @ApiResponse({ status: 200, description: 'Inspection dates retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Property not found' })
@@ -141,8 +141,8 @@ export class PropertiesController {
 
   @Post(':id/inspections')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Add inspection date to property (admin only)' })
   @ApiResponse({ status: 201, description: 'Inspection date added successfully' })
   @ApiResponse({ status: 400, description: 'Inspection date already exists' })
@@ -156,8 +156,8 @@ export class PropertiesController {
 
   @Delete(':id/inspections/:inspectionDate')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Remove inspection date from property (admin only)' })
   @ApiResponse({ status: 200, description: 'Inspection date removed successfully' })
   @ApiResponse({ status: 404, description: 'Property not found' })
@@ -171,8 +171,8 @@ export class PropertiesController {
   // Payment plans management
   @Post(':id/payment-plans')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Add payment plan to existing property (admin only)' })
   @ApiResponse({ status: 201, description: 'Payment plan added successfully' })
   @ApiResponse({ status: 400, description: 'Payment plan already exists' })
@@ -187,8 +187,8 @@ export class PropertiesController {
   // Property interests management
   @Patch(':id/interests/:interestId')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Update property interest status (admin only)' })
   @ApiResponse({ status: 200, description: 'Property interest updated successfully' })
   @ApiResponse({ status: 404, description: 'Property interest not found' })
@@ -206,8 +206,8 @@ export class PropertiesController {
   // Property stats
   @Get('stats/overview')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Get property statistics for admin dashboard (admin only)' })
   @ApiResponse({
     status: 200,

@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { CapabilitiesService } from '../capabilities/capabilities.service';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientIncludeQueryDto } from './dto/client-query.dto';
 import {
@@ -18,7 +17,6 @@ import {
 export class ClientsService {
   constructor(
     private prisma: PrismaService,
-    private capabilitiesService: CapabilitiesService,
   ) {}
 
   async findByUserId(userId: string, query?: ClientIncludeQueryDto): Promise<ClientResponseDto> {
@@ -59,8 +57,8 @@ export class ClientsService {
       throw new NotFoundException('Client profile not found');
     }
 
-    // Always fetch capabilities for own profile
-    const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
+    // Capabilities will be derived by FE from roles + permissions map
+    const capabilities = [];
 
     return this.mapToClientResponse(client, {
       capabilities,
@@ -144,7 +142,7 @@ export class ClientsService {
       },
     });
 
-    const capabilities = await this.capabilitiesService.getUserCapabilities(userId);
+    const capabilities = [];
     return this.mapToClientResponse(updated, { capabilities });
   }
 

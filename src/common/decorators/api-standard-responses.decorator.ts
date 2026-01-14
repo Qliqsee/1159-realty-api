@@ -7,12 +7,10 @@ export const ApiStandardResponse = <TModel extends Type<any>>(
   description: string,
   dataType?: TModel,
 ) => {
-  return applyDecorators(
-    SwaggerApiResponse({
-      status,
-      description,
-      schema: {
+  const responseSchema = dataType
+    ? {
         allOf: [
+          { $ref: `#/components/schemas/${dataType.name}` },
           {
             properties: {
               message: {
@@ -25,16 +23,35 @@ export const ApiStandardResponse = <TModel extends Type<any>>(
                 example: status,
                 description: 'HTTP status code',
               },
-              data: dataType
-                ? { $ref: `#/components/schemas/${dataType.name}` }
-                : {
-                    type: 'object',
-                    description: 'Response data',
-                  },
             },
           },
         ],
-      },
+      }
+    : {
+        properties: {
+          message: {
+            type: 'string',
+            example: 'success',
+            description: 'Response message',
+          },
+          code: {
+            type: 'number',
+            example: status,
+            description: 'HTTP status code',
+          },
+          data: {
+            type: 'object',
+            description: 'Response data',
+          },
+        },
+      };
+
+  return applyDecorators(
+    SwaggerApiResponse({
+      status,
+      description,
+      type: dataType,
+      schema: responseSchema,
     }),
   );
 };

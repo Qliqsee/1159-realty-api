@@ -20,8 +20,8 @@ import { UpdateConfigDto } from './dto/update-config.dto';
 import { AddExceptionDto } from './dto/add-exception.dto';
 import { ConfigResponseDto, ExceptionUserDto } from './dto/config-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 
 @ApiTags('Disbursement Config')
 @Controller('disbursement-config')
@@ -30,8 +30,8 @@ export class DisbursementConfigController {
 
   @Get()
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'manage')
   @ApiOperation({
     summary: 'Get current disbursement configuration (admin only)',
     description: 'Returns the current auto-disbursement configuration including mode and exception list',
@@ -49,8 +49,8 @@ export class DisbursementConfigController {
 
   @Put()
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'manage')
   @ApiOperation({
     summary: 'Update disbursement configuration mode (admin only)',
     description: 'Updates the auto-disbursement mode (ALL_EXCEPT or NONE_EXCEPT)',
@@ -68,8 +68,8 @@ export class DisbursementConfigController {
 
   @Post('exceptions')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'manage')
   @ApiOperation({
     summary: 'Add user to exception list (admin only)',
     description: 'Adds a user to the auto-disbursement exception list',
@@ -89,8 +89,8 @@ export class DisbursementConfigController {
 
   @Delete('exceptions/:userId')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'manage')
   @ApiOperation({
     summary: 'Remove user from exception list (admin only)',
     description: 'Removes a user from the auto-disbursement exception list',
@@ -110,8 +110,8 @@ export class DisbursementConfigController {
 
   @Get('exceptions')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('disbursements', 'manage')
   @ApiOperation({
     summary: 'List exception users (admin only)',
     description: 'Returns list of users in the auto-disbursement exception list, sorted by latest added first',

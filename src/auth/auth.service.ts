@@ -2,7 +2,6 @@ import { Injectable, ConflictException, UnauthorizedException, ForbiddenExceptio
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
-import { CapabilitiesService } from '../capabilities/capabilities.service';
 import { ClientsService } from '../clients/clients.service';
 import { AdminsService } from '../admins/admins.service';
 import * as bcrypt from 'bcrypt';
@@ -15,7 +14,6 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
-    private capabilitiesService: CapabilitiesService,
     private clientsService: ClientsService,
     private adminsService: AdminsService,
   ) {}
