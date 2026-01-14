@@ -216,23 +216,24 @@ export class UsersController {
 
   @Post(':id/roles')
   @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Assign role to user (admin only)' })
+  @Roles('admin', 'manager', 'hr-manager')
+  @ApiOperation({ summary: 'Assign role to user (admin, manager, hr-manager)' })
   @ApiResponse({ status: 201, description: 'Role assigned successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({
     status: 403,
-    description: 'Forbidden - User already has this role',
+    description: 'Forbidden - User already has this role or insufficient permissions',
   })
   @ApiResponse({ status: 404, description: 'User or role not found' })
-  assignRole(@Param('id') userId: string, @Body() body: AssignRoleDto) {
-    return this.usersService.assignRole(userId, body.roleId);
+  assignRole(@Req() req: Request, @Param('id') userId: string, @Body() body: AssignRoleDto) {
+    const assignerId = req.user['id'];
+    return this.usersService.assignRole(userId, body.roleId, assignerId);
   }
 
   @Delete(':id/roles/:roleId')
   @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Remove role from user (admin only)' })
+  @Roles('admin', 'manager', 'hr-manager')
+  @ApiOperation({ summary: 'Remove role from user (admin, manager, hr-manager)' })
   @ApiResponse({
     status: 200,
     description: 'Role removed successfully',
@@ -241,8 +242,9 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'User does not have this role' })
-  removeRole(@Param('id') userId: string, @Param('roleId') roleId: string) {
-    return this.usersService.removeRole(userId, roleId);
+  removeRole(@Req() req: Request, @Param('id') userId: string, @Param('roleId') roleId: string) {
+    const removerId = req.user['id'];
+    return this.usersService.removeRole(userId, roleId, removerId);
   }
 
   @Get(':id/permissions')
@@ -255,6 +257,58 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found' })
   getUserPermissions(@Param('id') id: string) {
     return this.usersService.getUserPermissions(id);
+  }
+
+  @Post(':id/ban')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'hr-manager')
+  @ApiOperation({ summary: 'Ban user (admin, manager, hr-manager)' })
+  @ApiResponse({ status: 200, description: 'User banned successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  banUser(@Req() req: Request, @Param('id') userId: string) {
+    const bannerId = req.user['id'];
+    return this.usersService.banUser(userId, bannerId);
+  }
+
+  @Post(':id/unban')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'hr-manager')
+  @ApiOperation({ summary: 'Unban user (admin, manager, hr-manager)' })
+  @ApiResponse({ status: 200, description: 'User unbanned successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  unbanUser(@Req() req: Request, @Param('id') userId: string) {
+    const unbannerId = req.user['id'];
+    return this.usersService.unbanUser(userId, unbannerId);
+  }
+
+  @Post(':id/suspend')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'hr-manager')
+  @ApiOperation({ summary: 'Suspend user (admin, manager, hr-manager)' })
+  @ApiResponse({ status: 200, description: 'User suspended successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  suspendUser(@Req() req: Request, @Param('id') userId: string) {
+    const suspenderId = req.user['id'];
+    return this.usersService.suspendUser(userId, suspenderId);
+  }
+
+  @Post(':id/unsuspend')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'hr-manager')
+  @ApiOperation({ summary: 'Unsuspend user (admin, manager, hr-manager)' })
+  @ApiResponse({ status: 200, description: 'User unsuspended successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  unsuspendUser(@Req() req: Request, @Param('id') userId: string) {
+    const unsuspenderId = req.user['id'];
+    return this.usersService.unsuspendUser(userId, unsuspenderId);
   }
 
   /* COMMENTED OUT - Schema migration: bank account fields moved to Admin/Client tables

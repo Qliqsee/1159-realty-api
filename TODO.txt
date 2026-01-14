@@ -1,1 +1,1391 @@
-Update remaining 26 controllers with standard response decorators (see CONTROLLER_UPDATE_GUIDE.md)
+AUTHORIZATION SYSTEM REFACTOR - IMPLEMENTATION GUIDE
+IMPORTANT: DO NOT WRITE UNIT OR INTEGRATION TESTS. ENSURE NO BUILD ERRORS AT THE END.
+IMPORTANT: ONLY ADMIN ROLES CAN CREATE, UPDATE AND DELETE, ROLES, RESOURCES AND ACTIONS
+IMPORTANT: ENSURE THERE ARE EXAMPLES FOR REQUEST AND RESPONSE PAYLOAD ON SWAGGER DOCUMENTATION
+
+
+==============================================================================
+SECTION 1: DATABASE SCHEMA CHANGES
+==============================================================================
+
+1.1 BACKUP CURRENT SCHEMA
+   - Run: npx prisma migrate dev --create-only --name backup_before_refactor
+   - This creates a backup migration point in case rollback is needed
+
+1.2 MODIFY PRISMA SCHEMA (prisma/schema.prisma)
+
+   ACTION: Remove these 4 models entirely (delete all lines):
+   - model Permission { ... }
+   - model Capability { ... }
+   - model PermissionCapability { ... }
+   - model RolePermission { ... }
+
+   ACTION: Add these 2 new models after the Role model:
+
+   model Resource {
+     id          String   @id @default(uuid())
+     name        String   @unique
+     description String?
+     createdAt   DateTime @default(now())
+     updatedAt   DateTime @updatedAt
+
+     roleResources RoleResource[]
+
+     @@map("resources")
+   }
+
+   model Action {
+     id          String   @id @default(uuid())
+     name        String   @unique
+     description String?
+     createdAt   DateTime @default(now())
+     updatedAt   DateTime @updatedAt
+
+     @@map("actions")
+   }
+
+   model RoleResource {
+     id         String   @id @default(uuid())
+     roleId     String
+     resourceId String
+     actions    String[]
+     createdAt  DateTime @default(now())
+     updatedAt  DateTime @updatedAt
+
+     role     Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+     resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+     @@unique([roleId, resourceId])
+     @@index([roleId])
+     @@index([resourceId])
+     @@map("role_resources")
+   }
+
+   ACTION: Update Role model - remove rolePermissions relation, add roleResources:
+
+   model Role {
+     id          String   @id @default(uuid())
+     name        String
+     appContext  String
+     description String?
+     createdAt   DateTime @default(now())
+     updatedAt   DateTime @updatedAt
+
+     userRoles     UserRole[]
+     roleResources RoleResource[]    // ADD THIS LINE
+
+     @@unique([name, appContext])
+     @@map("roles")
+   }
+
+1.3 CREATE AND RUN MIGRATION
+   - Run: npx prisma migrate dev --name refactor_permissions_to_resources
+   - Run: npx prisma generate
+   - Verify migration created successfully in prisma/migrations/
+
+
+==============================================================================
+SECTION 2: CREATE PERMISSIONS MODULE WITH CRUD SERVICES
+==============================================================================
+
+2.1 CREATE PERMISSIONS MODULE
+   - Run: nest g module permissions
+   - Run: nest g service permissions --no-spec
+   - Run: nest g controller permissions --no-spec
+
+2.2 IMPLEMENT PERMISSIONS SERVICE (src/permissions/permissions.service.ts)
+
+   Replace entire file content with:
+
+   import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+   import { PrismaService } from '../prisma.service';
+
+   @Injectable()
+   export class PermissionsService {
+     constructor(private prisma: PrismaService) {}
+
+     // ========== RESOURCES CRUD ==========
+
+     async createResource(data: { name: string; description?: string }) {
+       const existing = await this.prisma.resource.findUnique({
+         where: { name: data.name },
+       });
+
+       if (existing) {
+         throw new ConflictException('Resource with this name already exists');
+       }
+
+       return this.prisma.resource.create({ data });
+     }
+
+     async findAllResources(query?: { search?: string; page?: string; limit?: string }) {
+       const page = query?.page ? parseInt(query.page, 10) : 1;
+       const limit = query?.limit ? parseInt(query.limit, 10) : 50;
+       const skip = (page - 1) * limit;
+
+       const where: any = query?.search
+         ? { name: { contains: query.search, mode: 'insensitive' } }
+         : {};
+
+       const [resources, total] = await Promise.all([
+         this.prisma.resource.findMany({
+           where,
+           skip,
+           take: limit,
+           orderBy: { name: 'asc' },
+         }),
+         this.prisma.resource.count({ where }),
+       ]);
+
+       return {
+         data: resources,
+         meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+       };
+     }
+
+     async findOneResource(id: string) {
+       const resource = await this.prisma.resource.findUnique({
+         where: { id },
+         include: {
+           roleResources: {
+             include: {
+               role: { select: { id: true, name: true } },
+             },
+           },
+         },
+       });
+
+       if (!resource) {
+         throw new NotFoundException('Resource not found');
+       }
+
+       return resource;
+     }
+
+     async updateResource(id: string, data: { name?: string; description?: string }) {
+       const resource = await this.prisma.resource.findUnique({ where: { id } });
+
+       if (!resource) {
+         throw new NotFoundException('Resource not found');
+       }
+
+       if (data.name && data.name !== resource.name) {
+         const existing = await this.prisma.resource.findUnique({
+           where: { name: data.name },
+         });
+         if (existing) {
+           throw new ConflictException('Resource with this name already exists');
+         }
+       }
+
+       return this.prisma.resource.update({ where: { id }, data });
+     }
+
+     async removeResource(id: string) {
+       const resource = await this.prisma.resource.findUnique({ where: { id } });
+
+       if (!resource) {
+         throw new NotFoundException('Resource not found');
+       }
+
+       await this.prisma.resource.delete({ where: { id } });
+       return { message: 'Resource deleted successfully' };
+     }
+
+     // ========== ACTIONS CRUD ==========
+
+     async createAction(data: { name: string; description?: string }) {
+       const existing = await this.prisma.action.findUnique({
+         where: { name: data.name },
+       });
+
+       if (existing) {
+         throw new ConflictException('Action with this name already exists');
+       }
+
+       return this.prisma.action.create({ data });
+     }
+
+     async findAllActions(query?: { search?: string; page?: string; limit?: string }) {
+       const page = query?.page ? parseInt(query.page, 10) : 1;
+       const limit = query?.limit ? parseInt(query.limit, 10) : 50;
+       const skip = (page - 1) * limit;
+
+       const where: any = query?.search
+         ? { name: { contains: query.search, mode: 'insensitive' } }
+         : {};
+
+       const [actions, total] = await Promise.all([
+         this.prisma.action.findMany({
+           where,
+           skip,
+           take: limit,
+           orderBy: { name: 'asc' },
+         }),
+         this.prisma.action.count({ where }),
+       ]);
+
+       return {
+         data: actions,
+         meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+       };
+     }
+
+     async findOneAction(id: string) {
+       const action = await this.prisma.action.findUnique({ where: { id } });
+
+       if (!action) {
+         throw new NotFoundException('Action not found');
+       }
+
+       return action;
+     }
+
+     async updateAction(id: string, data: { name?: string; description?: string }) {
+       const action = await this.prisma.action.findUnique({ where: { id } });
+
+       if (!action) {
+         throw new NotFoundException('Action not found');
+       }
+
+       if (data.name && data.name !== action.name) {
+         const existing = await this.prisma.action.findUnique({
+           where: { name: data.name },
+         });
+         if (existing) {
+           throw new ConflictException('Action with this name already exists');
+         }
+       }
+
+       return this.prisma.action.update({ where: { id }, data });
+     }
+
+     async removeAction(id: string) {
+       const action = await this.prisma.action.findUnique({ where: { id } });
+
+       if (!action) {
+         throw new NotFoundException('Action not found');
+       }
+
+       await this.prisma.action.delete({ where: { id } });
+       return { message: 'Action deleted successfully' };
+     }
+
+     // ========== ROLE-RESOURCE MANAGEMENT ==========
+
+     async attachResourceToRole(roleId: string, resourceId: string, actions: string[]) {
+       const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+       const resource = await this.prisma.resource.findUnique({ where: { id: resourceId } });
+
+       if (!role) throw new NotFoundException('Role not found');
+       if (!resource) throw new NotFoundException('Resource not found');
+       if (!actions || actions.length === 0) {
+         throw new ConflictException('At least one action must be provided');
+       }
+
+       const existing = await this.prisma.roleResource.findUnique({
+         where: { roleId_resourceId: { roleId, resourceId } },
+       });
+
+       if (existing) {
+         return this.prisma.roleResource.update({
+           where: { roleId_resourceId: { roleId, resourceId } },
+           data: { actions },
+           include: { resource: true, role: { select: { name: true } } },
+         });
+       }
+
+       return this.prisma.roleResource.create({
+         data: { roleId, resourceId, actions },
+         include: { resource: true, role: { select: { name: true } } },
+       });
+     }
+
+     async detachResourceFromRole(roleId: string, resourceId: string) {
+       const roleResource = await this.prisma.roleResource.findUnique({
+         where: { roleId_resourceId: { roleId, resourceId } },
+       });
+
+       if (!roleResource) {
+         throw new NotFoundException('Role does not have this resource attached');
+       }
+
+       await this.prisma.roleResource.delete({
+         where: { roleId_resourceId: { roleId, resourceId } },
+       });
+
+       return { message: 'Resource detached from role successfully' };
+     }
+
+     // ========== GET ALL PERMISSIONS ENDPOINT ==========
+
+     async getAllPermissions() {
+       const roleResources = await this.prisma.roleResource.findMany({
+         include: {
+           role: { select: { name: true } },
+           resource: { select: { name: true } },
+         },
+       });
+
+       const permissions: Record<string, Record<string, string[]>> = {};
+
+       for (const rr of roleResources) {
+         if (!permissions[rr.role.name]) {
+           permissions[rr.role.name] = {};
+         }
+         permissions[rr.role.name][rr.resource.name] = rr.actions;
+       }
+
+       return permissions;
+     }
+
+     // ========== PERMISSION CHECKING UTILITY ==========
+
+     async checkPermission(roleNames: string[], resource: string, action: string): Promise<boolean> {
+       const roleResources = await this.prisma.roleResource.findMany({
+         where: {
+           role: { name: { in: roleNames } },
+           resource: { name: resource },
+         },
+         select: { actions: true },
+       });
+
+       return roleResources.some((rr) => rr.actions.includes(action));
+     }
+   }
+
+
+2.3 CREATE DTOs FOR PERMISSIONS MODULE
+
+   Create: src/permissions/dto/resource.dto.ts
+
+   import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+   import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+
+   export class CreateResourceDto {
+     @ApiProperty({ example: 'leads' })
+     @IsString()
+     @IsNotEmpty()
+     name: string;
+
+     @ApiPropertyOptional({ example: 'Leads management resource' })
+     @IsString()
+     @IsOptional()
+     description?: string;
+   }
+
+   export class UpdateResourceDto {
+     @ApiPropertyOptional({ example: 'leads' })
+     @IsString()
+     @IsOptional()
+     name?: string;
+
+     @ApiPropertyOptional({ example: 'Updated description' })
+     @IsString()
+     @IsOptional()
+     description?: string;
+   }
+
+   export class ResourceQueryDto {
+     @ApiPropertyOptional({ example: 'leads' })
+     @IsString()
+     @IsOptional()
+     search?: string;
+
+     @ApiPropertyOptional({ example: '1' })
+     @IsString()
+     @IsOptional()
+     page?: string;
+
+     @ApiPropertyOptional({ example: '50' })
+     @IsString()
+     @IsOptional()
+     limit?: string;
+   }
+
+
+   Create: src/permissions/dto/action.dto.ts
+
+   import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+   import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+
+   export class CreateActionDto {
+     @ApiProperty({ example: 'view' })
+     @IsString()
+     @IsNotEmpty()
+     name: string;
+
+     @ApiPropertyOptional({ example: 'View action' })
+     @IsString()
+     @IsOptional()
+     description?: string;
+   }
+
+   export class UpdateActionDto {
+     @ApiPropertyOptional({ example: 'view' })
+     @IsString()
+     @IsOptional()
+     name?: string;
+
+     @ApiPropertyOptional({ example: 'Updated description' })
+     @IsString()
+     @IsOptional()
+     description?: string;
+   }
+
+   export class ActionQueryDto {
+     @ApiPropertyOptional({ example: 'view' })
+     @IsString()
+     @IsOptional()
+     search?: string;
+
+     @ApiPropertyOptional({ example: '1' })
+     @IsString()
+     @IsOptional()
+     page?: string;
+
+     @ApiPropertyOptional({ example: '50' })
+     @IsString()
+     @IsOptional()
+     limit?: string;
+   }
+
+
+   Create: src/permissions/dto/role-resource.dto.ts
+
+   import { ApiProperty } from '@nestjs/swagger';
+   import { IsString, IsNotEmpty, IsArray, ArrayMinSize } from 'class-validator';
+
+   export class AttachResourceDto {
+     @ApiProperty({ example: 'uuid-of-resource' })
+     @IsString()
+     @IsNotEmpty()
+     resourceId: string;
+
+     @ApiProperty({ example: ['view', 'create', 'update', 'delete'] })
+     @IsArray()
+     @ArrayMinSize(1)
+     @IsString({ each: true })
+     actions: string[];
+   }
+
+
+2.4 IMPLEMENT PERMISSIONS CONTROLLER (src/permissions/permissions.controller.ts)
+
+   Replace entire file content with:
+
+   import {
+     Controller,
+     Get,
+     Post,
+     Patch,
+     Delete,
+     Param,
+     Body,
+     Query,
+     UseGuards,
+   } from '@nestjs/common';
+   import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+   import { PermissionsService } from './permissions.service';
+   import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+   import { RolesGuard } from '../common/guards/roles.guard';
+   import { Roles } from '../common/decorators/roles.decorator';
+   import {
+     CreateResourceDto,
+     UpdateResourceDto,
+     ResourceQueryDto,
+   } from './dto/resource.dto';
+   import {
+     CreateActionDto,
+     UpdateActionDto,
+     ActionQueryDto,
+   } from './dto/action.dto';
+   import { AttachResourceDto } from './dto/role-resource.dto';
+
+   @ApiTags('Permissions Management')
+   @ApiBearerAuth('JWT-auth')
+   @Controller('permissions')
+   export class PermissionsController {
+     constructor(private permissionsService: PermissionsService) {}
+
+     // ========== GET ALL PERMISSIONS (Public endpoint for FE) ==========
+
+     @Get()
+     @UseGuards(JwtAuthGuard)
+     @ApiOperation({ summary: 'Get all permissions map (role -> resource -> actions)' })
+     @ApiResponse({ status: 200, description: 'Returns complete permissions map' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     getAllPermissions() {
+       return this.permissionsService.getAllPermissions();
+     }
+
+     // ========== RESOURCES CRUD ==========
+
+     @Post('resources')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Create a new resource' })
+     @ApiResponse({ status: 201, description: 'Resource created successfully' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 409, description: 'Resource already exists' })
+     createResource(@Body() data: CreateResourceDto) {
+       return this.permissionsService.createResource(data);
+     }
+
+     @Get('resources')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'List all resources with pagination and search' })
+     @ApiResponse({ status: 200, description: 'Returns paginated resources list' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     findAllResources(@Query() query: ResourceQueryDto) {
+       return this.permissionsService.findAllResources(query);
+     }
+
+     @Get('resources/:id')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Get resource by ID with roles attached' })
+     @ApiResponse({ status: 200, description: 'Resource details retrieved' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 404, description: 'Resource not found' })
+     findOneResource(@Param('id') id: string) {
+       return this.permissionsService.findOneResource(id);
+     }
+
+     @Patch('resources/:id')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Update resource details' })
+     @ApiResponse({ status: 200, description: 'Resource updated successfully' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 404, description: 'Resource not found' })
+     @ApiResponse({ status: 409, description: 'Resource name already exists' })
+     updateResource(@Param('id') id: string, @Body() data: UpdateResourceDto) {
+       return this.permissionsService.updateResource(id, data);
+     }
+
+     @Delete('resources/:id')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Delete resource' })
+     @ApiResponse({ status: 200, description: 'Resource deleted successfully' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 404, description: 'Resource not found' })
+     removeResource(@Param('id') id: string) {
+       return this.permissionsService.removeResource(id);
+     }
+
+     // ========== ACTIONS CRUD ==========
+
+     @Post('actions')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Create a new action' })
+     @ApiResponse({ status: 201, description: 'Action created successfully' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 409, description: 'Action already exists' })
+     createAction(@Body() data: CreateActionDto) {
+       return this.permissionsService.createAction(data);
+     }
+
+     @Get('actions')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'List all actions with pagination and search' })
+     @ApiResponse({ status: 200, description: 'Returns paginated actions list' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     findAllActions(@Query() query: ActionQueryDto) {
+       return this.permissionsService.findAllActions(query);
+     }
+
+     @Get('actions/:id')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Get action by ID' })
+     @ApiResponse({ status: 200, description: 'Action details retrieved' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 404, description: 'Action not found' })
+     findOneAction(@Param('id') id: string) {
+       return this.permissionsService.findOneAction(id);
+     }
+
+     @Patch('actions/:id')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Update action details' })
+     @ApiResponse({ status: 200, description: 'Action updated successfully' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 404, description: 'Action not found' })
+     @ApiResponse({ status: 409, description: 'Action name already exists' })
+     updateAction(@Param('id') id: string, @Body() data: UpdateActionDto) {
+       return this.permissionsService.updateAction(id, data);
+     }
+
+     @Delete('actions/:id')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Delete action' })
+     @ApiResponse({ status: 200, description: 'Action deleted successfully' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 404, description: 'Action not found' })
+     removeAction(@Param('id') id: string) {
+       return this.permissionsService.removeAction(id);
+     }
+
+     // ========== ROLE-RESOURCE MANAGEMENT ==========
+
+     @Post('roles/:roleId/resources')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Attach resource with actions to role (or update existing)' })
+     @ApiResponse({ status: 201, description: 'Resource attached/updated successfully' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 404, description: 'Role or resource not found' })
+     attachResourceToRole(
+       @Param('roleId') roleId: string,
+       @Body() data: AttachResourceDto,
+     ) {
+       return this.permissionsService.attachResourceToRole(
+         roleId,
+         data.resourceId,
+         data.actions,
+       );
+     }
+
+     @Delete('roles/:roleId/resources/:resourceId')
+     @UseGuards(JwtAuthGuard, RolesGuard)
+     @Roles('admin')
+     @ApiOperation({ summary: 'Detach resource from role' })
+     @ApiResponse({ status: 200, description: 'Resource detached successfully' })
+     @ApiResponse({ status: 401, description: 'Unauthorized' })
+     @ApiResponse({ status: 403, description: 'Forbidden' })
+     @ApiResponse({ status: 404, description: 'Role does not have this resource' })
+     detachResourceFromRole(
+       @Param('roleId') roleId: string,
+       @Param('resourceId') resourceId: string,
+     ) {
+       return this.permissionsService.detachResourceFromRole(roleId, resourceId);
+     }
+   }
+
+
+2.5 UPDATE PERMISSIONS MODULE (src/permissions/permissions.module.ts)
+
+   Replace entire file content with:
+
+   import { Module } from '@nestjs/common';
+   import { PermissionsService } from './permissions.service';
+   import { PermissionsController } from './permissions.controller';
+   import { PrismaService } from '../prisma.service';
+
+   @Module({
+     providers: [PermissionsService, PrismaService],
+     controllers: [PermissionsController],
+     exports: [PermissionsService],
+   })
+   export class PermissionsModule {}
+
+
+==============================================================================
+SECTION 3: UPDATE ROLES MODULE
+==============================================================================
+
+3.1 UPDATE ROLES SERVICE (src/roles/roles.service.ts)
+
+   ACTION: Remove these methods entirely from the file:
+   - assignPermission()
+   - removePermission()
+   - createPermission()
+   - findAllPermissions()
+
+   ACTION: Update findAll() method to include roleResources instead of rolePermissions:
+
+   Replace the include in findAll():
+   FROM:
+   include: {
+     rolePermissions: {
+       include: {
+         permission: true,
+       },
+     },
+   },
+
+   TO:
+   include: {
+     roleResources: {
+       include: {
+         resource: true,
+       },
+     },
+   },
+
+   ACTION: Update findOne() method similarly:
+
+   Replace the include in findOne():
+   FROM:
+   include: {
+     rolePermissions: {
+       include: {
+         permission: true,
+       },
+     },
+   },
+
+   TO:
+   include: {
+     roleResources: {
+       include: {
+         resource: true,
+       },
+     },
+   },
+
+
+3.2 UPDATE ROLES CONTROLLER (src/roles/roles.controller.ts)
+
+   ACTION: Remove these endpoint methods entirely:
+   - assignPermission() (POST :id/permissions)
+   - removePermission() (DELETE :id/permissions/:permissionId)
+   - createPermission() (POST permissions)
+   - findAllPermissions() (GET permissions/all)
+
+   ACTION: Update ApiTags decorator:
+   FROM: @ApiTags('Roles & Permissions')
+   TO: @ApiTags('Roles Management')
+
+
+==============================================================================
+SECTION 4: CREATE NEW PERMISSION GUARD AND DECORATOR
+==============================================================================
+
+4.1 CREATE NEW DECORATOR (src/common/decorators/require-permission.decorator.ts)
+
+   Create new file with content:
+
+   import { SetMetadata } from '@nestjs/common';
+
+   export const PERMISSION_KEY = 'permission';
+   export const RequirePermission = (resource: string, action: string) =>
+     SetMetadata(PERMISSION_KEY, { resource, action });
+
+
+4.2 CREATE NEW PERMISSIONS GUARD (src/common/guards/permissions.guard.ts)
+
+   Replace entire file content with:
+
+   import {
+     Injectable,
+     CanActivate,
+     ExecutionContext,
+     ForbiddenException,
+   } from '@nestjs/common';
+   import { Reflector } from '@nestjs/core';
+   import { PERMISSION_KEY } from '../decorators/require-permission.decorator';
+   import { PermissionsService } from '../../permissions/permissions.service';
+
+   @Injectable()
+   export class PermissionsGuard implements CanActivate {
+     constructor(
+       private reflector: Reflector,
+       private permissionsService: PermissionsService,
+     ) {}
+
+     async canActivate(context: ExecutionContext): Promise<boolean> {
+       const permission = this.reflector.getAllAndOverride<{
+         resource: string;
+         action: string;
+       }>(PERMISSION_KEY, [context.getHandler(), context.getClass()]);
+
+       if (!permission) {
+         return true;
+       }
+
+       const { user } = context.switchToHttp().getRequest();
+
+       if (!user || !user.roles) {
+         throw new ForbiddenException('Access denied: No roles found');
+       }
+
+       const roleNames = user.roles.map((r: any) => r.name);
+       const hasPermission = await this.permissionsService.checkPermission(
+         roleNames,
+         permission.resource,
+         permission.action,
+       );
+
+       if (!hasPermission) {
+         throw new ForbiddenException(
+           `Access denied: Missing permission ${permission.resource}:${permission.action}`,
+         );
+       }
+
+       return true;
+     }
+   }
+
+
+4.3 UPDATE COMMON MODULE (if exists) OR CREATE IT
+
+   If src/common/common.module.ts exists, update it:
+   If not, create: src/common/common.module.ts
+
+   Content:
+
+   import { Module } from '@nestjs/common';
+   import { PermissionsGuard } from './guards/permissions.guard';
+   import { RolesGuard } from './guards/roles.guard';
+   import { PermissionsModule } from '../permissions/permissions.module';
+
+   @Module({
+     imports: [PermissionsModule],
+     providers: [PermissionsGuard, RolesGuard],
+     exports: [PermissionsGuard, RolesGuard],
+   })
+   export class CommonModule {}
+
+
+==============================================================================
+SECTION 5: UPDATE SEED FILE
+==============================================================================
+
+5.1 BACKUP CURRENT SEED FILE
+   - Run: cp prisma/seed.ts prisma/seed.ts.backup
+
+5.2 REPLACE SEED FILE (prisma/seed.ts)
+
+   Replace entire file content with:
+
+   import { PrismaClient } from '@prisma/client';
+   import * as bcrypt from 'bcrypt';
+
+   const prisma = new PrismaClient();
+
+   async function main() {
+     console.log('Starting seed...');
+
+     const hashedPassword = await bcrypt.hash('password123', 10);
+
+     // ========== DEFINE ALL ROLES ==========
+     const roleDefinitions = [
+       { name: 'admin', description: 'Administrator with full system access' },
+       { name: 'manager', description: 'Manager with broad system access' },
+       { name: 'agent', description: 'Sales agent' },
+       { name: 'client', description: 'Client user' },
+       { name: 'partner', description: 'Business partner' },
+       { name: 'operations-manager', description: 'Operations Manager' },
+       { name: 'operations', description: 'Operations staff' },
+       { name: 'hr', description: 'Human Resources' },
+       { name: 'hr-manager', description: 'Human Resources Manager' },
+       { name: 'accounting', description: 'Accounting staff' },
+       { name: 'accounting-manager', description: 'Accounting Manager' },
+       { name: 'sales-manager', description: 'Sales Manager' },
+       { name: 'sales', description: 'Sales staff' },
+       { name: 'media-manager', description: 'Media Manager' },
+       { name: 'media', description: 'Media staff' },
+       { name: 'cst', description: 'Customer Service Team' },
+       { name: 'cst-manager', description: 'Customer Service Team Manager' },
+       { name: 'facility-manager', description: 'Facility Manager' },
+       { name: 'facility', description: 'Facility staff' },
+     ];
+
+     const adminRoleNames = roleDefinitions
+       .filter((r) => !['client', 'partner'].includes(r.name))
+       .map((r) => r.name);
+
+     // ========== CREATE ROLES ==========
+     const roles: Record<string, any> = {};
+     for (const roleDef of roleDefinitions) {
+       roles[roleDef.name] = await prisma.role.upsert({
+         where: { name_appContext: { name: roleDef.name, appContext: 'SYSTEM' } },
+         update: {},
+         create: {
+           name: roleDef.name,
+           appContext: 'SYSTEM',
+           description: roleDef.description,
+         },
+       });
+       console.log(`✓ Role created: ${roleDef.name}`);
+     }
+
+     // ========== DEFINE ALL RESOURCES ==========
+     const resourceList = [
+       'dashboard',
+       'leads',
+       'properties',
+       'clients',
+       'client-interests',
+       'partner-applications',
+       'partners',
+       'agents',
+       'enrollments',
+       'invoices',
+       'payments',
+       'kyc',
+       'disbursements',
+       'campaigns',
+       'documentation',
+       'support',
+       'analytics',
+       'team',
+       'reports',
+       'recommendations',
+       'sales',
+       'schedules',
+     ];
+
+     // ========== CREATE RESOURCES ==========
+     const resources: Record<string, any> = {};
+     for (const resName of resourceList) {
+       resources[resName] = await prisma.resource.upsert({
+         where: { name: resName },
+         update: {},
+         create: {
+           name: resName,
+           description: `${resName.charAt(0).toUpperCase() + resName.slice(1)} resource`,
+         },
+       });
+       console.log(`✓ Resource created: ${resName}`);
+     }
+
+     // ========== DEFINE ALL ACTIONS ==========
+     const actionList = [
+       'view',
+       'create',
+       'update',
+       'delete',
+       'manage',
+       'assign-manager',
+       'assign-hr-manager',
+       'assign-others',
+       'ban-manager',
+       'ban-hr-manager',
+       'ban-others',
+     ];
+
+     // ========== CREATE ACTIONS ==========
+     const actions: Record<string, any> = {};
+     for (const actionName of actionList) {
+       actions[actionName] = await prisma.action.upsert({
+         where: { name: actionName },
+         update: {},
+         create: {
+           name: actionName,
+           description: `${actionName.charAt(0).toUpperCase() + actionName.slice(1)} action`,
+         },
+       });
+       console.log(`✓ Action created: ${actionName}`);
+     }
+
+     // ========== DEFINE ROLE-RESOURCE-ACTIONS RULES ==========
+     const roleResourceRules: Record<
+       string,
+       { manage: string[]; others: string[] }
+     > = {
+       dashboard: { manage: adminRoleNames, others: adminRoleNames },
+       leads: {
+         manage: ['admin', 'manager', 'sales-manager'],
+         others: adminRoleNames,
+       },
+       properties: {
+         manage: [
+           'admin',
+           'manager',
+           'cst',
+           'cst-manager',
+           'accounting',
+           'accounting-manager',
+         ],
+         others: adminRoleNames,
+       },
+       clients: {
+         manage: ['admin', 'manager', 'cst', 'cst-manager'],
+         others: adminRoleNames,
+       },
+       'client-interests': {
+         manage: ['admin', 'manager', 'cst', 'cst-manager'],
+         others: adminRoleNames,
+       },
+       'partner-applications': {
+         manage: ['admin', 'manager', 'hr', 'hr-manager'],
+         others: adminRoleNames,
+       },
+       partners: {
+         manage: ['admin', 'manager', 'hr', 'hr-manager'],
+         others: adminRoleNames,
+       },
+       agents: {
+         manage: ['admin', 'manager', 'hr-manager', 'sales-manager'],
+         others: adminRoleNames,
+       },
+       enrollments: {
+         manage: [
+           'admin',
+           'manager',
+           'accounting',
+           'accounting-manager',
+           'cst',
+           'cst-manager',
+         ],
+         others: adminRoleNames,
+       },
+       invoices: {
+         manage: [
+           'admin',
+           'manager',
+           'accounting',
+           'accounting-manager',
+           'cst',
+           'cst-manager',
+         ],
+         others: adminRoleNames,
+       },
+       payments: {
+         manage: [
+           'admin',
+           'manager',
+           'accounting',
+           'accounting-manager',
+           'cst',
+           'cst-manager',
+         ],
+         others: adminRoleNames,
+       },
+       kyc: {
+         manage: ['admin', 'manager', 'cst', 'cst-manager'],
+         others: adminRoleNames,
+       },
+       disbursements: {
+         manage: ['admin', 'manager', 'accounting', 'accounting-manager'],
+         others: adminRoleNames,
+       },
+       campaigns: {
+         manage: ['admin', 'manager', 'media-manager', 'media'],
+         others: adminRoleNames,
+       },
+       documentation: {
+         manage: ['admin', 'manager', 'cst-manager', 'cst'],
+         others: adminRoleNames,
+       },
+       support: {
+         manage: ['admin', 'manager', 'cst-manager', 'cst'],
+         others: adminRoleNames,
+       },
+       analytics: {
+         manage: ['admin', 'manager', 'accounting-manager'],
+         others: adminRoleNames,
+       },
+       team: {
+         manage: ['admin', 'manager', 'hr-manager'],
+         others: adminRoleNames,
+       },
+       reports: {
+         manage: ['admin', 'manager', 'accounting-manager'],
+         others: adminRoleNames,
+       },
+       recommendations: {
+         manage: ['admin', 'manager'],
+         others: adminRoleNames,
+       },
+       sales: {
+         manage: ['admin', 'manager', 'sales-manager'],
+         others: adminRoleNames,
+       },
+       schedules: {
+         manage: [
+           'admin',
+           'manager',
+           'operations',
+           'operations-manager',
+           'cst',
+           'cst-manager',
+         ],
+         others: adminRoleNames,
+       },
+     };
+
+     // ========== ASSIGN RESOURCES TO ROLES WITH ACTIONS ==========
+     const standardActions = ['view', 'create', 'update', 'delete'];
+     const manageAction = 'manage';
+
+     for (const [resourceName, rules] of Object.entries(roleResourceRules)) {
+       const resource = resources[resourceName];
+
+       // Assign manage action to specific roles
+       for (const roleName of rules.manage) {
+         const role = roles[roleName];
+         const actionsForRole = [...standardActions, manageAction];
+
+         await prisma.roleResource.upsert({
+           where: {
+             roleId_resourceId: { roleId: role.id, resourceId: resource.id },
+           },
+           update: { actions: actionsForRole },
+           create: {
+             roleId: role.id,
+             resourceId: resource.id,
+             actions: actionsForRole,
+           },
+         });
+       }
+
+       // Assign standard actions to other admin roles
+       for (const roleName of rules.others) {
+         const role = roles[roleName];
+         if (rules.manage.includes(roleName)) continue; // Skip if already has manage
+
+         await prisma.roleResource.upsert({
+           where: {
+             roleId_resourceId: { roleId: role.id, resourceId: resource.id },
+           },
+           update: { actions: standardActions },
+           create: {
+             roleId: role.id,
+             resourceId: resource.id,
+             actions: standardActions,
+           },
+         });
+       }
+
+       console.log(`✓ Permissions assigned for resource: ${resourceName}`);
+     }
+
+     // ========== CREATE DEFAULT ADMIN USER ==========
+     const existingAdmin = await prisma.user.findUnique({
+       where: { email: 'admin@example.com' },
+     });
+
+     if (!existingAdmin) {
+       const adminUser = await prisma.user.create({
+         data: {
+           email: 'admin@example.com',
+           password: hashedPassword,
+           isEmailVerified: true,
+         },
+       });
+
+       await prisma.admin.create({
+         data: {
+           userId: adminUser.id,
+           firstName: 'Super',
+           lastName: 'Admin',
+         },
+       });
+
+       await prisma.userRole.create({
+         data: {
+           userId: adminUser.id,
+           roleId: roles.admin.id,
+         },
+       });
+
+       console.log('✓ Default admin user created: admin@example.com / password123');
+     }
+
+     console.log('✅ Seed completed successfully!');
+   }
+
+   main()
+     .catch((e) => {
+       console.error('❌ Seed failed:', e);
+       process.exit(1);
+     })
+     .finally(async () => {
+       await prisma.$disconnect();
+     });
+
+
+5.3 RUN SEED
+   - Run: npx prisma db seed
+   - Verify no errors in console output
+
+
+==============================================================================
+SECTION 6: REMOVE CAPABILITIES MODULE AND UPDATE AUTH
+==============================================================================
+
+6.1 UPDATE AUTH SERVICE (src/auth/auth.service.ts)
+
+   ACTION: Remove CapabilitiesService import and injection:
+
+   Remove this import:
+   import { CapabilitiesService } from '../capabilities/capabilities.service';
+
+   Remove from constructor parameters:
+   private capabilitiesService: CapabilitiesService,
+
+   ACTION: Find and remove all calls to capabilitiesService.getUserCapabilities()
+   These are typically in signUp(), adminSignUp(), login(), adminLogin(), etc.
+
+   Example of what to remove:
+   const capabilities = await this.capabilitiesService.getUserCapabilities(user.id);
+
+   And remove capabilities from return objects.
+
+
+6.2 UPDATE ADMIN DTO (src/admins/dto/admin-response.dto.ts)
+
+   ACTION: Keep the capabilities field as optional (it's already there).
+   The FE can derive capabilities from roles + permissions map.
+
+
+6.3 UPDATE CLIENT DTO (src/clients/dto/client-response.dto.ts)
+
+   ACTION: Keep the capabilities field as optional (it's already there).
+   The FE can derive capabilities from roles + permissions map.
+
+
+6.4 DELETE CAPABILITIES MODULE FILES
+
+   ACTION: Delete these files:
+   - src/capabilities/capabilities.service.ts
+   - src/capabilities/capabilities.module.ts
+   - Any other files in src/capabilities/ directory
+
+   ACTION: Remove CapabilitiesModule from app.module.ts imports if present.
+
+
+==============================================================================
+SECTION 7: UPDATE APP MODULE
+==============================================================================
+
+7.1 UPDATE APP MODULE (src/app.module.ts)
+
+   ACTION: Add PermissionsModule to imports array:
+
+   import { PermissionsModule } from './permissions/permissions.module';
+
+   @Module({
+     imports: [
+       // ... existing imports
+       PermissionsModule,
+       // ... rest of imports
+     ],
+   })
+
+   ACTION: Remove CapabilitiesModule from imports if present.
+
+
+==============================================================================
+SECTION 8: VERIFY AND FIX BUILD ERRORS
+==============================================================================
+
+8.1 RUN BUILD CHECK
+   - Run: npm run build
+   - If errors occur, read them carefully and fix:
+     * Missing imports
+     * Unused variables
+     * Type errors
+     * Missing modules in imports
+
+8.2 COMMON FIXES
+   - If "Cannot find module" errors: Check import paths
+   - If "is not assignable to type" errors: Check DTO property types
+   - If "X is not exported from Y": Check that exports in modules are correct
+   - If RolesController has errors about removed methods: Ensure you removed the 4 methods completely
+
+8.3 START DEV SERVER
+   - Run: npm run start:dev
+   - Verify server starts without errors
+   - Check console for any runtime errors
+
+
+==============================================================================
+SECTION 9: TEST ENDPOINTS (MANUAL VERIFICATION)
+==============================================================================
+
+9.1 TEST GET /permissions ENDPOINT
+   - Login as admin to get JWT token
+   - Call GET http://localhost:3000/permissions with Bearer token
+   - Verify response structure matches:
+     {
+       "admin": {
+         "leads": ["view", "create", "update", "delete", "manage"],
+         "properties": [...],
+         ...
+       },
+       "manager": { ... },
+       ...
+     }
+
+9.2 TEST RESOURCES CRUD
+   - POST /permissions/resources (create new resource)
+   - GET /permissions/resources (list all)
+   - GET /permissions/resources/:id (get one)
+   - PATCH /permissions/resources/:id (update)
+   - DELETE /permissions/resources/:id (delete)
+
+9.3 TEST ACTIONS CRUD
+   - POST /permissions/actions (create new action)
+   - GET /permissions/actions (list all)
+   - GET /permissions/actions/:id (get one)
+   - PATCH /permissions/actions/:id (update)
+   - DELETE /permissions/actions/:id (delete)
+
+9.4 TEST ROLE-RESOURCE ATTACHMENT
+   - POST /permissions/roles/:roleId/resources (attach resource with actions)
+   - DELETE /permissions/roles/:roleId/resources/:resourceId (detach)
+   - Verify GET /permissions reflects changes
+
+9.5 TEST SWAGGER DOCS
+   - Open http://localhost:3000/api
+   - Verify all new endpoints are documented
+   - Verify request/response schemas are correct
+
+
+==============================================================================
+SECTION 10: OPTIONAL - UPDATE EXISTING CONTROLLERS TO USE NEW GUARD
+==============================================================================
+
+NOTE: This section is optional. The existing @Roles() guard still works.
+To use the new @RequirePermission() decorator for finer control:
+
+EXAMPLE: Update src/leads/leads.controller.ts
+
+Replace:
+@UseGuards(RolesGuard)
+@Roles('admin', 'manager', 'sales-manager')
+
+With:
+@UseGuards(PermissionsGuard)
+@RequirePermission('leads', 'manage')
+
+Benefit: Permissions are now managed in database, not hardcoded in controllers.
+
+ACTION: Update controllers one by one as needed, or leave as-is for now.
+
+
+==============================================================================
+FINAL CHECKLIST
+==============================================================================
+
+[ ] Database schema updated (4 tables removed, 3 added)
+[ ] Migration created and run successfully
+[ ] Seed file updated and run successfully
+[ ] PermissionsModule created with service, controller, DTOs
+[ ] RolesModule updated (removed permission methods)
+[ ] New PermissionsGuard and decorator created
+[ ] CapabilitiesModule removed
+[ ] AuthService updated (removed capabilities calls)
+[ ] App module imports updated
+[ ] Build completes without errors (npm run build)
+[ ] Dev server starts without errors (npm run start:dev)
+[ ] GET /permissions endpoint returns correct structure
+[ ] All CRUD endpoints for resources, actions, role-resources work
+[ ] Swagger documentation is updated and accurate
+[ ] NO unit or integration tests written (as per instructions)
+
+==============================================================================
+END OF TODO
+==============================================================================

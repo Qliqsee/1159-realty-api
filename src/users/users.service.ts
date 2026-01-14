@@ -521,7 +521,7 @@ export class UsersService {
     return { message: 'User deleted successfully' };
   }
 
-  async assignRole(userId: string, roleId: string) {
+  async assignRole(userId: string, roleId: string, assignerId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     const role = await this.prisma.role.findUnique({ where: { id: roleId } });
 
@@ -532,6 +532,9 @@ export class UsersService {
     if (!role) {
       throw new NotFoundException('Role not found');
     }
+
+    // Check role assignment hierarchy
+    await this.checkRoleAssignmentPermission(assignerId, role.name);
 
     const existingUserRole = await this.prisma.userRole.findUnique({
       where: {
@@ -557,7 +560,16 @@ export class UsersService {
     });
   }
 
-  async removeRole(userId: string, roleId: string) {
+  async removeRole(userId: string, roleId: string, removerId: string) {
+    const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    // Check role assignment hierarchy (same rules for removal)
+    await this.checkRoleAssignmentPermission(removerId, role.name);
+
     const userRole = await this.prisma.userRole.findUnique({
       where: {
         userId_roleId: {
@@ -914,7 +926,7 @@ export class UsersService {
     return { message: 'User deleted successfully' };
   }
 
-  async assignRole(userId: string, roleId: string) {
+  async assignRole(userId: string, roleId: string, assignerId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     const role = await this.prisma.role.findUnique({ where: { id: roleId } });
 
@@ -925,6 +937,9 @@ export class UsersService {
     if (!role) {
       throw new NotFoundException('Role not found');
     }
+
+    // Check role assignment hierarchy
+    await this.checkRoleAssignmentPermission(assignerId, role.name);
 
     const existingUserRole = await this.prisma.userRole.findUnique({
       where: {
@@ -950,7 +965,16 @@ export class UsersService {
     });
   }
 
-  async removeRole(userId: string, roleId: string) {
+  async removeRole(userId: string, roleId: string, removerId: string) {
+    const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    // Check role assignment hierarchy (same rules for removal)
+    await this.checkRoleAssignmentPermission(removerId, role.name);
+
     const userRole = await this.prisma.userRole.findUnique({
       where: {
         userId_roleId: {
@@ -1005,5 +1029,201 @@ export class UsersService {
     );
 
     return permissions;
+  }
+
+  async banUser(userId: string, bannerId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check ban hierarchy
+    await this.checkBanPermission(bannerId, user.userRoles.map(ur => ur.role.name));
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isBanned: true },
+    });
+
+    return { message: 'User banned successfully' };
+  }
+
+  async unbanUser(userId: string, unbannerId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check ban hierarchy (same rules for unban)
+    await this.checkBanPermission(unbannerId, user.userRoles.map(ur => ur.role.name));
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isBanned: false },
+    });
+
+    return { message: 'User unbanned successfully' };
+  }
+
+  async suspendUser(userId: string, suspenderId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check ban hierarchy (same rules for suspend)
+    await this.checkBanPermission(suspenderId, user.userRoles.map(ur => ur.role.name));
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isSuspended: true },
+    });
+
+    return { message: 'User suspended successfully' };
+  }
+
+  async unsuspendUser(userId: string, unsuspenderId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check ban hierarchy (same rules for unsuspend)
+    await this.checkBanPermission(unsuspenderId, user.userRoles.map(ur => ur.role.name));
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isSuspended: false },
+    });
+
+    return { message: 'User unsuspended successfully' };
+  }
+
+  // Helper method to check role assignment permission
+  private async checkRoleAssignmentPermission(assignerId: string, roleName: string) {
+    // Admin role cannot be assigned by anyone
+    if (roleName === 'admin') {
+      throw new ForbiddenException('Admin role cannot be assigned');
+    }
+
+    // Get assigner's roles
+    const assigner = await this.prisma.user.findUnique({
+      where: { id: assignerId },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!assigner) {
+      throw new NotFoundException('Assigner not found');
+    }
+
+    const assignerRoles = assigner.userRoles.map(ur => ur.role.name);
+
+    // Check hierarchy
+    if (roleName === 'manager') {
+      // Only admin can assign manager role
+      if (!assignerRoles.includes('admin')) {
+        throw new ForbiddenException('Only admin can assign manager role');
+      }
+    } else if (roleName === 'hr-manager') {
+      // Only admin and manager can assign hr-manager role
+      if (!assignerRoles.includes('admin') && !assignerRoles.includes('manager')) {
+        throw new ForbiddenException('Only admin and manager can assign hr-manager role');
+      }
+    } else {
+      // All other roles can only be assigned by hr-manager, manager, or admin
+      if (!assignerRoles.includes('hr-manager') && !assignerRoles.includes('manager') && !assignerRoles.includes('admin')) {
+        throw new ForbiddenException('Only hr-manager, manager, or admin can assign this role');
+      }
+    }
+  }
+
+  // Helper method to check ban permission
+  private async checkBanPermission(bannerId: string, targetUserRoles: string[]) {
+    // Get banner's roles
+    const banner = await this.prisma.user.findUnique({
+      where: { id: bannerId },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!banner) {
+      throw new NotFoundException('Banner not found');
+    }
+
+    const bannerRoles = banner.userRoles.map(ur => ur.role.name);
+
+    // Check if target has manager role
+    if (targetUserRoles.includes('manager')) {
+      // Only admin can ban manager
+      if (!bannerRoles.includes('admin')) {
+        throw new ForbiddenException('Only admin can ban users with manager role');
+      }
+    } else if (targetUserRoles.includes('hr-manager')) {
+      // Only admin or manager can ban hr-manager
+      if (!bannerRoles.includes('admin') && !bannerRoles.includes('manager')) {
+        throw new ForbiddenException('Only admin or manager can ban users with hr-manager role');
+      }
+    } else {
+      // All others can be banned by hr-manager, manager, or admin
+      if (!bannerRoles.includes('hr-manager') && !bannerRoles.includes('manager') && !bannerRoles.includes('admin')) {
+        throw new ForbiddenException('Only hr-manager, manager, or admin can ban users');
+      }
+    }
+
+    // Cannot ban admin
+    if (targetUserRoles.includes('admin')) {
+      throw new ForbiddenException('Admin users cannot be banned');
+    }
   }
 }
