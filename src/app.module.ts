@@ -35,6 +35,7 @@ import { AdminsModule } from './admins/admins.module';
 import { ClientsModule } from './clients/clients.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { CommonModule } from './common/common.module';
+import { LocationModule } from './location/location.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { CommonModule } from './common/common.module';
     AdminsModule,
     ClientsModule,
     PermissionsModule,
+    LocationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

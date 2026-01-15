@@ -35,6 +35,56 @@ async function main() {
 
   const hashedPassword = await bcrypt.hash('password123', 10);
 
+  // Seed Nigerian States
+  const nigerianStates = [
+    { id: 1, name: 'Abia', capital: 'Umuahia' },
+    { id: 2, name: 'Adamawa', capital: 'Yola' },
+    { id: 3, name: 'Akwa Ibom', capital: 'Uyo' },
+    { id: 4, name: 'Anambra', capital: 'Awka' },
+    { id: 5, name: 'Bauchi', capital: 'Bauchi' },
+    { id: 6, name: 'Bayelsa', capital: 'Yenagoa' },
+    { id: 7, name: 'Benue', capital: 'Makurdi' },
+    { id: 8, name: 'Borno', capital: 'Maiduguri' },
+    { id: 9, name: 'Cross River', capital: 'Calabar' },
+    { id: 10, name: 'Delta', capital: 'Asaba' },
+    { id: 11, name: 'Ebonyi', capital: 'Abakaliki' },
+    { id: 12, name: 'Edo', capital: 'Benin City' },
+    { id: 13, name: 'Ekiti', capital: 'Ado Ekiti' },
+    { id: 14, name: 'Enugu', capital: 'Enugu' },
+    { id: 15, name: 'Gombe', capital: 'Gombe' },
+    { id: 16, name: 'Imo', capital: 'Owerri' },
+    { id: 17, name: 'Jigawa', capital: 'Dutse' },
+    { id: 18, name: 'Kaduna', capital: 'Kaduna' },
+    { id: 19, name: 'Kano', capital: 'Kano' },
+    { id: 20, name: 'Katsina', capital: 'Katsina' },
+    { id: 21, name: 'Kebbi', capital: 'Birnin Kebbi' },
+    { id: 22, name: 'Kogi', capital: 'Lokoja' },
+    { id: 23, name: 'Kwara', capital: 'Ilorin' },
+    { id: 24, name: 'Lagos', capital: 'Ikeja' },
+    { id: 25, name: 'Nasarawa', capital: 'Lafia' },
+    { id: 26, name: 'Niger', capital: 'Minna' },
+    { id: 27, name: 'Ogun', capital: 'Abeokuta' },
+    { id: 28, name: 'Ondo', capital: 'Akure' },
+    { id: 29, name: 'Osun', capital: 'Osogbo' },
+    { id: 30, name: 'Oyo', capital: 'Ibadan' },
+    { id: 31, name: 'Plateau', capital: 'Jos' },
+    { id: 32, name: 'Rivers', capital: 'Port Harcourt' },
+    { id: 33, name: 'Sokoto', capital: 'Sokoto' },
+    { id: 34, name: 'Taraba', capital: 'Jalingo' },
+    { id: 35, name: 'Yobe', capital: 'Damaturu' },
+    { id: 36, name: 'Zamfara', capital: 'Gusau' },
+    { id: 37, name: 'FCT', capital: 'Abuja' },
+  ];
+
+  for (const state of nigerianStates) {
+    await prisma.state.upsert({
+      where: { id: state.id },
+      update: { name: state.name, capital: state.capital },
+      create: { id: state.id, name: state.name, capital: state.capital },
+    });
+  }
+  console.log(`✅ Seeded ${nigerianStates.length} Nigerian states`);
+
   // Load permissions map
   const permissionsMapPath = path.join(__dirname, '../permissions-map.json');
   const permissionsMap = JSON.parse(fs.readFileSync(permissionsMapPath, 'utf-8'));

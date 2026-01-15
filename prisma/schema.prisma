@@ -134,6 +134,11 @@ enum CaseStatus {
   REJECTED
 }
 
+enum Country {
+  NIGERIA
+  OTHERS
+}
+
 enum DocumentStatus {
   PENDING
   APPROVED
@@ -206,14 +211,15 @@ model Admin {
   bankName          String?
   street            String?
   city              String?
-  state             String?
-  country           String?
+  stateId           Int?
+  country           Country?
   postalCode        String?
   canOnboardClients Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   user                     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  state                    State?                @relation("AdminState", fields: [stateId], references: [id])
   kycCreatedRecords        Kyc[]                 @relation("KycCreatedBy")
   kycUpdatedRecords        Kyc[]                 @relation("KycUpdatedBy")
   kycReviewedRecords       Kyc[]                 @relation("KycReviewedBy")
@@ -225,6 +231,7 @@ model Admin {
   leadsStatusChanged       Lead[]                @relation("LeadStatusChangedBy")
   leadFeedbacks            LeadFeedback[]
   leadAgentHistory         LeadAgentHistory[]
+  referredClients          Client[]              @relation("ReferredByAgent")
   closedClients            Client[]              @relation("ClosedByAgent")
   partnershipsReviewed     Partnership[]         @relation("PartnershipReviewedBy")
   partnershipsSuspended    Partnership[]         @relation("PartnershipSuspendedBy")
@@ -255,19 +262,21 @@ model Client {
   phone                  String?
   gender                 Gender?
   referralSource         String?
-  country                String?
-  state                  String?
+  country                Country?
+  stateId                Int?
   hasCompletedOnboarding Boolean   @default(false)
   referralId             String?   @unique
-  agentReferralId        String?
+  referredByAgentId      String?
   referredByPartnerId    String?
   closedBy               String?
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 
   user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  state                 State?             @relation("ClientState", fields: [stateId], references: [id])
   kyc                   Kyc?
   propertyInterests     PropertyInterest[]
+  referredByAgent       Admin?             @relation("ReferredByAgent", fields: [referredByAgentId], references: [id])
   closedByAgent         Admin?             @relation("ClosedByAgent", fields: [closedBy], references: [id])
   partnership           Partnership?
   referredByPartner     Client?            @relation("ReferredByPartner", fields: [referredByPartnerId], references: [id])
@@ -464,9 +473,12 @@ model KycHistory {
 model State {
   id        Int      @id
   name      String   @unique
+  capital   String?
   createdAt DateTime @default(now())
 
   properties Property[]
+  admins     Admin[]    @relation("AdminState")
+  clients    Client[]   @relation("ClientState")
 
   @@map("states")
 }

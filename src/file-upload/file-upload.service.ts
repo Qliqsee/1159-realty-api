@@ -2,12 +2,29 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileTypeValidator } from './validators/file-type.validator';
 import { randomUUID } from 'crypto';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 @Injectable()
 export class FileUploadService {
   private readonly logger = new Logger(FileUploadService.name);
+  private readonly s3Client: S3Client;
 
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) {
+    const endpoint = this.configService.get<string>('DO_SPACES_ENDPOINT');
+    const region = this.configService.get<string>('DO_SPACES_REGION');
+    const key = this.configService.get<string>('DO_SPACES_KEY');
+    const secret = this.configService.get<string>('DO_SPACES_SECRET');
+
+    this.s3Client = new S3Client({
+      endpoint: endpoint,
+      region: region,
+      credentials: {
+        accessKeyId: key,
+        secretAccessKey: secret,
+      },
+      forcePathStyle: false,
+    });
+  }
 
   async uploadIdImage(
     file: Express.Multer.File,
@@ -21,7 +38,7 @@ export class FileUploadService {
     // Validate file
     FileTypeValidator.validate(file, { allowedTypes, maxSizeMB });
 
-    // Upload to DO Spaces (mocked)
+    // Upload to DO Spaces
     const url = await this.uploadToSpaces(file, 'id-images', userId);
 
     this.logger.log(`ID image uploaded for user ${userId}: ${url}`);
@@ -41,7 +58,7 @@ export class FileUploadService {
     // Validate file
     FileTypeValidator.validate(file, { allowedTypes, maxSizeMB });
 
-    // Upload to DO Spaces (mocked)
+    // Upload to DO Spaces
     const url = await this.uploadToSpaces(file, 'profile-pictures', userId);
 
     this.logger.log(`Profile picture uploaded for user ${userId}: ${url}`);
@@ -68,10 +85,34 @@ export class FileUploadService {
     // Validate file
     FileTypeValidator.validate(file, { allowedTypes, maxSizeMB });
 
-    // Upload to DO Spaces (mocked)
+    // Upload to DO Spaces
     const url = await this.uploadToSpaces(file, folder, randomUUID());
 
     this.logger.log(`Document uploaded to ${folder}: ${url}`);
+
+    return { url };
+  }
+
+  async uploadPropertyMedia(
+    file: Express.Multer.File,
+  ): Promise<{ url: string }> {
+    const allowedTypes = [
+      ...this.configService
+        .get<string>('ALLOWED_IMAGE_TYPES')
+        ?.split(',') || ['image/jpeg', 'image/png', 'image/jpg'],
+      ...this.configService
+        .get<string>('ALLOWED_VIDEO_TYPES')
+        ?.split(',') || ['video/mp4', 'video/quicktime'],
+    ];
+    const maxSizeMB = this.configService.get<number>('MAX_PROPERTY_MEDIA_SIZE_MB') || 1;
+
+    // Validate file
+    FileTypeValidator.validate(file, { allowedTypes, maxSizeMB });
+
+    // Upload to DO Spaces
+    const url = await this.uploadToSpaces(file, 'property-media', randomUUID());
+
+    this.logger.log(`Property media uploaded: ${url}`);
 
     return { url };
   }
@@ -81,47 +122,37 @@ export class FileUploadService {
     folder: string,
     userId: string,
   ): Promise<string> {
-    // Mocked DigitalOcean Spaces upload
-    const endpoint = this.configService.get<string>('DO_SPACES_ENDPOINT');
     const bucket = this.configService.get<string>('DO_SPACES_BUCKET');
-    const key = this.configService.get<string>('DO_SPACES_KEY');
-    const secret = this.configService.get<string>('DO_SPACES_SECRET');
+    const cdnUrl = this.configService.get<string>('DO_CDN_URL');
     const region = this.configService.get<string>('DO_SPACES_REGION');
 
-    this.logger.debug(
-      `[MOCKED] Uploading file to DO Spaces: ${folder}/${userId}/${file.originalname}`,
-    );
-    this.logger.debug(`[MOCKED] Endpoint: ${endpoint}`);
-    this.logger.debug(`[MOCKED] Bucket: ${bucket}`);
-    this.logger.debug(`[MOCKED] Region: ${region}`);
-    this.logger.debug(`[MOCKED] Credentials configured: ${!!key && !!secret}`);
-
-    // Generate fake URL
     const fileName = `${randomUUID()}-${file.originalname}`;
-    const fakeUrl = `https://${bucket}.${region}.digitaloceanspaces.com/${folder}/${userId}/${fileName}`;
+    const key = `${folder}/${userId}/${fileName}`;
 
-    // TODO: Replace with actual DO Spaces upload using AWS S3 SDK
-    // Example:
-    // const s3Client = new S3Client({
-    //   endpoint: endpoint,
-    //   region: region,
-    //   credentials: {
-    //     accessKeyId: key,
-    //     secretAccessKey: secret,
-    //   },
-    // });
-    //
-    // const uploadParams = {
-    //   Bucket: bucket,
-    //   Key: `${folder}/${userId}/${fileName}`,
-    //   Body: file.buffer,
-    //   ACL: 'public-read',
-    //   ContentType: file.mimetype,
-    // };
-    //
-    // const command = new PutObjectCommand(uploadParams);
-    // await s3Client.send(command);
+    this.logger.debug(`Uploading file to DO Spaces: ${key}`);
 
-    return fakeUrl;
+    const uploadParams = {
+      Bucket: bucket,
+      Key: key,
+      Body: file.buffer,
+      ACL: 'public-read' as const,
+      ContentType: file.mimetype,
+    };
+
+    try {
+      const command = new PutObjectCommand(uploadParams);
+      await this.s3Client.send(command);
+
+      // Return CDN URL if available, otherwise construct direct URL
+      const fileUrl = cdnUrl
+        ? `${cdnUrl}/${key}`
+        : `https://${bucket}.${region}.digitaloceanspaces.com/${key}`;
+
+      this.logger.log(`File uploaded successfully: ${fileUrl}`);
+      return fileUrl;
+    } catch (error) {
+      this.logger.error(`Failed to upload file to DO Spaces: ${error.message}`);
+      throw error;
+    }
   }
 }

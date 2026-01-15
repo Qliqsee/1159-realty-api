@@ -100,4 +100,38 @@ export class FileUploadController {
       message: 'Profile picture uploaded successfully',
     };
   }
+
+  @Post('property-media')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload property media (images/videos) - Max 1MB' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Property media file (image or video, max 1MB)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Property media uploaded successfully',
+    type: UploadResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid file type or size (max 1MB)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async uploadPropertyMedia(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<UploadResponseDto> {
+    const { url } = await this.fileUploadService.uploadPropertyMedia(file);
+    return {
+      url,
+      message: 'Property media uploaded successfully',
+    };
+  }
 }

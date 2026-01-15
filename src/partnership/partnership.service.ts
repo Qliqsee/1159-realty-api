@@ -285,7 +285,12 @@ export class PartnershipService {
         client: {
           select: {
             id: true,
-            agentReferralId: true,
+            referredByAgentId: true,
+            referredByAgent: {
+              select: {
+                referralId: true,
+              },
+            },
           },
         },
       },
@@ -301,17 +306,17 @@ export class PartnershipService {
       );
     }
 
-    // Client must have an agent referral ID to become a partner
-    if (!partnership.client.agentReferralId) {
+    // Client must have been referred by an agent to become a partner
+    if (!partnership.client.referredByAgentId || !partnership.client.referredByAgent) {
       throw new BadRequestException(
-        'Client must have an agent referral ID to become a partner',
+        'Client must have been referred by an agent to become a partner',
       );
     }
 
     // Generate partner referral ID based on agent's referral ID
     const referralId = await generatePartnerReferralId(
       this.prisma,
-      partnership.client.agentReferralId,
+      partnership.client.referredByAgentId,
     );
 
     // Update both partnership and client

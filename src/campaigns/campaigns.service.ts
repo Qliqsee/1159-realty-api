@@ -415,7 +415,11 @@ export class CampaignsService {
           phone: true,
           gender: true,
           country: true,
-          state: true,
+          state: {
+            select: {
+              name: true,
+            },
+          },
           referralSource: true,
           user: {
             select: {
@@ -437,7 +441,7 @@ export class CampaignsService {
         phone: client.phone || '',
         gender: client.gender || '',
         country: client.country || '',
-        state: client.state || '',
+        state: client.state?.name || '',
         referralSource: client.referralSource,
       })),
       total,
@@ -608,8 +612,8 @@ export class CampaignsService {
     // Filter by states
     if (segment.states && segment.states.length > 0) {
       conditions.push({
-        state: {
-          in: segment.states,
+        stateId: {
+          in: segment.states.map(Number),
         },
       });
     }

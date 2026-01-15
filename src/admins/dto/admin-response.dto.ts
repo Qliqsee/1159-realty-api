@@ -1,5 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationMetaDto } from '../../common/dto';
+import { Country } from '@prisma/client';
+
+class StateDto {
+  @ApiProperty({ description: 'State ID', example: 24 })
+  id: number;
+
+  @ApiProperty({ description: 'State name', example: 'Lagos' })
+  name: string;
+
+  @ApiPropertyOptional({ description: 'State capital', example: 'Ikeja' })
+  capital?: string;
+}
 
 export class AdminResponseDto {
   @ApiProperty({ description: 'Admin ID', example: 'uuid' })
@@ -38,11 +50,11 @@ export class AdminResponseDto {
   @ApiPropertyOptional({ description: 'City' })
   city?: string;
 
-  @ApiPropertyOptional({ description: 'State' })
-  state?: string;
+  @ApiPropertyOptional({ description: 'State', type: StateDto })
+  state?: StateDto;
 
-  @ApiPropertyOptional({ description: 'Country' })
-  country?: string;
+  @ApiPropertyOptional({ description: 'Country', enum: Country, example: 'NIGERIA' })
+  country?: Country;
 
   @ApiPropertyOptional({ description: 'Postal code' })
   postalCode?: string;

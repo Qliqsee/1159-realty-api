@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEnum } from 'class-validator';
-import { Gender } from '@prisma/client';
+import { IsOptional, IsString, IsEnum, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
+import { Gender, Country } from '@prisma/client';
 
 export class UpdateClientDto {
   @ApiPropertyOptional({ description: 'First name', example: 'Jane' })
@@ -28,13 +29,14 @@ export class UpdateClientDto {
   @IsOptional()
   gender?: Gender;
 
-  @ApiPropertyOptional({ description: 'Country', example: 'Nigeria' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Country', enum: Country, example: 'NIGERIA' })
+  @IsEnum(Country)
   @IsOptional()
-  country?: string;
+  country?: Country;
 
-  @ApiPropertyOptional({ description: 'State', example: 'Lagos' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'State ID (1-37 for Nigerian states)', example: 24 })
+  @IsInt()
+  @Type(() => Number)
   @IsOptional()
-  state?: string;
+  stateId?: number;
 }

@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma.service';
 import { AdminQueryDto, ClientQueryDto, MyClientsQueryDto, AdminSortOption } from './dto/admin-query.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
-import { AdminIncludeQueryDto } from './dto/admin-include-query.dto';
 import { ClientIncludeQueryDto } from '../clients/dto/client-query.dto';
 import {
   AdminResponseDto,
@@ -14,7 +13,6 @@ import {
 } from '../clients/dto/client-response.dto';
 import {
   AdminSummaryDto,
-  ClientSummaryDto,
   KycSummaryDto,
   PartnershipSummaryDto,
   LeadSummaryDto,
@@ -27,7 +25,7 @@ export class AdminsService {
     private prisma: PrismaService,
   ) {}
 
-  async findAll(query?: AdminQueryDto & AdminIncludeQueryDto): Promise<AdminListResponseDto> {
+  async findAll(query?: AdminQueryDto): Promise<AdminListResponseDto> {
     const page = query?.page ? parseInt(query.page, 10) : 1;
     const limit = query?.limit ? parseInt(query.limit, 10) : 10;
     const skip = (page - 1) * limit;
@@ -78,8 +76,8 @@ export class AdminsService {
       where.country = query.country;
     }
 
-    if (query?.state) {
-      where.state = query.state;
+    if (query?.stateId) {
+      where.stateId = query.stateId;
     }
 
     switch (query?.sort) {
@@ -107,6 +105,7 @@ export class AdminsService {
               },
             },
           },
+          state: true,
         },
         orderBy,
       }),
@@ -126,7 +125,7 @@ export class AdminsService {
     };
   }
 
-  async findOne(id: string, query?: AdminIncludeQueryDto): Promise<AdminResponseDto> {
+  async findOne(id: string): Promise<AdminResponseDto> {
     const admin = await this.prisma.admin.findUnique({
       where: { id },
       include: {
@@ -139,6 +138,7 @@ export class AdminsService {
             },
           },
         },
+        state: true,
       },
     });
 
@@ -162,6 +162,7 @@ export class AdminsService {
             },
           },
         },
+        state: true,
       },
     });
 
@@ -195,28 +196,44 @@ export class AdminsService {
             },
           },
         },
+        state: true,
       },
     });
 
     return this.mapToAdminResponse(updated);
   }
 
-  async getMyClients(adminId: string, query?: MyClientsQueryDto): Promise<ClientListResponseDto> {
+  async getMyClients(adminId: string, query?: MyClientsQueryDto & ClientIncludeQueryDto): Promise<ClientListResponseDto> {
     const page = query?.page ? parseInt(query.page, 10) : 1;
     const limit = query?.limit ? parseInt(query.limit, 10) : 10;
     const skip = (page - 1) * limit;
 
+    // Get the admin's referral ID
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+      select: { referralId: true },
+    });
+
+    if (!admin) {
+      throw new NotFoundException('Admin not found');
+    }
+
+    const includeKyc = query?.includeKyc === true;
+    const includePartnership = query?.includePartnership === true;
+    const includeAgent = query?.includeAgent === true;
+    const includePartner = query?.includePartner === true;
+
     const where: any = {
       OR: [
+        // Client referred directly by this admin
         {
-          enrollmentsAsClient: {
-            some: {
-              adminId,
-            },
-          },
+          referredByAgentId: adminId,
         },
+        // Client signed up with a partner's referral ID, where the partner is linked to this admin
         {
-          closedBy: adminId,
+          referredByPartner: {
+            referredByAgentId: adminId,
+          },
         },
       ],
     };
@@ -225,7 +242,9 @@ export class AdminsService {
       where.AND = [
         {
           OR: [
-            { name: { contains: query.search, mode: 'insensitive' } },
+            { firstName: { contains: query.search, mode: 'insensitive' } },
+            { lastName: { contains: query.search, mode: 'insensitive' } },
+            { otherName: { contains: query.search, mode: 'insensitive' } },
             { user: { email: { contains: query.search, mode: 'insensitive' } } },
             { phone: { contains: query.search, mode: 'insensitive' } },
           ],
@@ -241,8 +260,8 @@ export class AdminsService {
       where.country = query.country;
     }
 
-    if (query?.state) {
-      where.state = query.state;
+    if (query?.stateId) {
+      where.stateId = query.stateId;
     }
 
     if (query?.hasCompletedKYC === 'true') {
@@ -278,7 +297,27 @@ export class AdminsService {
         skip,
         take: limit,
         include: {
-          user: true,
+          user: {
+            include: {
+              userRoles: {
+                include: {
+                  role: true,
+                },
+              },
+            },
+          },
+          kyc: includeKyc,
+          partnership: includePartnership,
+          closedByAgent: includeAgent ? {
+            include: {
+              user: true,
+            },
+          } : false,
+          referredByPartner: includePartner ? {
+            include: {
+              user: true,
+            },
+          } : false,
         },
         orderBy,
       }),
@@ -286,7 +325,12 @@ export class AdminsService {
     ]);
 
     return {
-      data: clients.map(client => this.mapToClientSummary(client)),
+      data: clients.map(client => this.mapToClientResponse(client, {
+        includeKyc,
+        includePartnership,
+        includeAgent,
+        includePartner,
+      })),
       meta: {
         total,
         page,
@@ -296,10 +340,15 @@ export class AdminsService {
     };
   }
 
-  async getAllClients(query?: ClientQueryDto): Promise<ClientListResponseDto> {
+  async getAllClients(query?: ClientQueryDto & ClientIncludeQueryDto): Promise<ClientListResponseDto> {
     const page = query?.page ? parseInt(query.page, 10) : 1;
     const limit = query?.limit ? parseInt(query.limit, 10) : 10;
     const skip = (page - 1) * limit;
+
+    const includeKyc = query?.includeKyc === true;
+    const includePartnership = query?.includePartnership === true;
+    const includeAgent = query?.includeAgent === true;
+    const includePartner = query?.includePartner === true;
 
     const where: any = {};
     const orderBy: any = {};
@@ -322,8 +371,8 @@ export class AdminsService {
       where.country = query.country;
     }
 
-    if (query?.state) {
-      where.state = query.state;
+    if (query?.stateId) {
+      where.stateId = query.stateId;
     }
 
     if (query?.hasCompletedKYC === 'true') {
@@ -362,7 +411,27 @@ export class AdminsService {
         skip,
         take: limit,
         include: {
-          user: true,
+          user: {
+            include: {
+              userRoles: {
+                include: {
+                  role: true,
+                },
+              },
+            },
+          },
+          kyc: includeKyc,
+          partnership: includePartnership,
+          closedByAgent: includeAgent ? {
+            include: {
+              user: true,
+            },
+          } : false,
+          referredByPartner: includePartner ? {
+            include: {
+              user: true,
+            },
+          } : false,
         },
         orderBy,
       }),
@@ -370,7 +439,12 @@ export class AdminsService {
     ]);
 
     return {
-      data: clients.map(client => this.mapToClientSummary(client)),
+      data: clients.map(client => this.mapToClientResponse(client, {
+        includeKyc,
+        includePartnership,
+        includeAgent,
+        includePartner,
+      })),
       meta: {
         total,
         page,
@@ -425,63 +499,6 @@ export class AdminsService {
     });
   }
 
-  async banAdmin(adminId: string) {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
-
-    if (!admin) {
-      throw new NotFoundException('Admin not found');
-    }
-
-    await this.prisma.user.update({
-      where: { id: admin.userId },
-      data: { isBanned: true },
-    });
-
-    return { message: 'Admin banned successfully' };
-  }
-
-  async unbanAdmin(adminId: string) {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
-
-    if (!admin) {
-      throw new NotFoundException('Admin not found');
-    }
-
-    await this.prisma.user.update({
-      where: { id: admin.userId },
-      data: { isBanned: false },
-    });
-
-    return { message: 'Admin unbanned successfully' };
-  }
-
-  async changeRole(adminId: string, roleId: string) {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
-
-    if (!admin) {
-      throw new NotFoundException('Admin not found');
-    }
-
-    const role = await this.prisma.role.findUnique({ where: { id: roleId } });
-
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
-
-    await this.prisma.userRole.deleteMany({
-      where: { userId: admin.userId },
-    });
-
-    await this.prisma.userRole.create({
-      data: {
-        userId: admin.userId,
-        roleId,
-      },
-    });
-
-    return { message: 'Admin role changed successfully' };
-  }
-
   private mapToAdminResponse(admin: any): AdminResponseDto {
     return {
       id: admin.id,
@@ -496,7 +513,11 @@ export class AdminsService {
       referralId: admin.referralId,
       street: admin.street,
       city: admin.city,
-      state: admin.state,
+      state: admin.state ? {
+        id: admin.state.id,
+        name: admin.state.name,
+        capital: admin.state.capital,
+      } : undefined,
       country: admin.country,
       postalCode: admin.postalCode,
       accountNumber: admin.accountNumber,
@@ -525,22 +546,6 @@ export class AdminsService {
     };
   }
 
-  private mapToClientSummary(client: any): ClientSummaryDto {
-    return {
-      id: client.id,
-      userId: client.userId,
-      firstName: client.firstName,
-      lastName: client.lastName,
-      otherName: client.otherName,
-      email: client.user.email,
-      phone: client.phone,
-      gender: client.gender,
-      referralId: client.referralId,
-      hasCompletedOnboarding: client.hasCompletedOnboarding,
-      createdAt: client.createdAt,
-    };
-  }
-
   private mapToClientResponse(
     client: any,
     options?: {
@@ -565,7 +570,7 @@ export class AdminsService {
       state: client.state,
       hasCompletedOnboarding: client.hasCompletedOnboarding,
       referralId: client.referralId,
-      agentReferralId: client.agentReferralId,
+      referredByAgentId: client.referredByAgentId,
       referredByPartnerId: client.referredByPartnerId,
       closedBy: client.closedBy,
       isSuspended: client.user.isSuspended,
@@ -601,7 +606,7 @@ export class AdminsService {
     }
 
     if (options?.includePartner && client.referredByPartner) {
-      response.referredByPartner = this.mapToClientSummary(client.referredByPartner);
+      response.referredByPartner = this.mapToClientResponse(client.referredByPartner);
     }
 
     return response;

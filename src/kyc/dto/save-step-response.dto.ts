@@ -1,13 +1,13 @@
-import { ClientSummaryDto } from '../../common/dto';
+import { ClientResponseDto } from '../../clients/dto/client-response.dto';
 
-export class SavePersonalStepResponseDto extends ClientSummaryDto {}
+export class SavePersonalStepResponseDto extends ClientResponseDto {}
 
-export class SaveAddressStepResponseDto extends ClientSummaryDto {}
+export class SaveAddressStepResponseDto extends ClientResponseDto {}
 
-export class SaveOccupationStepResponseDto extends ClientSummaryDto {}
+export class SaveOccupationStepResponseDto extends ClientResponseDto {}
 
-export class SaveIdentityStepResponseDto extends ClientSummaryDto {}
+export class SaveIdentityStepResponseDto extends ClientResponseDto {}
 
-export class SaveNextOfKinStepResponseDto extends ClientSummaryDto {}
+export class SaveNextOfKinStepResponseDto extends ClientResponseDto {}
 
-export class SaveBankStepResponseDto extends ClientSummaryDto {}
+export class SaveBankStepResponseDto extends ClientResponseDto {}

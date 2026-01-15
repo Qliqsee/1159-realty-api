@@ -61,7 +61,7 @@ export class KycService {
     const kyc = await this.getOrCreateKyc(userId);
 
     // Validate referralId and determine link type
-    const { agentReferralId, referredByPartnerId } = await this.validateAndLinkReferral(data.referralId);
+    const { referredByAgentId, referredByPartnerId } = await this.validateAndLinkReferral(data.referralId);
 
     // Save to draft field
     const updated = await this.prisma.kyc.update({
@@ -81,7 +81,7 @@ export class KycService {
         hasCompletedOnboarding: true,
         gender: data.gender,
         referralSource: data.referralSource,
-        agentReferralId,
+        referredByAgentId,
         referredByPartnerId,
       },
     });
@@ -141,7 +141,7 @@ export class KycService {
       where: { userId },
       data: {
         country: data.country,
-        state: data.state,
+        stateId: data.stateId,
       },
     });
 
@@ -948,7 +948,7 @@ export class KycService {
   }
 
   private async validateAndLinkReferral(referralId: string): Promise<{
-    agentReferralId: string;
+    referredByAgentId: string;
     referredByPartnerId: string | null;
   }> {
     // Check if it's an agent referral ID (format: AGT-XXXXX)
@@ -985,7 +985,7 @@ export class KycService {
       }
 
       return {
-        agentReferralId: referralId,
+        referredByAgentId: agent.id,
         referredByPartnerId: null,
       };
     }
@@ -996,7 +996,7 @@ export class KycService {
         where: { referralId },
         select: {
           id: true,
-          agentReferralId: true,
+          referredByAgentId: true,
           partnership: {
             select: {
               status: true,
@@ -1018,15 +1018,12 @@ export class KycService {
         throw new BadRequestException('This partner is currently suspended');
       }
 
-      // Extract agent referral ID from partner referral ID
-      const agentReferralId = extractAgentReferralId(referralId) || partner.agentReferralId;
-
-      if (!agentReferralId) {
+      if (!partner.referredByAgentId) {
         throw new BadRequestException('Could not determine agent for this partner');
       }
 
       return {
-        agentReferralId,
+        referredByAgentId: partner.referredByAgentId,
         referredByPartnerId: partner.id,
       };
     }
@@ -1115,22 +1112,17 @@ export class KycService {
   private async getClientSummary(userId: string) {
     const client = await this.prisma.client.findUnique({
       where: { userId },
-      select: {
-        id: true,
-        userId: true,
-        firstName: true,
-        lastName: true,
-        otherName: true,
-        phone: true,
-        gender: true,
-        referralId: true,
-        hasCompletedOnboarding: true,
-        createdAt: true,
+      include: {
         user: {
-          select: {
-            email: true,
+          include: {
+            userRoles: {
+              include: {
+                role: true,
+              },
+            },
           },
         },
+        state: true,
       },
     });
 
@@ -1141,15 +1133,26 @@ export class KycService {
     return {
       id: client.id,
       userId: client.userId,
+      email: client.user.email,
+      isEmailVerified: client.user.isEmailVerified,
       firstName: client.firstName,
       lastName: client.lastName,
       otherName: client.otherName,
-      email: client.user.email,
       phone: client.phone,
       gender: client.gender,
-      referralId: client.referralId,
+      referralSource: client.referralSource,
+      country: client.country,
+      state: client.state?.name,
       hasCompletedOnboarding: client.hasCompletedOnboarding,
+      referralId: client.referralId,
+      referredByAgentId: client.referredByAgentId,
+      referredByPartnerId: client.referredByPartnerId,
+      closedBy: client.closedBy,
+      isSuspended: client.user.isSuspended,
+      isBanned: client.user.isBanned,
+      roles: client.user.userRoles?.map((ur: any) => ur.role.name) || [],
       createdAt: client.createdAt,
+      updatedAt: client.updatedAt,
     };
   }
 }

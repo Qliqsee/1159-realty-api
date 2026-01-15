@@ -1,16 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength } from 'class-validator';
+import { IsString, MinLength, IsEnum, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
+import { Country } from '@prisma/client';
 
 export class SaveAddressStepDto {
-  @ApiProperty({ example: 'Nigeria' })
-  @IsString()
-  @MinLength(2)
-  country: string;
+  @ApiProperty({ enum: Country, example: 'NIGERIA' })
+  @IsEnum(Country)
+  country: Country;
 
-  @ApiProperty({ example: 'Lagos' })
-  @IsString()
-  @MinLength(2)
-  state: string;
+  @ApiProperty({ example: 24, description: 'State ID (1-37 for Nigerian states)' })
+  @IsInt()
+  @Type(() => Number)
+  stateId: number;
 
   @ApiProperty({ example: 'Ikeja' })
   @IsString()

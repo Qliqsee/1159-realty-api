@@ -2,8 +2,6 @@ import {
   Controller,
   Get,
   Patch,
-  Delete,
-  Post,
   Param,
   Body,
   UseGuards,
@@ -25,8 +23,6 @@ import { RequirePermission } from '../common/decorators/require-permission.decor
 import { Request } from 'express';
 import { AdminQueryDto, ClientQueryDto, MyClientsQueryDto } from './dto/admin-query.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
-import { AdminIncludeQueryDto } from './dto/admin-include-query.dto';
-import { ChangeRoleDto } from './dto/change-role.dto';
 import {
   AdminResponseDto,
   AdminListResponseDto,
@@ -58,7 +54,7 @@ export class AdminsController {
   @ApiStandardResponse(200, 'Returns paginated admins list', AdminListResponseDto)
   @ApiUnauthorizedResponse()
   @ApiForbiddenResponse()
-  findAll(@Query() query: AdminQueryDto & AdminIncludeQueryDto): Promise<AdminListResponseDto> {
+  findAll(@Query() query: AdminQueryDto): Promise<AdminListResponseDto> {
     return this.adminsService.findAll(query);
   }
 
@@ -84,11 +80,11 @@ export class AdminsController {
   @Get('my-clients')
   @UseGuards(PermissionsGuard)
   @RequirePermission('clients', 'view_mines')
-  @ApiOperation({ summary: 'Get clients for logged in agent with filters, search, and pagination (Agent only)' })
+  @ApiOperation({ summary: 'Get clients for logged in agent with filters, search, and pagination (Agent only). Use query params to include optional fields (includeKyc, includePartnership, includeAgent, includePartner).' })
   @ApiStandardResponse(200, 'Returns paginated list of agent clients', ClientListResponseDto)
   @ApiUnauthorizedResponse()
   @ApiForbiddenResponse()
-  getMyClients(@Req() req: Request, @Query() query: MyClientsQueryDto): Promise<ClientListResponseDto> {
+  getMyClients(@Req() req: Request, @Query() query: MyClientsQueryDto & ClientIncludeQueryDto): Promise<ClientListResponseDto> {
     const adminId = req.user['admin']?.id;
     return this.adminsService.getMyClients(adminId, query);
   }
@@ -96,11 +92,11 @@ export class AdminsController {
   @Get('clients')
   @UseGuards(PermissionsGuard)
   @RequirePermission('users', 'manage')
-  @ApiOperation({ summary: 'Get all clients with filters, search, and pagination (Admin only)' })
+  @ApiOperation({ summary: 'Get all clients with filters, search, and pagination (Admin only). Use query params to include optional fields (includeKyc, includePartnership, includeAgent, includePartner).' })
   @ApiStandardResponse(200, 'Returns paginated list of all clients', ClientListResponseDto)
   @ApiUnauthorizedResponse()
   @ApiForbiddenResponse()
-  getAllClients(@Query() query: ClientQueryDto): Promise<ClientListResponseDto> {
+  getAllClients(@Query() query: ClientQueryDto & ClientIncludeQueryDto): Promise<ClientListResponseDto> {
     return this.adminsService.getAllClients(query);
   }
 
@@ -122,44 +118,7 @@ export class AdminsController {
   @ApiStandardResponse(200, 'Admin retrieved successfully', AdminResponseDto)
   @ApiUnauthorizedResponse()
   @ApiNotFoundResponse('Admin')
-  findOne(@Param('id') id: string, @Query() query: AdminIncludeQueryDto): Promise<AdminResponseDto> {
-    return this.adminsService.findOne(id, query);
-  }
-
-  @Post(':id/ban')
-  @UseGuards(PermissionsGuard)
-  @RequirePermission('users', 'manage')
-  @ApiOperation({ summary: 'Ban admin - sets isBanned true on User table (Admin only)' })
-  @ApiStandardResponse(201, 'Admin banned successfully')
-  @ApiUnauthorizedResponse()
-  @ApiForbiddenResponse()
-  @ApiNotFoundResponse('Admin')
-  banAdmin(@Param('id') id: string) {
-    return this.adminsService.banAdmin(id);
-  }
-
-  @Post(':id/unban')
-  @UseGuards(PermissionsGuard)
-  @RequirePermission('users', 'manage')
-  @ApiOperation({ summary: 'Unban admin - sets isBanned false on User table (Admin only)' })
-  @ApiStandardResponse(201, 'Admin unbanned successfully')
-  @ApiUnauthorizedResponse()
-  @ApiForbiddenResponse()
-  @ApiNotFoundResponse('Admin')
-  unbanAdmin(@Param('id') id: string) {
-    return this.adminsService.unbanAdmin(id);
-  }
-
-  @Patch(':id/role')
-  @UseGuards(PermissionsGuard)
-  @RequirePermission('users', 'manage')
-  @ApiOperation({ summary: 'Change admin role (Admin only)' })
-  @ApiBody({ type: ChangeRoleDto })
-  @ApiStandardResponse(200, 'Admin role changed successfully')
-  @ApiUnauthorizedResponse()
-  @ApiForbiddenResponse()
-  @ApiNotFoundResponse('Admin or role')
-  changeRole(@Param('id') id: string, @Body() body: ChangeRoleDto) {
-    return this.adminsService.changeRole(id, body.roleId);
+  findOne(@Param('id') id: string): Promise<AdminResponseDto> {
+    return this.adminsService.findOne(id);
   }
 }

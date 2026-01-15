@@ -9,7 +9,6 @@ import { ClientResponseDto } from '../clients/dto/client-response.dto';
 import { AdminResponseDto } from '../admins/dto/admin-response.dto';
 import {
   AdminSummaryDto,
-  ClientSummaryDto,
   KycSummaryDto,
   PartnershipSummaryDto
 } from '../common/dto';
@@ -31,7 +30,6 @@ import {
   ClientResponseDto,
   AdminResponseDto,
   AdminSummaryDto,
-  ClientSummaryDto,
   KycSummaryDto,
   PartnershipSummaryDto
 )

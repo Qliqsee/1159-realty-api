@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   AdminSummaryDto,
-  ClientSummaryDto,
   KycSummaryDto,
   PartnershipSummaryDto,
   PaginationMetaDto
@@ -50,8 +49,8 @@ export class ClientResponseDto {
   @ApiPropertyOptional({ description: 'Partner referral ID (only for approved partners)', example: 'AGT-ABC12-P001' })
   referralId?: string;
 
-  @ApiPropertyOptional({ description: 'Agent referral ID', example: 'AGT-ABC12' })
-  agentReferralId?: string;
+  @ApiPropertyOptional({ description: 'ID of the agent who referred this client' })
+  referredByAgentId?: string;
 
   @ApiPropertyOptional({ description: 'Referred by partner ID' })
   referredByPartnerId?: string;
@@ -84,21 +83,21 @@ export class ClientResponseDto {
   @ApiPropertyOptional({ type: () => AdminSummaryDto })
   closedByAgent?: AdminSummaryDto | null;
 
-  @ApiPropertyOptional({ type: () => ClientSummaryDto })
-  referredByPartner?: ClientSummaryDto | null;
+  @ApiPropertyOptional({ type: () => ClientResponseDto })
+  referredByPartner?: ClientResponseDto | null;
 }
 
 export class ReferralsResponseDto {
   @ApiProperty({ example: 25 })
   totalReferrals: number;
 
-  @ApiProperty({ type: [ClientSummaryDto] })
-  referrals: ClientSummaryDto[];
+  @ApiProperty({ type: [ClientResponseDto] })
+  referrals: ClientResponseDto[];
 }
 
 export class ClientListResponseDto {
-  @ApiProperty({ type: [ClientSummaryDto] })
-  data: ClientSummaryDto[];
+  @ApiProperty({ type: [ClientResponseDto] })
+  data: ClientResponseDto[];
 
   @ApiProperty({ type: PaginationMetaDto })
   meta: PaginationMetaDto;

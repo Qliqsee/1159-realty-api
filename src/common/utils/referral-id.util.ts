@@ -28,15 +28,28 @@ export async function generateAgentReferralId(prisma: PrismaService): Promise<st
  * Generates a partner referral ID in format: {agentReferralId}-P###
  * where ### is a sequential number per agent
  * Example: AGT-ABC12-P001, AGT-ABC12-P002, etc.
+ *
+ * @param prisma - Prisma service instance
+ * @param agentId - The ID of the agent (Admin) who referred the clients
  */
 export async function generatePartnerReferralId(
   prisma: PrismaService,
-  agentReferralId: string,
+  agentId: string,
 ): Promise<string> {
+  // Get the agent's referral ID
+  const agent = await prisma.admin.findUnique({
+    where: { id: agentId },
+    select: { referralId: true },
+  });
+
+  if (!agent || !agent.referralId) {
+    throw new Error('Agent or agent referral ID not found');
+  }
+
   // Get the count of existing partners for this agent
   const existingPartners = await prisma.client.count({
     where: {
-      agentReferralId,
+      referredByAgentId: agentId,
       referralId: {
         not: null,
       },
@@ -47,7 +60,7 @@ export async function generatePartnerReferralId(
   const partnerNumber = existingPartners + 1;
   const partnerSuffix = partnerNumber.toString().padStart(3, '0');
 
-  return `${agentReferralId}-P${partnerSuffix}`;
+  return `${agent.referralId}-P${partnerSuffix}`;
 }
 
 /**

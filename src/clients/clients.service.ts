@@ -8,7 +8,6 @@ import {
 } from './dto/client-response.dto';
 import {
   AdminSummaryDto,
-  ClientSummaryDto,
   KycSummaryDto,
   PartnershipSummaryDto,
 } from '../common/dto';
@@ -158,13 +157,46 @@ export class ClientsService {
     return this.mapToAdminSummary(client.closedByAgent);
   }
 
-  async getMyPartner(clientId: string): Promise<ClientSummaryDto | { message: string }> {
+  async getMyPartner(clientId: string, query?: ClientIncludeQueryDto): Promise<ClientResponseDto | { message: string }> {
+    const includeKyc = query?.includeKyc === true;
+    const includePartnership = query?.includePartnership === true;
+    const includeAgent = query?.includeAgent === true;
+    const includePartner = query?.includePartner === true;
+
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: {
         referredByPartner: {
           include: {
-            user: true,
+            user: {
+              include: {
+                userRoles: {
+                  include: {
+                    role: true,
+                  },
+                },
+              },
+            },
+            kyc: includeKyc,
+            partnership: includePartnership,
+            closedByAgent: includeAgent ? {
+              include: {
+                user: true,
+              },
+            } : false,
+            referredByPartner: includePartner ? {
+              include: {
+                user: {
+                  include: {
+                    userRoles: {
+                      include: {
+                        role: true,
+                      },
+                    },
+                  },
+                },
+              },
+            } : false,
           },
         },
       },
@@ -178,10 +210,20 @@ export class ClientsService {
       return { message: 'This client was not referred by a partner' };
     }
 
-    return this.mapToClientSummary(client.referredByPartner);
+    return this.mapToClientResponse(client.referredByPartner, {
+      includeKyc,
+      includePartnership,
+      includeAgent,
+      includePartner,
+    });
   }
 
-  async getMyReferrals(clientId: string): Promise<ReferralsResponseDto> {
+  async getMyReferrals(clientId: string, query?: ClientIncludeQueryDto): Promise<ReferralsResponseDto> {
+    const includeKyc = query?.includeKyc === true;
+    const includePartnership = query?.includePartnership === true;
+    const includeAgent = query?.includeAgent === true;
+    const includePartner = query?.includePartner === true;
+
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: {
@@ -205,7 +247,35 @@ export class ClientsService {
         referredByPartnerId: clientId,
       },
       include: {
-        user: true,
+        user: {
+          include: {
+            userRoles: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        },
+        kyc: includeKyc,
+        partnership: includePartnership,
+        closedByAgent: includeAgent ? {
+          include: {
+            user: true,
+          },
+        } : false,
+        referredByPartner: includePartner ? {
+          include: {
+            user: {
+              include: {
+                userRoles: {
+                  include: {
+                    role: true,
+                  },
+                },
+              },
+            },
+          },
+        } : false,
       },
       orderBy: {
         createdAt: 'desc',
@@ -214,7 +284,12 @@ export class ClientsService {
 
     return {
       totalReferrals: referrals.length,
-      referrals: referrals.map(referral => this.mapToClientSummary(referral)),
+      referrals: referrals.map(referral => this.mapToClientResponse(referral, {
+        includeKyc,
+        includePartnership,
+        includeAgent,
+        includePartner,
+      })),
     };
   }
 
@@ -242,7 +317,7 @@ export class ClientsService {
       state: client.state,
       hasCompletedOnboarding: client.hasCompletedOnboarding,
       referralId: client.referralId,
-      agentReferralId: client.agentReferralId,
+      referredByAgentId: client.referredByAgentId,
       referredByPartnerId: client.referredByPartnerId,
       closedBy: client.closedBy,
       isSuspended: client.user.isSuspended,
@@ -278,26 +353,10 @@ export class ClientsService {
     }
 
     if (options?.includePartner && client.referredByPartner) {
-      response.referredByPartner = this.mapToClientSummary(client.referredByPartner);
+      response.referredByPartner = this.mapToClientResponse(client.referredByPartner);
     }
 
     return response;
-  }
-
-  mapToClientSummary(client: any): ClientSummaryDto {
-    return {
-      id: client.id,
-      userId: client.userId,
-      firstName: client.firstName,
-      lastName: client.lastName,
-      otherName: client.otherName,
-      email: client.user.email,
-      phone: client.phone,
-      gender: client.gender,
-      referralId: client.referralId,
-      hasCompletedOnboarding: client.hasCompletedOnboarding,
-      createdAt: client.createdAt,
-    };
   }
 
   mapToAdminSummary(admin: any): AdminSummaryDto {

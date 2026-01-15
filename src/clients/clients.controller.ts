@@ -32,7 +32,6 @@ import {
 } from './dto/client-response.dto';
 import {
   AdminSummaryDto,
-  ClientSummaryDto,
   KycSummaryDto,
   PartnershipSummaryDto
 } from '../common/dto';
@@ -43,7 +42,6 @@ import {
   ClientResponseDto,
   ReferralsResponseDto,
   AdminSummaryDto,
-  ClientSummaryDto,
   KycSummaryDto,
   PartnershipSummaryDto
 )
@@ -89,23 +87,31 @@ export class ClientsController {
   }
 
   @Get('my-partner')
-  @ApiOperation({ summary: 'Get partner who referred the client if applicable' })
-  @ApiStandardResponse(200, 'Partner information retrieved successfully', ClientSummaryDto)
+  @ApiOperation({ summary: 'Get partner who referred the client if applicable. Use query params to include optional fields (includeKyc, includePartnership, includeAgent, includePartner).' })
+  @ApiQuery({ name: 'includeKyc', required: false, type: Boolean, description: 'Include KYC summary' })
+  @ApiQuery({ name: 'includePartnership', required: false, type: Boolean, description: 'Include partnership summary' })
+  @ApiQuery({ name: 'includeAgent', required: false, type: Boolean, description: 'Include agent (closed by) summary' })
+  @ApiQuery({ name: 'includePartner', required: false, type: Boolean, description: 'Include referring partner summary' })
+  @ApiStandardResponse(200, 'Partner information retrieved successfully', ClientResponseDto)
   @ApiUnauthorizedResponse()
   @ApiNotFoundResponse('Client')
-  getMyPartner(@Req() req: Request): Promise<ClientSummaryDto | { message: string }> {
+  getMyPartner(@Req() req: Request, @Query() query: ClientIncludeQueryDto): Promise<ClientResponseDto | { message: string }> {
     const clientId = req.user['client']?.id;
-    return this.clientsService.getMyPartner(clientId);
+    return this.clientsService.getMyPartner(clientId, query);
   }
 
   @Get('my-referrals')
-  @ApiOperation({ summary: 'Get clients referred by this client if they are a partner' })
+  @ApiOperation({ summary: 'Get clients referred by this client if they are a partner. Use query params to include optional fields (includeKyc, includePartnership, includeAgent, includePartner).' })
+  @ApiQuery({ name: 'includeKyc', required: false, type: Boolean, description: 'Include KYC summary' })
+  @ApiQuery({ name: 'includePartnership', required: false, type: Boolean, description: 'Include partnership summary' })
+  @ApiQuery({ name: 'includeAgent', required: false, type: Boolean, description: 'Include agent (closed by) summary' })
+  @ApiQuery({ name: 'includePartner', required: false, type: Boolean, description: 'Include referring partner summary' })
   @ApiStandardResponse(200, 'Referrals retrieved successfully', ReferralsResponseDto)
   @ApiUnauthorizedResponse()
   @ApiNotFoundResponse('Client')
-  getMyReferrals(@Req() req: Request): Promise<ReferralsResponseDto> {
+  getMyReferrals(@Req() req: Request, @Query() query: ClientIncludeQueryDto): Promise<ReferralsResponseDto> {
     const clientId = req.user['client']?.id;
-    return this.clientsService.getMyReferrals(clientId);
+    return this.clientsService.getMyReferrals(clientId, query);
   }
 
   @Get(':id')

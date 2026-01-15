@@ -1,5 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
+import { Country } from '@prisma/client';
 
 export enum AdminSortOption {
   LATEST = 'latest',
@@ -32,15 +34,16 @@ export class AdminQueryDto {
   @IsOptional()
   canOnboardClients?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by country' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Filter by country', enum: Country })
+  @IsEnum(Country)
   @IsOptional()
-  country?: string;
+  country?: Country;
 
-  @ApiPropertyOptional({ description: 'Filter by state' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Filter by state ID' })
+  @IsInt()
+  @Type(() => Number)
   @IsOptional()
-  state?: string;
+  stateId?: number;
 
   @ApiPropertyOptional({
     description: 'Sort option',
@@ -73,15 +76,16 @@ export class ClientQueryDto {
   @IsOptional()
   gender?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by country' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Filter by country', enum: Country })
+  @IsEnum(Country)
   @IsOptional()
-  country?: string;
+  country?: Country;
 
-  @ApiPropertyOptional({ description: 'Filter by state' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Filter by state ID' })
+  @IsInt()
+  @Type(() => Number)
   @IsOptional()
-  state?: string;
+  stateId?: number;
 
   @ApiPropertyOptional({ description: 'Filter by KYC completion' })
   @IsString()
@@ -129,15 +133,16 @@ export class MyClientsQueryDto {
   @IsOptional()
   gender?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by country' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Filter by country', enum: Country })
+  @IsEnum(Country)
   @IsOptional()
-  country?: string;
+  country?: Country;
 
-  @ApiPropertyOptional({ description: 'Filter by state' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Filter by state ID' })
+  @IsInt()
+  @Type(() => Number)
   @IsOptional()
-  state?: string;
+  stateId?: number;
 
   @ApiPropertyOptional({ description: 'Filter by KYC completion' })
   @IsString()
