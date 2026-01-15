@@ -54,8 +54,7 @@ export class AdminsController {
   @Get()
   @UseGuards(PermissionsGuard)
   @RequirePermission('users', 'manage')
-  @ApiOperation({ summary: 'List all admins with filters, search, and pagination (Admin only). Use includeCapabilities=true to include capabilities (may impact performance).' })
-  @ApiQuery({ name: 'includeCapabilities', required: false, type: Boolean, description: 'Include capabilities for each admin (may impact performance on large lists)' })
+  @ApiOperation({ summary: 'List all admins with filters, search, and pagination (Admin only)' })
   @ApiStandardResponse(200, 'Returns paginated admins list', AdminListResponseDto)
   @ApiUnauthorizedResponse()
   @ApiForbiddenResponse()
@@ -64,7 +63,7 @@ export class AdminsController {
   }
 
   @Get('me')
-  @ApiOperation({ summary: 'Get logged in admin profile. Capabilities are always included for this endpoint.' })
+  @ApiOperation({ summary: 'Get logged in admin profile' })
   @ApiStandardResponse(200, 'Admin profile retrieved successfully', AdminResponseDto)
   @ApiUnauthorizedResponse()
   @ApiNotFoundResponse('Admin')
@@ -73,7 +72,7 @@ export class AdminsController {
   }
 
   @Patch('me')
-  @ApiOperation({ summary: 'Update logged in admin profile including bank details. Capabilities are always included in response.' })
+  @ApiOperation({ summary: 'Update logged in admin profile including bank details' })
   @ApiBody({ type: UpdateAdminDto })
   @ApiStandardResponse(200, 'Admin profile updated successfully', AdminResponseDto)
   @ApiUnauthorizedResponse()
@@ -107,7 +106,6 @@ export class AdminsController {
 
   @Get('clients/:id')
   @ApiOperation({ summary: 'Get client by ID. Use query params to include optional fields (includeKyc, includePartnership, includeAgent, includePartner).' })
-  @ApiQuery({ name: 'includeCapabilities', required: false, type: Boolean, description: 'Include capabilities (always empty for admin viewing clients)' })
   @ApiQuery({ name: 'includeKyc', required: false, type: Boolean, description: 'Include KYC summary' })
   @ApiQuery({ name: 'includePartnership', required: false, type: Boolean, description: 'Include partnership summary' })
   @ApiQuery({ name: 'includeAgent', required: false, type: Boolean, description: 'Include agent (closed by) summary' })
@@ -120,8 +118,7 @@ export class AdminsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get single admin by ID. Use includeCapabilities=true to include capabilities.' })
-  @ApiQuery({ name: 'includeCapabilities', required: false, type: Boolean, description: 'Include capabilities in response' })
+  @ApiOperation({ summary: 'Get single admin by ID' })
   @ApiStandardResponse(200, 'Admin retrieved successfully', AdminResponseDto)
   @ApiUnauthorizedResponse()
   @ApiNotFoundResponse('Admin')
@@ -151,30 +148,6 @@ export class AdminsController {
   @ApiNotFoundResponse('Admin')
   unbanAdmin(@Param('id') id: string) {
     return this.adminsService.unbanAdmin(id);
-  }
-
-  @Post(':id/suspend')
-  @UseGuards(PermissionsGuard)
-  @RequirePermission('users', 'manage')
-  @ApiOperation({ summary: 'Suspend admin - sets canOnboardClients false (Admin only)' })
-  @ApiStandardResponse(201, 'Admin suspended successfully')
-  @ApiUnauthorizedResponse()
-  @ApiForbiddenResponse()
-  @ApiNotFoundResponse('Admin')
-  suspendAdmin(@Param('id') id: string) {
-    return this.adminsService.suspendAdmin(id);
-  }
-
-  @Post(':id/unsuspend')
-  @UseGuards(PermissionsGuard)
-  @RequirePermission('users', 'manage')
-  @ApiOperation({ summary: 'Unsuspend admin - sets canOnboardClients true (Admin only)' })
-  @ApiStandardResponse(201, 'Admin unsuspended successfully')
-  @ApiUnauthorizedResponse()
-  @ApiForbiddenResponse()
-  @ApiNotFoundResponse('Admin')
-  unsuspendAdmin(@Param('id') id: string) {
-    return this.adminsService.unsuspendAdmin(id);
   }
 
   @Patch(':id/role')

@@ -55,7 +55,7 @@ import {
 @ApiTags('Partnership')
 @Controller('partnership')
 @UseGuards(JwtAuthGuard, EmailVerifiedGuard, PermissionsGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
 export class PartnershipController {
   constructor(private readonly partnershipService: PartnershipService) {}
 

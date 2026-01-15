@@ -1,3 +1,5 @@
+import { emailLayout, createParagraph } from './email-layout.template';
+
 export const invoiceOverdueTemplate = (
   recipientName: string,
   propertyName: string,
@@ -18,56 +20,35 @@ export const invoiceOverdueTemplate = (
     day: 'numeric',
   }).format(dueDate);
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Overdue Invoice Notice</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background-color: #f4f4f4; padding: 20px; border-radius: 10px;">
-    <h1 style="color: #e74c3c; margin-bottom: 20px;">Payment Overdue</h1>
+  const content = `
+    ${createParagraph(`Your payment for <strong>${propertyName}</strong> is now <strong>${daysOverdue} day(s) overdue</strong>.`)}
 
-    <p>Hi ${recipientName},</p>
-
-    <p>Your payment for <strong>${propertyName}</strong> is now <strong>${daysOverdue} day(s) overdue</strong>.</p>
-
-    <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; border-radius: 5px;">
-      <p style="margin: 0 0 10px 0; color: #721c24;"><strong>Overdue Payment Details:</strong></p>
-      <p style="margin: 5px 0; color: #721c24;">Installment #${installmentNumber}</p>
-      <p style="margin: 5px 0; color: #721c24;">Amount: ${formattedAmount}</p>
-      <p style="margin: 5px 0; color: #721c24;">Original Due Date: ${formattedDate}</p>
-      <p style="margin: 5px 0; color: #721c24;">Days Overdue: ${daysOverdue}</p>
+    <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 16px 20px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0 0 12px; color: #721c24; font-size: 16px; font-weight: 600;">Overdue Payment Details:</p>
+      <p style="margin: 0 0 6px; color: #721c24; font-size: 15px;">Installment #${installmentNumber}</p>
+      <p style="margin: 0 0 6px; color: #721c24; font-size: 15px;">Amount: ${formattedAmount}</p>
+      <p style="margin: 0 0 6px; color: #721c24; font-size: 15px;">Original Due Date: ${formattedDate}</p>
+      <p style="margin: 0; color: #721c24; font-size: 15px;">Days Overdue: ${daysOverdue}</p>
     </div>
 
-    ${
-      gracePeriodRemaining > 0
-        ? `
-    <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px;">
-      <p style="margin: 0; color: #856404;"><strong>Grace Period:</strong> ${gracePeriodRemaining} day(s) remaining before suspension</p>
+    ${gracePeriodRemaining > 0 ? `
+    <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 16px 20px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; color: #856404; font-size: 15px;"><strong>Grace Period:</strong> ${gracePeriodRemaining} day(s) remaining before suspension</p>
     </div>
-    `
-        : `
-    <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; border-radius: 5px;">
-      <p style="margin: 0; color: #721c24;"><strong>Warning:</strong> Your grace period has expired. Your enrollment may be suspended.</p>
+    ` : `
+    <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 16px 20px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; color: #721c24; font-size: 15px;"><strong>Warning:</strong> Your grace period has expired. Your enrollment may be suspended.</p>
     </div>
-    `
-    }
+    `}
 
-    <p><strong>Action Required:</strong> Please make payment immediately to avoid suspension of your enrollment and additional penalties.</p>
+    ${createParagraph('<strong>Action Required:</strong> Please make payment immediately to avoid suspension of your enrollment and additional penalties.')}
+    ${createParagraph('If you\'re experiencing difficulties making payment, please contact us to discuss payment arrangements.')}
+  `;
 
-    <p>If you're experiencing difficulties making payment, please contact us to discuss payment arrangements.</p>
-
-    <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-
-    <p style="font-size: 12px; color: #777;">
-      Best regards,<br>
-      The 1159 Realty Team
-    </p>
-  </div>
-</body>
-</html>
-  `.trim();
+  return emailLayout({
+    title: 'Payment Overdue',
+    preview: `Overdue payment notice for ${propertyName}`,
+    firstName: recipientName,
+    content,
+  });
 };

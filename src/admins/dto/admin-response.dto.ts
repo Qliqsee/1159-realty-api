@@ -29,6 +29,9 @@ export class AdminResponseDto {
   @ApiPropertyOptional({ description: 'Date of birth' })
   dateOfBirth?: Date;
 
+  @ApiPropertyOptional({ description: 'Agent referral ID', example: 'AGT-ABC12' })
+  referralId?: string;
+
   @ApiPropertyOptional({ description: 'Street address' })
   street?: string;
 
@@ -67,9 +70,6 @@ export class AdminResponseDto {
 
   @ApiProperty({ description: 'Roles assigned', example: ['agent', 'admin'] })
   roles: string[];
-
-  @ApiPropertyOptional({ description: 'Capabilities', example: ['properties:read', 'properties:create', 'enrollments:read'], type: [String] })
-  capabilities?: string[];
 
   @ApiProperty({ description: 'Created at' })
   createdAt: Date;

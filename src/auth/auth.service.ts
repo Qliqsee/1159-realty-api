@@ -4,9 +4,12 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { ClientsService } from '../clients/clients.service';
 import { AdminsService } from '../admins/admins.service';
+import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 import { SignUpDto } from './dto/signup.dto';
 import { AdminSignUpDto } from './dto/admin-signup.dto';
+import { generateAgentReferralId } from '../common/utils/referral-id.util';
+import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class AuthService {
@@ -16,11 +19,12 @@ export class AuthService {
     private configService: ConfigService,
     private clientsService: ClientsService,
     private adminsService: AdminsService,
+    private emailService: EmailService,
   ) {}
 
   // CLIENT SIGNUP
   async signUp(signUpDto: SignUpDto) {
-    const { email, password, firstName, lastName, otherName, partnerRefCode } = signUpDto;
+    const { email, password } = signUpDto;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -31,24 +35,6 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(password, 8);
-
-    // Validate partner referral code if provided
-    let referredByPartnerId: string | undefined;
-    if (partnerRefCode) {
-      const referringPartner = await this.prisma.client.findFirst({
-        where: {
-          partnerLink: partnerRefCode,
-          partnership: {
-            status: 'APPROVED',
-            suspendedAt: null,
-          },
-        },
-      });
-
-      if (referringPartner) {
-        referredByPartnerId = referringPartner.id;
-      }
-    }
 
     // Create user and client in transaction
     const result = await this.prisma.$transaction(async (tx) => {
@@ -62,10 +48,6 @@ export class AuthService {
       const client = await tx.client.create({
         data: {
           userId: user.id,
-          firstName,
-          lastName,
-          otherName,
-          referredByPartnerId,
         },
       });
 
@@ -105,8 +87,11 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(result.user.id, result.user.email, 'client', roles);
 
-    // Fetch client profile with capabilities using ClientsService
+    // Fetch client profile using ClientsService
     const clientProfile = await this.clientsService.findByUserId(result.user.id);
+
+    // Send OTP email for email verification
+    await this.emailService.sendOtp(result.user.id);
 
     return {
       client: clientProfile,
@@ -141,9 +126,13 @@ export class AuthService {
         },
       });
 
+      // Generate unique agent referral ID
+      const referralId = await generateAgentReferralId(tx as any);
+
       const admin = await tx.admin.create({
         data: {
           userId: user.id,
+          referralId,
         },
       });
 
@@ -183,8 +172,11 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(result.user.id, result.user.email, 'admin', roles);
 
-    // Fetch admin profile with capabilities using AdminsService
+    // Fetch admin profile using AdminsService
     const adminProfile = await this.adminsService.findByUserId(result.user.id);
+
+    // Send OTP email for email verification
+    await this.emailService.sendOtp(result.user.id);
 
     return {
       client: null,
@@ -204,6 +196,7 @@ export class AuthService {
         email: true,
         password: true,
         isBanned: true,
+        isSuspended: true,
         admin: {
           select: {
             id: true,
@@ -230,6 +223,11 @@ export class AuthService {
     // Check if user is banned
     if (user.isBanned) {
       throw new ForbiddenException('Your account has been banned');
+    }
+
+    // Check if user is suspended
+    if (user.isSuspended) {
+      throw new ForbiddenException('Your account has been suspended');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -267,7 +265,7 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email, userType, roles);
 
-    // Fetch user profile with capabilities using appropriate service
+    // Fetch user profile using appropriate service
     const userProfile = userType === 'client'
       ? await this.clientsService.findByUserId(user.id)
       : await this.adminsService.findByUserId(user.id);
@@ -290,6 +288,7 @@ export class AuthService {
         id: true,
         email: true,
         isBanned: true,
+        isSuspended: true,
         client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
         admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
       },
@@ -302,6 +301,7 @@ export class AuthService {
           id: true,
           email: true,
           isBanned: true,
+          isSuspended: true,
           client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
           admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
         },
@@ -316,6 +316,7 @@ export class AuthService {
             id: true,
             email: true,
             isBanned: true,
+            isSuspended: true,
             client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
             admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
           },
@@ -366,6 +367,7 @@ export class AuthService {
               id: true,
               email: true,
               isBanned: true,
+              isSuspended: true,
               client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
               admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
             },
@@ -373,6 +375,16 @@ export class AuthService {
         });
 
         user = result;
+
+        // Send welcome email for new user
+        if (user?.client) {
+          const userName = formatFullName(
+            user.client.firstName,
+            user.client.lastName,
+            user.client.otherName,
+          );
+          await this.emailService.sendWelcomeEmail(user.email, userName, 'client');
+        }
       }
     }
 
@@ -387,6 +399,7 @@ export class AuthService {
         id: true,
         email: true,
         isBanned: true,
+        isSuspended: true,
         admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
         client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
       },
@@ -399,6 +412,7 @@ export class AuthService {
           id: true,
           email: true,
           isBanned: true,
+          isSuspended: true,
           admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
           client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
         },
@@ -413,6 +427,7 @@ export class AuthService {
             id: true,
             email: true,
             isBanned: true,
+            isSuspended: true,
             admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
             client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
           },
@@ -433,12 +448,16 @@ export class AuthService {
           const firstName = nameParts[0] || '';
           const lastName = nameParts.slice(1).join(' ') || '';
 
+          // Generate unique agent referral ID
+          const referralId = await generateAgentReferralId(tx as any);
+
           const admin = await tx.admin.create({
             data: {
               userId: newUser.id,
               firstName,
               lastName,
               otherName: '',
+              referralId,
             },
           });
 
@@ -463,6 +482,7 @@ export class AuthService {
               id: true,
               email: true,
               isBanned: true,
+              isSuspended: true,
               admin: { select: { id: true, firstName: true, lastName: true, otherName: true } },
               client: { select: { id: true, firstName: true, lastName: true, otherName: true } },
             },
@@ -470,6 +490,16 @@ export class AuthService {
         });
 
         user = result;
+
+        // Send welcome email for new admin user
+        if (user?.admin) {
+          const userName = formatFullName(
+            user.admin.firstName,
+            user.admin.lastName,
+            user.admin.otherName,
+          );
+          await this.emailService.sendWelcomeEmail(user.email, userName, 'admin');
+        }
       }
     }
 
@@ -480,6 +510,11 @@ export class AuthService {
     // Check if user is banned
     if (user.isBanned) {
       throw new ForbiddenException('Your account has been banned');
+    }
+
+    // Check if user is suspended
+    if (user.isSuspended) {
+      throw new ForbiddenException('Your account has been suspended');
     }
 
     // Determine userType
@@ -507,7 +542,7 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email, userType, roles);
 
-    // Fetch user profile with capabilities using appropriate service
+    // Fetch user profile using appropriate service
     const userProfile = userType === 'client'
       ? await this.clientsService.findByUserId(user.id)
       : await this.adminsService.findByUserId(user.id);
@@ -534,6 +569,7 @@ export class AuthService {
           id: true,
           email: true,
           isBanned: true,
+          isSuspended: true,
           admin: { select: { id: true } },
           client: { select: { id: true } },
           userRoles: {
@@ -555,6 +591,11 @@ export class AuthService {
         throw new ForbiddenException('Your account has been banned');
       }
 
+      // Check if user is suspended
+      if (user.isSuspended) {
+        throw new ForbiddenException('Your account has been suspended');
+      }
+
       const userType = user.admin ? 'admin' : user.client ? 'client' : null;
 
       if (!userType) {
@@ -566,7 +607,7 @@ export class AuthService {
 
       const tokens = await this.generateTokens(user.id, user.email, userType, roles);
 
-      // Fetch user profile with capabilities using appropriate service
+      // Fetch user profile using appropriate service
       const userProfile = userType === 'client'
         ? await this.clientsService.findByUserId(user.id)
         : await this.adminsService.findByUserId(user.id);

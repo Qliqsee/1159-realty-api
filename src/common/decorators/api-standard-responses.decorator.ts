@@ -1,5 +1,5 @@
 import { applyDecorators, Type } from '@nestjs/common';
-import { ApiResponse as SwaggerApiResponse } from '@nestjs/swagger';
+import { ApiResponse as SwaggerApiResponse, getSchemaPath } from '@nestjs/swagger';
 import { ApiResponse, ApiErrorResponse } from '../dto/api-response.dto';
 
 export const ApiStandardResponse = <TModel extends Type<any>>(
@@ -10,8 +10,8 @@ export const ApiStandardResponse = <TModel extends Type<any>>(
   const responseSchema = dataType
     ? {
         allOf: [
-          { $ref: `#/components/schemas/${dataType.name}` },
           {
+            type: 'object',
             properties: {
               message: {
                 type: 'string',
@@ -23,11 +23,16 @@ export const ApiStandardResponse = <TModel extends Type<any>>(
                 example: status,
                 description: 'HTTP status code',
               },
+              data: {
+                $ref: getSchemaPath(dataType),
+              },
             },
+            required: ['message', 'code', 'data'],
           },
         ],
       }
     : {
+        type: 'object',
         properties: {
           message: {
             type: 'string',
@@ -42,15 +47,16 @@ export const ApiStandardResponse = <TModel extends Type<any>>(
           data: {
             type: 'object',
             description: 'Response data',
+            nullable: true,
           },
         },
+        required: ['message', 'code'],
       };
 
   return applyDecorators(
     SwaggerApiResponse({
       status,
       description,
-      type: dataType,
       schema: responseSchema,
     }),
   );

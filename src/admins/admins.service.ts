@@ -113,18 +113,7 @@ export class AdminsService {
       this.prisma.admin.count({ where }),
     ]);
 
-    let adminData: AdminResponseDto[];
-
-    if (query?.includeCapabilities) {
-      adminData = await Promise.all(
-        admins.map(async admin => {
-          const capabilities = [];
-          return this.mapToAdminResponse(admin, capabilities);
-        })
-      );
-    } else {
-      adminData = admins.map(admin => this.mapToAdminResponse(admin));
-    }
+    const adminData: AdminResponseDto[] = admins.map(admin => this.mapToAdminResponse(admin));
 
     return {
       data: adminData,
@@ -157,11 +146,6 @@ export class AdminsService {
       throw new NotFoundException('Admin not found');
     }
 
-    if (query?.includeCapabilities) {
-      const capabilities = [];
-      return this.mapToAdminResponse(admin, capabilities);
-    }
-
     return this.mapToAdminResponse(admin);
   }
 
@@ -185,8 +169,7 @@ export class AdminsService {
       throw new NotFoundException('Admin profile not found');
     }
 
-    const capabilities = [];
-    return this.mapToAdminResponse(admin, capabilities);
+    return this.mapToAdminResponse(admin);
   }
 
   async updateProfile(userId: string, updateData: UpdateAdminDto): Promise<AdminResponseDto> {
@@ -215,8 +198,7 @@ export class AdminsService {
       },
     });
 
-    const capabilities = [];
-    return this.mapToAdminResponse(updated, capabilities);
+    return this.mapToAdminResponse(updated);
   }
 
   async getMyClients(adminId: string, query?: MyClientsQueryDto): Promise<ClientListResponseDto> {
@@ -435,11 +417,7 @@ export class AdminsService {
       throw new NotFoundException('Client not found');
     }
 
-    // When admin views client, capabilities should always be empty array
-    const capabilities: string[] = [];
-
     return this.mapToClientResponse(client, {
-      capabilities,
       includeKyc,
       includePartnership,
       includeAgent,
@@ -477,36 +455,6 @@ export class AdminsService {
     return { message: 'Admin unbanned successfully' };
   }
 
-  async suspendAdmin(adminId: string) {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
-
-    if (!admin) {
-      throw new NotFoundException('Admin not found');
-    }
-
-    await this.prisma.admin.update({
-      where: { id: adminId },
-      data: { canOnboardClients: false },
-    });
-
-    return { message: 'Admin suspended from onboarding clients' };
-  }
-
-  async unsuspendAdmin(adminId: string) {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
-
-    if (!admin) {
-      throw new NotFoundException('Admin not found');
-    }
-
-    await this.prisma.admin.update({
-      where: { id: adminId },
-      data: { canOnboardClients: true },
-    });
-
-    return { message: 'Admin onboarding capability restored' };
-  }
-
   async changeRole(adminId: string, roleId: string) {
     const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
 
@@ -534,7 +482,7 @@ export class AdminsService {
     return { message: 'Admin role changed successfully' };
   }
 
-  private mapToAdminResponse(admin: any, capabilities?: string[]): AdminResponseDto {
+  private mapToAdminResponse(admin: any): AdminResponseDto {
     return {
       id: admin.id,
       userId: admin.userId,
@@ -545,6 +493,7 @@ export class AdminsService {
       otherName: admin.otherName,
       phone: admin.phone,
       dateOfBirth: admin.dateOfBirth,
+      referralId: admin.referralId,
       street: admin.street,
       city: admin.city,
       state: admin.state,
@@ -558,7 +507,6 @@ export class AdminsService {
       isBanned: admin.user.isBanned,
       isSuspended: admin.user.isSuspended,
       roles: admin.user.userRoles?.map((ur: any) => ur.role.name) || [],
-      ...(capabilities !== undefined && { capabilities }),
       createdAt: admin.createdAt,
       updatedAt: admin.updatedAt,
     };
@@ -587,7 +535,7 @@ export class AdminsService {
       email: client.user.email,
       phone: client.phone,
       gender: client.gender,
-      partnerLink: client.partnerLink,
+      referralId: client.referralId,
       hasCompletedOnboarding: client.hasCompletedOnboarding,
       createdAt: client.createdAt,
     };
@@ -596,7 +544,6 @@ export class AdminsService {
   private mapToClientResponse(
     client: any,
     options?: {
-      capabilities?: string[];
       includeKyc?: boolean;
       includePartnership?: boolean;
       includeAgent?: boolean;
@@ -617,7 +564,8 @@ export class AdminsService {
       country: client.country,
       state: client.state,
       hasCompletedOnboarding: client.hasCompletedOnboarding,
-      partnerLink: client.partnerLink,
+      referralId: client.referralId,
+      agentReferralId: client.agentReferralId,
       referredByPartnerId: client.referredByPartnerId,
       closedBy: client.closedBy,
       isSuspended: client.user.isSuspended,
@@ -628,10 +576,6 @@ export class AdminsService {
     };
 
     // Add optional fields if requested
-    if (options?.capabilities !== undefined) {
-      response.capabilities = options.capabilities;
-    }
-
     if (options?.includeKyc && client.kyc) {
       response.kyc = {
         id: client.kyc.id,

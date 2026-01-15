@@ -26,8 +26,8 @@ export class ClientSummaryDto {
   @ApiPropertyOptional({ example: 'MALE', enum: Gender })
   gender?: Gender;
 
-  @ApiPropertyOptional({ example: 'ABC123XYZ' })
-  partnerLink?: string;
+  @ApiPropertyOptional({ example: 'AGT-ABC12-P001', description: 'Partner referral ID (only for approved partners)' })
+  referralId?: string;
 
   @ApiProperty({ example: false })
   hasCompletedOnboarding: boolean;

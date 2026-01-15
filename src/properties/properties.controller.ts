@@ -14,8 +14,15 @@ import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
+  ApiBody,
   ApiResponse,
 } from '@nestjs/swagger';
+import {
+  ApiStandardResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+} from '../common/decorators/api-standard-responses.decorator';
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
@@ -38,18 +45,15 @@ export class PropertiesController {
 
   @Get()
   @ApiOperation({ summary: 'List properties with pagination, search, and filters' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns paginated properties list with filters',
-  })
+  @ApiStandardResponse(200, 'Returns paginated properties list with filters')
   findAll(@Query() queryDto: QueryPropertiesDto) {
     return this.propertiesService.findAll(queryDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get property by ID with full details' })
-  @ApiResponse({ status: 200, description: 'Property details retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Property not found' })
+  @ApiStandardResponse(200, 'Property details retrieved successfully')
+  @ApiNotFoundResponse('Property')
   findOne(@Param('id') id: string) {
     return this.propertiesService.findOne(id);
   }
@@ -87,9 +91,10 @@ export class PropertiesController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Create a new property (admin only)' })
-  @ApiResponse({ status: 201, description: 'Property created successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiBody({ type: CreatePropertyDto })
+  @ApiStandardResponse(201, 'Property created successfully')
+  @ApiUnauthorizedResponse()
+  @ApiForbiddenResponse()
   create(@Body() createPropertyDto: CreatePropertyDto, @Req() req: Request) {
     const userId = (req.user as any).id;
     return this.propertiesService.create(createPropertyDto, userId);
@@ -100,10 +105,11 @@ export class PropertiesController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('properties', 'manage')
   @ApiOperation({ summary: 'Update property details (admin only)' })
-  @ApiResponse({ status: 200, description: 'Property updated successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Property not found' })
+  @ApiBody({ type: UpdatePropertyDto })
+  @ApiStandardResponse(200, 'Property updated successfully')
+  @ApiUnauthorizedResponse()
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse('Property')
   update(
     @Param('id') id: string,
     @Body() updatePropertyDto: UpdatePropertyDto,

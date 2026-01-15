@@ -2,6 +2,8 @@
 
 VERY IMPORTANT: Except clearly otherwise stated in the chat or conversation, the database in use is :DATABASE_URL="postgresql://postgres:postgres@localhost:5432/realty_db?schema=public" in .env.local
 
+ALWAYS LOAD variables from .env.local excpt otherwise stated
+
 Very Important: DO NOT TRACK TODO IN TERMINAL OR IN CONVERSATIONS OR CHATS TO AVOID DUPLICATION OF TODOS HENCE WASTING TOKENS.Only track todos and their descriptions if any in a TODO.txt at the root. You should track pending items there and as soon as its done remove it from the list. Do not apply any form of formatting just track as plain text in TODO.txt.
 
 Do not create any other .md file except I explicitly request for it.

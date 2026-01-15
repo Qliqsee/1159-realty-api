@@ -52,7 +52,12 @@ export class PermissionsCacheService implements OnModuleInit {
     for (const roleName of roleNames) {
       const rolePerms = permissions[roleName];
       if (rolePerms && rolePerms[resource]) {
+        // Check if role has the exact action
         if (rolePerms[resource].includes(action)) {
+          return true;
+        }
+        // Check if role has "manage" action - which grants ALL actions for this resource
+        if (rolePerms[resource].includes('manage')) {
           return true;
         }
       }

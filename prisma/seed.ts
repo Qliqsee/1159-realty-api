@@ -5,6 +5,31 @@ import * as path from 'path';
 
 const prisma = new PrismaClient();
 
+// Function to generate unique agent referral ID
+async function generateAgentReferralId(): Promise<string> {
+  const maxAttempts = 10;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let randomPart = '';
+    for (let i = 0; i < 5; i++) {
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const referralId = `AGT-${randomPart}`;
+
+    // Check if it already exists
+    const existing = await prisma.admin.findUnique({
+      where: { referralId },
+    });
+
+    if (!existing) {
+      return referralId;
+    }
+  }
+
+  throw new Error('Failed to generate unique agent referral ID after maximum attempts');
+}
+
 async function main() {
   console.log('Starting seed...');
 
@@ -110,11 +135,15 @@ async function main() {
       },
     });
 
+    // Generate unique referral ID for admin
+    const referralId = await generateAgentReferralId();
+
     await prisma.admin.create({
       data: {
         userId: adminUser.id,
         firstName: 'Super',
         lastName: 'Admin',
+        referralId,
       },
     });
 
@@ -131,7 +160,7 @@ async function main() {
       });
     }
 
-    console.log('✅ Default admin user created: admin@example.com / password123');
+    console.log(`✅ Default admin user created: admin@example.com / password123 (Referral ID: ${referralId})`);
   }
 
   console.log('✅ Seed completed successfully!');

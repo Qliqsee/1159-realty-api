@@ -199,6 +199,7 @@ model Admin {
   otherName         String?
   phone             String?
   dateOfBirth       DateTime?
+  referralId        String?   @unique
   accountNumber     String?
   bankCode          String?
   accountName       String?
@@ -257,7 +258,8 @@ model Client {
   country                String?
   state                  String?
   hasCompletedOnboarding Boolean   @default(false)
-  partnerLink            String?   @unique
+  referralId             String?   @unique
+  agentReferralId        String?
   referredByPartnerId    String?
   closedBy               String?
   createdAt              DateTime  @default(now())

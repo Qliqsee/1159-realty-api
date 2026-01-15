@@ -1,28 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { KycStatus, KycStep } from '@prisma/client';
+import { ClientSummaryDto } from '../../common/dto';
 
-export class SaveStepResponseDto {
-  @ApiProperty({ example: 'Step saved successfully' })
-  message: string;
+export class SavePersonalStepResponseDto extends ClientSummaryDto {}
 
-  @ApiProperty({ enum: KycStatus, example: KycStatus.DRAFT })
-  status: KycStatus;
+export class SaveAddressStepResponseDto extends ClientSummaryDto {}
 
-  @ApiProperty({ enum: KycStep, example: KycStep.ADDRESS })
-  currentStep: KycStep;
-}
+export class SaveOccupationStepResponseDto extends ClientSummaryDto {}
 
-export class SavePersonalStepResponseDto extends SaveStepResponseDto {
-  @ApiProperty({ example: true })
-  hasCompletedOnboarding: boolean;
-}
+export class SaveIdentityStepResponseDto extends ClientSummaryDto {}
 
-export class SaveAddressStepResponseDto extends SaveStepResponseDto {}
+export class SaveNextOfKinStepResponseDto extends ClientSummaryDto {}
 
-export class SaveOccupationStepResponseDto extends SaveStepResponseDto {}
-
-export class SaveIdentityStepResponseDto extends SaveStepResponseDto {}
-
-export class SaveNextOfKinStepResponseDto extends SaveStepResponseDto {}
-
-export class SaveBankStepResponseDto extends SaveStepResponseDto {}
+export class SaveBankStepResponseDto extends ClientSummaryDto {}

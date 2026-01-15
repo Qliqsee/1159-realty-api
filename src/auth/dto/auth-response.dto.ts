@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString } from 'class-validator';
 import { ClientResponseDto } from '../../clients/dto/client-response.dto';
 import { AdminResponseDto } from '../../admins/dto/admin-response.dto';
 
@@ -12,13 +13,13 @@ export class TokensDto {
 
 export class AuthResponseDto {
   @ApiPropertyOptional({
-    description: 'Client profile with capabilities (null if admin login)',
+    description: 'Client profile (null if admin login)',
     type: () => ClientResponseDto,
   })
   client: ClientResponseDto | null;
 
   @ApiPropertyOptional({
-    description: 'Admin profile with capabilities (null if client login)',
+    description: 'Admin profile (null if client login)',
     type: () => AdminResponseDto,
   })
   admin: AdminResponseDto | null;
@@ -32,5 +33,6 @@ export class AuthResponseDto {
 
 export class RefreshTokenDto {
   @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
+  @IsString()
   refreshToken: string;
 }

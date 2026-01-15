@@ -3,13 +3,18 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { ClientsService } from '../clients/clients.service';
 import { Kyc, KycStatus, KycStep, Prisma } from '@prisma/client';
 import { formatFullName } from '../common/utils/name.utils';
+import { extractAgentReferralId } from '../common/utils/referral-id.util';
 import { SavePersonalStepDto } from './dto/save-personal-step.dto';
+import { UpdatePersonalInfoDto } from './dto/update-personal-info.dto';
 import { SaveAddressStepDto } from './dto/save-address-step.dto';
 import { SaveOccupationStepDto } from './dto/save-occupation-step.dto';
 import { SaveIdentityStepDto } from './dto/save-identity-step.dto';
@@ -25,6 +30,7 @@ import {
   SaveNextOfKinStepResponseDto,
   SaveBankStepResponseDto,
 } from './dto/save-step-response.dto';
+import { ClientResponseDto } from '../clients/dto/client-response.dto';
 
 @Injectable()
 export class KycService {
@@ -34,14 +40,28 @@ export class KycService {
     private prisma: PrismaService,
     private emailService: EmailService,
     private configService: ConfigService,
+    @Inject(forwardRef(() => ClientsService))
+    private clientsService: ClientsService,
   ) {}
 
   async savePersonalStep(
     userId: string,
     data: SavePersonalStepDto,
-    continueToNext: boolean = false,
-  ): Promise<SavePersonalStepResponseDto> {
-    const kyc = await this.getOrCreateKyc(userId, userId);
+  ): Promise<ClientResponseDto> {
+    // Check if onboarding already completed
+    const existingClient = await this.prisma.client.findUnique({
+      where: { userId },
+      select: { hasCompletedOnboarding: true },
+    });
+
+    if (existingClient?.hasCompletedOnboarding) {
+      throw new BadRequestException('Onboarding has been completed already. Use /kyc/personal endpoint to update personal information.');
+    }
+
+    const kyc = await this.getOrCreateKyc(userId);
+
+    // Validate referralId and determine link type
+    const { agentReferralId, referredByPartnerId } = await this.validateAndLinkReferral(data.referralId);
 
     // Save to draft field
     const updated = await this.prisma.kyc.update({
@@ -49,49 +69,70 @@ export class KycService {
       data: {
         personalDraft: data as any,
         personal: data as any, // Also update main field for immediate use
-        currentStep: continueToNext
-          ? this.getNextStep(KycStep.PERSONAL)
-          : kyc.currentStep,
-        updatedBy: userId,
       },
     });
 
-    // Update Client fields after personal step
+    // Update Client fields after personal step (onboarding)
     await this.prisma.client.update({
       where: { userId },
       data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
         hasCompletedOnboarding: true,
         gender: data.gender,
         referralSource: data.referralSource,
+        agentReferralId,
+        referredByPartnerId,
       },
     });
 
-    this.logger.log(`Personal step saved for KYC ${kyc.id}`);
+    this.logger.log(`Personal step saved for KYC ${kyc.id} (onboarding)`);
 
-    return {
-      message: 'Personal information saved successfully',
-      status: updated.status,
-      currentStep: updated.currentStep,
-      hasCompletedOnboarding: true,
-    };
+    // Fetch updated client information with full response
+    return this.clientsService.findByUserId(userId);
+  }
+
+  async updatePersonalInfo(
+    userId: string,
+    data: UpdatePersonalInfoDto,
+  ): Promise<SavePersonalStepResponseDto> {
+    // Check if onboarding completed
+    const existingClient = await this.prisma.client.findUnique({
+      where: { userId },
+      select: { hasCompletedOnboarding: true },
+    });
+
+    if (!existingClient?.hasCompletedOnboarding) {
+      throw new BadRequestException('Please complete onboarding first using /kyc/personal/onboarding endpoint.');
+    }
+
+    const kyc = await this.getOrCreateKyc(userId);
+
+    // Save to draft field only (not Client table)
+    await this.prisma.kyc.update({
+      where: { id: kyc.id },
+      data: {
+        personalDraft: data as any,
+      },
+    });
+
+    this.logger.log(`Personal info updated in draft for KYC ${kyc.id}`);
+
+    // Fetch updated client information
+    return this.getClientSummary(userId);
   }
 
   async saveAddressStep(
     userId: string,
     data: SaveAddressStepDto,
-    continueToNext: boolean = false,
   ): Promise<SaveAddressStepResponseDto> {
-    const kyc = await this.getOrCreateKyc(userId, userId);
+    const kyc = await this.getOrCreateKyc(userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
         addressDraft: data as any,
         address: data as any,
-        currentStep: continueToNext
-          ? this.getNextStep(KycStep.ADDRESS)
-          : kyc.currentStep,
-        updatedBy: userId,
       },
     });
 
@@ -106,126 +147,91 @@ export class KycService {
 
     this.logger.log(`Address step saved for KYC ${kyc.id}`);
 
-    return {
-      message: 'Address information saved successfully',
-      status: updated.status,
-      currentStep: updated.currentStep,
-    };
+    // Fetch updated client information
+    return this.getClientSummary(userId);
   }
 
   async saveOccupationStep(
     userId: string,
     data: SaveOccupationStepDto,
-    continueToNext: boolean = false,
   ): Promise<SaveOccupationStepResponseDto> {
-    const kyc = await this.getOrCreateKyc(userId, userId);
+    const kyc = await this.getOrCreateKyc(userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
         occupationDraft: data as any,
         occupation: data as any,
-        currentStep: continueToNext
-          ? this.getNextStep(KycStep.OCCUPATION)
-          : kyc.currentStep,
-        updatedBy: userId,
       },
     });
 
     this.logger.log(`Occupation step saved for KYC ${kyc.id}`);
 
-    return {
-      message: 'Occupation information saved successfully',
-      status: updated.status,
-      currentStep: updated.currentStep,
-    };
+    // Fetch updated client information
+    return this.getClientSummary(userId);
   }
 
   async saveIdentityStep(
     userId: string,
     data: SaveIdentityStepDto,
-    continueToNext: boolean = false,
   ): Promise<SaveIdentityStepResponseDto> {
-    const kyc = await this.getOrCreateKyc(userId, userId);
+    const kyc = await this.getOrCreateKyc(userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
         identityDraft: data as any,
         identity: data as any,
-        currentStep: continueToNext
-          ? this.getNextStep(KycStep.IDENTITY)
-          : kyc.currentStep,
-        updatedBy: userId,
       },
     });
 
     this.logger.log(`Identity step saved for KYC ${kyc.id}`);
 
-    return {
-      message: 'Identity information saved successfully',
-      status: updated.status,
-      currentStep: updated.currentStep,
-    };
+    // Fetch updated client information
+    return this.getClientSummary(userId);
   }
 
   async saveNextOfKinStep(
     userId: string,
     data: SaveNextOfKinStepDto,
-    continueToNext: boolean = false,
   ): Promise<SaveNextOfKinStepResponseDto> {
-    const kyc = await this.getOrCreateKyc(userId, userId);
+    const kyc = await this.getOrCreateKyc(userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
         nextOfKinDraft: data as any,
         nextOfKin: data as any,
-        currentStep: continueToNext
-          ? this.getNextStep(KycStep.NEXT_OF_KIN)
-          : kyc.currentStep,
-        updatedBy: userId,
       },
     });
 
     this.logger.log(`Next of kin step saved for KYC ${kyc.id}`);
 
-    return {
-      message: 'Next of kin information saved successfully',
-      status: updated.status,
-      currentStep: updated.currentStep,
-    };
+    // Fetch updated client information
+    return this.getClientSummary(userId);
   }
 
   async saveBankStep(
     userId: string,
     data: SaveBankStepDto,
-    continueToNext: boolean = false,
   ): Promise<SaveBankStepResponseDto> {
-    const kyc = await this.getOrCreateKyc(userId, userId);
+    const kyc = await this.getOrCreateKyc(userId);
 
     const updated = await this.prisma.kyc.update({
       where: { id: kyc.id },
       data: {
         bankDraft: data as any,
         bank: data as any,
-        currentStep: continueToNext
-          ? this.getNextStep(KycStep.BANK)
-          : kyc.currentStep,
-        updatedBy: userId,
       },
     });
 
     this.logger.log(`Bank step saved for KYC ${kyc.id}`);
 
-    return {
-      message: 'Bank information saved successfully',
-      status: updated.status,
-      currentStep: updated.currentStep,
-    };
+    // Fetch updated client information
+    return this.getClientSummary(userId);
   }
 
-  async submitKyc(userId: string): Promise<Kyc> {
+  async submitKyc(userId: string) {
     const client = await this.prisma.client.findUnique({
       where: { userId },
       select: { id: true },
@@ -323,7 +329,8 @@ export class KycService {
       );
     }
 
-    return updated;
+    // Fetch updated client information
+    return this.getClientSummary(userId);
   }
 
   async getMyKyc(userId: string) {
@@ -940,6 +947,94 @@ export class KycService {
     }
   }
 
+  private async validateAndLinkReferral(referralId: string): Promise<{
+    agentReferralId: string;
+    referredByPartnerId: string | null;
+  }> {
+    // Check if it's an agent referral ID (format: AGT-XXXXX)
+    if (/^AGT-[A-Z0-9]{5}$/.test(referralId)) {
+      const agent = await this.prisma.admin.findUnique({
+        where: { referralId },
+        select: {
+          id: true,
+          referralId: true,
+          canOnboardClients: true,
+          user: {
+            select: {
+              isSuspended: true,
+              isBanned: true,
+            },
+          },
+        },
+      });
+
+      if (!agent) {
+        throw new BadRequestException('Invalid agent referral ID');
+      }
+
+      if (agent.user.isSuspended) {
+        throw new BadRequestException('This agent is currently suspended and cannot onboard clients');
+      }
+
+      if (agent.user.isBanned) {
+        throw new BadRequestException('This agent is banned and cannot onboard clients');
+      }
+
+      if (!agent.canOnboardClients) {
+        throw new BadRequestException('This agent is not authorized to onboard clients');
+      }
+
+      return {
+        agentReferralId: referralId,
+        referredByPartnerId: null,
+      };
+    }
+
+    // Check if it's a partner referral ID (format: AGT-XXXXX-P###)
+    if (/^AGT-[A-Z0-9]{5}-P\d{3}$/.test(referralId)) {
+      const partner = await this.prisma.client.findUnique({
+        where: { referralId },
+        select: {
+          id: true,
+          agentReferralId: true,
+          partnership: {
+            select: {
+              status: true,
+              suspendedAt: true,
+            },
+          },
+        },
+      });
+
+      if (!partner) {
+        throw new BadRequestException('Invalid partner referral ID');
+      }
+
+      if (!partner.partnership || partner.partnership.status !== 'APPROVED') {
+        throw new BadRequestException('This partner is not approved');
+      }
+
+      if (partner.partnership.suspendedAt) {
+        throw new BadRequestException('This partner is currently suspended');
+      }
+
+      // Extract agent referral ID from partner referral ID
+      const agentReferralId = extractAgentReferralId(referralId) || partner.agentReferralId;
+
+      if (!agentReferralId) {
+        throw new BadRequestException('Could not determine agent for this partner');
+      }
+
+      return {
+        agentReferralId,
+        referredByPartnerId: partner.id,
+      };
+    }
+
+    // Invalid format
+    throw new BadRequestException('Invalid referral ID format. Must be an agent ID (AGT-XXXXX) or partner ID (AGT-XXXXX-P###)');
+  }
+
   private async getOrCreateKyc(
     userId: string,
     createdBy?: string,
@@ -956,13 +1051,19 @@ export class KycService {
     let kyc = await this.prisma.kyc.findUnique({ where: { clientId: client.id } });
 
     if (!kyc) {
+      const createData: any = {
+        clientId: client.id,
+        status: KycStatus.DRAFT,
+        currentStep: KycStep.PERSONAL,
+      };
+
+      // Only set createdBy if it's provided (for admin-created KYCs)
+      if (createdBy) {
+        createData.createdBy = createdBy;
+      }
+
       kyc = await this.prisma.kyc.create({
-        data: {
-          clientId: client.id,
-          status: KycStatus.DRAFT,
-          currentStep: KycStep.PERSONAL,
-          createdBy,
-        },
+        data: createData,
       });
       this.logger.log(`New KYC created for client ${client.id}`);
     }
@@ -1009,5 +1110,46 @@ export class KycService {
 
     // Otherwise, keep current step
     return currentStep;
+  }
+
+  private async getClientSummary(userId: string) {
+    const client = await this.prisma.client.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        userId: true,
+        firstName: true,
+        lastName: true,
+        otherName: true,
+        phone: true,
+        gender: true,
+        referralId: true,
+        hasCompletedOnboarding: true,
+        createdAt: true,
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
+
+    return {
+      id: client.id,
+      userId: client.userId,
+      firstName: client.firstName,
+      lastName: client.lastName,
+      otherName: client.otherName,
+      email: client.user.email,
+      phone: client.phone,
+      gender: client.gender,
+      referralId: client.referralId,
+      hasCompletedOnboarding: client.hasCompletedOnboarding,
+      createdAt: client.createdAt,
+    };
   }
 }

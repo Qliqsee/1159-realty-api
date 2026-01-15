@@ -47,8 +47,11 @@ export class ClientResponseDto {
   @ApiProperty({ description: 'Has completed onboarding', example: false })
   hasCompletedOnboarding: boolean;
 
-  @ApiPropertyOptional({ description: 'Partner link' })
-  partnerLink?: string;
+  @ApiPropertyOptional({ description: 'Partner referral ID (only for approved partners)', example: 'AGT-ABC12-P001' })
+  referralId?: string;
+
+  @ApiPropertyOptional({ description: 'Agent referral ID', example: 'AGT-ABC12' })
+  agentReferralId?: string;
 
   @ApiPropertyOptional({ description: 'Referred by partner ID' })
   referredByPartnerId?: string;
@@ -72,9 +75,6 @@ export class ClientResponseDto {
   updatedAt: Date;
 
   // Optional fields that can be included via query parameters
-  @ApiPropertyOptional({ description: 'Capabilities', example: ['properties:read', 'enrollments:read'], type: [String] })
-  capabilities?: string[];
-
   @ApiPropertyOptional({ type: () => KycSummaryDto })
   kyc?: KycSummaryDto | null;
 

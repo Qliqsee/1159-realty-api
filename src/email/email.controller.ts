@@ -26,7 +26,7 @@ export class EmailController {
 
   @Post('send-otp')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Send OTP to user email for verification' })
   @ApiResponse({
@@ -43,7 +43,7 @@ export class EmailController {
 
   @Post('verify-otp')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify OTP code' })
   @ApiResponse({
@@ -64,7 +64,7 @@ export class EmailController {
 
   @Post('resend-otp')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resend OTP to user email' })
   @ApiResponse({

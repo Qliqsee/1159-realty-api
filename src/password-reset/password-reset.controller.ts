@@ -21,7 +21,7 @@ import {
   ResetPasswordResponseDto,
 } from './dto/reset-password.dto';
 
-@ApiTags('Password Reset')
+@ApiTags('Authentication')
 @Controller('password-reset')
 export class PasswordResetController {
   constructor(private readonly passwordResetService: PasswordResetService) {}

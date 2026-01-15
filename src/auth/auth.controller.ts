@@ -1,10 +1,18 @@
 import { Controller, Post, Get, Body, UseGuards, Req, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiExtraModels } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { AdminSignUpDto } from './dto/admin-signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { AuthResponseDto, RefreshTokenDto } from './dto/auth-response.dto';
+import { AuthResponseDto, RefreshTokenDto, TokensDto } from './dto/auth-response.dto';
+import { ClientResponseDto } from '../clients/dto/client-response.dto';
+import { AdminResponseDto } from '../admins/dto/admin-response.dto';
+import {
+  AdminSummaryDto,
+  ClientSummaryDto,
+  KycSummaryDto,
+  PartnershipSummaryDto
+} from '../common/dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GoogleAdminAuthGuard } from './guards/google-admin-auth.guard';
@@ -17,6 +25,16 @@ import {
 } from '../common/decorators/api-standard-responses.decorator';
 
 @ApiTags('Authentication')
+@ApiExtraModels(
+  AuthResponseDto,
+  TokensDto,
+  ClientResponseDto,
+  AdminResponseDto,
+  AdminSummaryDto,
+  ClientSummaryDto,
+  KycSummaryDto,
+  PartnershipSummaryDto
+)
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}

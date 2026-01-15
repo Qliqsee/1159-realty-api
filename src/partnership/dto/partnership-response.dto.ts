@@ -29,8 +29,8 @@ export class PartnershipResponseDto {
   @ApiPropertyOptional({ example: '2024-01-09T10:00:00.000Z' })
   suspendedAt?: Date;
 
-  @ApiPropertyOptional({ example: 'https://app.example.com/signup?ref=ABC123XYZ' })
-  partnerLink?: string;
+  @ApiPropertyOptional({ example: 'AGT-ABC12-P001', description: 'Partner referral ID' })
+  referralId?: string;
 
   @ApiPropertyOptional({ example: true })
   isSuspended?: boolean;

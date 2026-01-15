@@ -9,6 +9,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
 import { verificationOtpTemplate } from './templates/verification-otp.template';
 import { passwordResetTemplate } from './templates/password-reset.template';
+import { welcomeTemplate } from './templates/welcome.template';
 import { kycSubmittedTemplate } from './templates/kyc-submitted.template';
 import { kycApprovedTemplate } from './templates/kyc-approved.template';
 import { kycRejectedTemplate } from './templates/kyc-rejected.template';
@@ -123,6 +124,19 @@ export class EmailService {
       throw new BadRequestException('Invalid or expired OTP');
     }
 
+    // Get user details for welcome email
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        admin: { select: { firstName: true, lastName: true, otherName: true } },
+        client: { select: { firstName: true, lastName: true, otherName: true } },
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
     // Mark user as verified
     await this.prisma.user.update({
       where: { id: userId },
@@ -135,6 +149,17 @@ export class EmailService {
     });
 
     this.logger.log(`Email verified for user ${userId}`);
+
+    // Send welcome email
+    const userName = user.admin
+      ? formatFullName(user.admin.firstName, user.admin.lastName, user.admin.otherName)
+      : user.client
+      ? formatFullName(user.client.firstName, user.client.lastName, user.client.otherName)
+      : 'there';
+
+    const userType: 'client' | 'admin' = user.admin ? 'admin' : 'client';
+
+    await this.sendWelcomeEmail(user.email, userName, userType);
 
     return true;
   }
@@ -189,6 +214,20 @@ export class EmailService {
     );
 
     this.logger.log(`Password reset email sent to ${email}`);
+  }
+
+  async sendWelcomeEmail(
+    email: string,
+    userName: string,
+    userType: 'client' | 'admin',
+  ): Promise<void> {
+    await this.sendEmail(
+      email,
+      'Welcome to 1159 Realty!',
+      welcomeTemplate(userName, userType),
+    );
+
+    this.logger.log(`Welcome email sent to ${email} (${userType})`);
   }
 
   async sendKycSubmittedEmail(
@@ -327,34 +366,49 @@ export class EmailService {
     subject: string,
     html: string,
   ): Promise<void> {
-    // Mocked Brevo integration
-    // In production, replace with actual Brevo API call
     const apiKey = this.configService.get<string>('BREVO_API_KEY');
     const senderEmail = this.configService.get<string>('BREVO_SENDER_EMAIL');
     const senderName = this.configService.get<string>('BREVO_SENDER_NAME');
+    const replyTo = this.configService.get<string>('BREVO_DEFAULT_REPLY_TO');
 
-    this.logger.debug(
-      `[MOCKED] Sending email to ${to} with subject: ${subject}`,
-    );
-    this.logger.debug(`[MOCKED] Sender: ${senderName} <${senderEmail}>`);
-    this.logger.debug(`[MOCKED] API Key configured: ${!!apiKey}`);
+    if (!apiKey) {
+      this.logger.error('BREVO_API_KEY is not configured. Email not sent.');
+      throw new Error('Email service is not configured properly');
+    }
 
-    // TODO: Replace with actual Brevo API integration
-    // Example:
-    // const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Accept': 'application/json',
-    //     'Content-Type': 'application/json',
-    //     'api-key': apiKey,
-    //   },
-    //   body: JSON.stringify({
-    //     sender: { name: senderName, email: senderEmail },
-    //     to: [{ email: to }],
-    //     subject,
-    //     htmlContent: html,
-    //   }),
-    // });
+    this.logger.log(`Attempting to send email to ${to} with subject: "${subject}"`);
+
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'api-key': apiKey,
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+          ...(replyTo && { replyTo: { email: replyTo } }),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        this.logger.error(
+          `Brevo API error: ${response.status} - ${JSON.stringify(data)}`,
+        );
+        throw new Error(`Failed to send email: ${data.message || 'Unknown error'}`);
+      }
+
+      this.logger.log(`Email sent successfully to ${to} - Message ID: ${data.messageId}`);
+    } catch (error) {
+      this.logger.error(`Failed to send email to ${to}: ${error.message}`);
+      throw error;
+    }
   }
 
   private async cleanupExpiredOtps(userId?: string): Promise<void> {

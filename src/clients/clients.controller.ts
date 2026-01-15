@@ -12,10 +12,15 @@ import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
-  ApiResponse,
   ApiBody,
   ApiQuery,
+  ApiExtraModels,
 } from '@nestjs/swagger';
+import {
+  ApiStandardResponse,
+  ApiUnauthorizedResponse,
+  ApiNotFoundResponse,
+} from '../common/decorators/api-standard-responses.decorator';
 import { ClientsService } from './clients.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Request } from 'express';
@@ -25,10 +30,23 @@ import {
   ClientResponseDto,
   ReferralsResponseDto,
 } from './dto/client-response.dto';
-import { AdminSummaryDto, ClientSummaryDto } from '../common/dto';
+import {
+  AdminSummaryDto,
+  ClientSummaryDto,
+  KycSummaryDto,
+  PartnershipSummaryDto
+} from '../common/dto';
 
 @ApiTags('Clients')
 @ApiBearerAuth('JWT-auth')
+@ApiExtraModels(
+  ClientResponseDto,
+  ReferralsResponseDto,
+  AdminSummaryDto,
+  ClientSummaryDto,
+  KycSummaryDto,
+  PartnershipSummaryDto
+)
 @Controller('clients')
 @UseGuards(JwtAuthGuard)
 export class ClientsController {
@@ -37,15 +55,15 @@ export class ClientsController {
   @Get('me')
   @ApiOperation({
     summary: 'Get logged in client profile',
-    description: 'Returns authenticated client profile. Capabilities are always included. Use query params to selectively include related data (kyc, partnership, agent, partner).'
+    description: 'Returns authenticated client profile. Use query params to selectively include related data (kyc, partnership, agent, partner).'
   })
   @ApiQuery({ name: 'includeKyc', required: false, type: Boolean, description: 'Include KYC summary' })
   @ApiQuery({ name: 'includePartnership', required: false, type: Boolean, description: 'Include partnership summary' })
   @ApiQuery({ name: 'includeAgent', required: false, type: Boolean, description: 'Include agent (closed by) summary' })
   @ApiQuery({ name: 'includePartner', required: false, type: Boolean, description: 'Include referring partner summary' })
-  @ApiResponse({ status: 200, description: 'Client profile retrieved successfully', type: ClientResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiStandardResponse(200, 'Client profile retrieved successfully', ClientResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiNotFoundResponse('Client')
   getProfile(@Req() req: Request, @Query() query: ClientIncludeQueryDto): Promise<ClientResponseDto> {
     return this.clientsService.findByUserId(req.user['id'], query);
   }
@@ -53,18 +71,18 @@ export class ClientsController {
   @Patch('me')
   @ApiOperation({ summary: 'Update logged in client profile' })
   @ApiBody({ type: UpdateClientDto })
-  @ApiResponse({ status: 200, description: 'Client profile updated successfully', type: ClientResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiStandardResponse(200, 'Client profile updated successfully', ClientResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiNotFoundResponse('Client')
   updateProfile(@Req() req: Request, @Body() updateData: UpdateClientDto): Promise<ClientResponseDto> {
     return this.clientsService.updateProfile(req.user['id'], updateData);
   }
 
   @Get('my-agent')
   @ApiOperation({ summary: 'Get agent who closed the client lead if applicable' })
-  @ApiResponse({ status: 200, description: 'Agent information retrieved successfully', type: AdminSummaryDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiStandardResponse(200, 'Agent information retrieved successfully', AdminSummaryDto)
+  @ApiUnauthorizedResponse()
+  @ApiNotFoundResponse('Client')
   getMyAgent(@Req() req: Request): Promise<AdminSummaryDto | { message: string }> {
     const clientId = req.user['client']?.id;
     return this.clientsService.getMyAgent(clientId);
@@ -72,9 +90,9 @@ export class ClientsController {
 
   @Get('my-partner')
   @ApiOperation({ summary: 'Get partner who referred the client if applicable' })
-  @ApiResponse({ status: 200, description: 'Partner information retrieved successfully', type: ClientSummaryDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiStandardResponse(200, 'Partner information retrieved successfully', ClientSummaryDto)
+  @ApiUnauthorizedResponse()
+  @ApiNotFoundResponse('Client')
   getMyPartner(@Req() req: Request): Promise<ClientSummaryDto | { message: string }> {
     const clientId = req.user['client']?.id;
     return this.clientsService.getMyPartner(clientId);
@@ -82,9 +100,9 @@ export class ClientsController {
 
   @Get('my-referrals')
   @ApiOperation({ summary: 'Get clients referred by this client if they are a partner' })
-  @ApiResponse({ status: 200, description: 'Referrals retrieved successfully', type: ReferralsResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiStandardResponse(200, 'Referrals retrieved successfully', ReferralsResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiNotFoundResponse('Client')
   getMyReferrals(@Req() req: Request): Promise<ReferralsResponseDto> {
     const clientId = req.user['client']?.id;
     return this.clientsService.getMyReferrals(clientId);
@@ -93,16 +111,15 @@ export class ClientsController {
   @Get(':id')
   @ApiOperation({
     summary: 'Get client by ID',
-    description: 'Returns client details by ID. Use query params to selectively include related data. Capabilities will be empty unless explicitly requested (and will be empty even if requested since viewing another user).'
+    description: 'Returns client details by ID. Use query params to selectively include related data.'
   })
-  @ApiQuery({ name: 'includeCapabilities', required: false, type: Boolean, description: 'Include capabilities (will be empty for non-owner)' })
   @ApiQuery({ name: 'includeKyc', required: false, type: Boolean, description: 'Include KYC summary' })
   @ApiQuery({ name: 'includePartnership', required: false, type: Boolean, description: 'Include partnership summary' })
   @ApiQuery({ name: 'includeAgent', required: false, type: Boolean, description: 'Include agent (closed by) summary' })
   @ApiQuery({ name: 'includePartner', required: false, type: Boolean, description: 'Include referring partner summary' })
-  @ApiResponse({ status: 200, description: 'Client details retrieved successfully', type: ClientResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiStandardResponse(200, 'Client details retrieved successfully', ClientResponseDto)
+  @ApiUnauthorizedResponse()
+  @ApiNotFoundResponse('Client')
   findOne(@Param('id') id: string, @Query() query: ClientIncludeQueryDto): Promise<ClientResponseDto> {
     return this.clientsService.findOne(id, query);
   }

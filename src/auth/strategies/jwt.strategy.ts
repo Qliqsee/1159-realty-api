@@ -24,6 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       select: {
         id: true,
         isBanned: true,
+        isSuspended: true,
         admin: {
           select: {
             id: true,
@@ -50,6 +51,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Check if user is banned
     if (user.isBanned) {
       throw new ForbiddenException('Your account has been banned');
+    }
+
+    // Check if user is suspended
+    if (user.isSuspended) {
+      throw new ForbiddenException('Your account has been suspended');
     }
 
     // Use roles from JWT payload - no DB query needed

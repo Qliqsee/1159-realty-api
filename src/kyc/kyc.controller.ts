@@ -20,10 +20,10 @@ import {
 } from '@nestjs/swagger';
 import { KycService } from './kyc.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { EmailVerifiedGuard } from '../common/guards/email-verified.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RequirePermissions } from '../common/decorators/permissions.decorator';
 import { SavePersonalStepDto } from './dto/save-personal-step.dto';
+import { UpdatePersonalInfoDto } from './dto/update-personal-info.dto';
 import { SaveAddressStepDto } from './dto/save-address-step.dto';
 import { SaveOccupationStepDto } from './dto/save-occupation-step.dto';
 import { SaveIdentityStepDto } from './dto/save-identity-step.dto';
@@ -48,51 +48,63 @@ import {
   ListKycsResponseDto,
 } from './dto/list-kycs.dto';
 import { KycDetailResponseDto } from './dto/kyc-detail-response.dto';
+import { ClientResponseDto } from '../clients/dto/client-response.dto';
 
 @ApiTags('KYC')
 @Controller('kyc')
-@UseGuards(JwtAuthGuard, EmailVerifiedGuard, PermissionsGuard)
-@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@ApiBearerAuth('JWT-auth')
 export class KycController {
   constructor(private readonly kycService: KycService) {}
 
   // Client Endpoints
 
-  @Post('personal')
+  @Post('personal/onboarding')
   @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Save/update personal information step' })
-  @ApiQuery({
-    name: 'continueToNext',
-    required: false,
-    type: Boolean,
-    description: 'Whether to continue to the next step after saving (default: false)',
+  @ApiOperation({
+    summary: 'Save personal information during onboarding (first time only)',
+    description: 'This endpoint is only for initial onboarding. After onboarding is complete, use POST /kyc/personal to update personal information.'
   })
   @ApiResponse({
     status: 200,
     description: 'Personal step saved successfully',
-    type: SavePersonalStepResponseDto,
+    type: ClientResponseDto,
   })
+  @ApiResponse({ status: 400, description: 'Onboarding has been completed already' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async savePersonalStep(
     @Req() req,
     @Body() dto: SavePersonalStepDto,
-    @Query('continueToNext') continueToNext?: string,
+  ): Promise<ClientResponseDto> {
+    return this.kycService.savePersonalStep(req.user.userId, dto);
+  }
+
+  @Post('personal')
+  @RequirePermissions('kyc:manage')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update personal information after onboarding',
+    description: 'This endpoint updates personal information in draft after onboarding is complete. Changes will be applied to your profile after KYC approval.'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Personal information updated successfully',
+    type: SavePersonalStepResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Please complete onboarding first' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updatePersonalInfo(
+    @Req() req,
+    @Body() dto: UpdatePersonalInfoDto,
   ): Promise<SavePersonalStepResponseDto> {
-    const shouldContinue = continueToNext === 'true';
-    return this.kycService.savePersonalStep(req.user.userId, dto, shouldContinue);
+    return this.kycService.updatePersonalInfo(req.user.userId, dto);
   }
 
   @Post('address')
   @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update address information step' })
-  @ApiQuery({
-    name: 'continueToNext',
-    required: false,
-    type: Boolean,
-    description: 'Whether to continue to the next step after saving (default: false)',
-  })
   @ApiResponse({
     status: 200,
     description: 'Address step saved successfully',
@@ -102,22 +114,14 @@ export class KycController {
   async saveAddressStep(
     @Req() req,
     @Body() dto: SaveAddressStepDto,
-    @Query('continueToNext') continueToNext?: string,
   ): Promise<SaveAddressStepResponseDto> {
-    const shouldContinue = continueToNext === 'true';
-    return this.kycService.saveAddressStep(req.user.userId, dto, shouldContinue);
+    return this.kycService.saveAddressStep(req.user.userId, dto);
   }
 
   @Post('occupation')
   @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update occupation information step' })
-  @ApiQuery({
-    name: 'continueToNext',
-    required: false,
-    type: Boolean,
-    description: 'Whether to continue to the next step after saving (default: false)',
-  })
   @ApiResponse({
     status: 200,
     description: 'Occupation step saved successfully',
@@ -127,22 +131,14 @@ export class KycController {
   async saveOccupationStep(
     @Req() req,
     @Body() dto: SaveOccupationStepDto,
-    @Query('continueToNext') continueToNext?: string,
   ): Promise<SaveOccupationStepResponseDto> {
-    const shouldContinue = continueToNext === 'true';
-    return this.kycService.saveOccupationStep(req.user.userId, dto, shouldContinue);
+    return this.kycService.saveOccupationStep(req.user.userId, dto);
   }
 
   @Post('identity')
   @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update identity information step' })
-  @ApiQuery({
-    name: 'continueToNext',
-    required: false,
-    type: Boolean,
-    description: 'Whether to continue to the next step after saving (default: false)',
-  })
   @ApiResponse({
     status: 200,
     description: 'Identity step saved successfully',
@@ -152,22 +148,14 @@ export class KycController {
   async saveIdentityStep(
     @Req() req,
     @Body() dto: SaveIdentityStepDto,
-    @Query('continueToNext') continueToNext?: string,
   ): Promise<SaveIdentityStepResponseDto> {
-    const shouldContinue = continueToNext === 'true';
-    return this.kycService.saveIdentityStep(req.user.userId, dto, shouldContinue);
+    return this.kycService.saveIdentityStep(req.user.userId, dto);
   }
 
   @Post('next-of-kin')
   @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update next of kin information step' })
-  @ApiQuery({
-    name: 'continueToNext',
-    required: false,
-    type: Boolean,
-    description: 'Whether to continue to the next step after saving (default: false)',
-  })
   @ApiResponse({
     status: 200,
     description: 'Next of kin step saved successfully',
@@ -177,22 +165,14 @@ export class KycController {
   async saveNextOfKinStep(
     @Req() req,
     @Body() dto: SaveNextOfKinStepDto,
-    @Query('continueToNext') continueToNext?: string,
   ): Promise<SaveNextOfKinStepResponseDto> {
-    const shouldContinue = continueToNext === 'true';
-    return this.kycService.saveNextOfKinStep(req.user.userId, dto, shouldContinue);
+    return this.kycService.saveNextOfKinStep(req.user.userId, dto);
   }
 
   @Post('bank')
   @RequirePermissions('kyc:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save/update bank information step' })
-  @ApiQuery({
-    name: 'continueToNext',
-    required: false,
-    type: Boolean,
-    description: 'Whether to continue to the next step after saving (default: false)',
-  })
   @ApiResponse({
     status: 200,
     description: 'Bank step saved successfully',
@@ -202,10 +182,8 @@ export class KycController {
   async saveBankStep(
     @Req() req,
     @Body() dto: SaveBankStepDto,
-    @Query('continueToNext') continueToNext?: string,
   ): Promise<SaveBankStepResponseDto> {
-    const shouldContinue = continueToNext === 'true';
-    return this.kycService.saveBankStep(req.user.userId, dto, shouldContinue);
+    return this.kycService.saveBankStep(req.user.userId, dto);
   }
 
   @Post('submit')
@@ -220,8 +198,7 @@ export class KycController {
   @ApiResponse({ status: 400, description: 'All steps must be completed' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async submitKyc(@Req() req): Promise<SubmitKycResponseDto> {
-    await this.kycService.submitKyc(req.user.userId);
-    return { message: 'KYC submitted for review successfully' };
+    return this.kycService.submitKyc(req.user.userId);
   }
 
   @Get('me')

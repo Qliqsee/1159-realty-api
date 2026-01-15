@@ -9,6 +9,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { GoogleAdminStrategy } from './strategies/google-admin.strategy';
 import { ClientsModule } from '../clients/clients.module';
 import { AdminsModule } from '../admins/admins.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AdminsModule } from '../admins/admins.module';
     JwtModule.register({}),
     ClientsModule,
     AdminsModule,
+    EmailModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, LocalStrategy, GoogleStrategy, GoogleAdminStrategy],

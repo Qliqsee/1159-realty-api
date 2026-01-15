@@ -20,7 +20,6 @@ export class ClientsService {
   ) {}
 
   async findByUserId(userId: string, query?: ClientIncludeQueryDto): Promise<ClientResponseDto> {
-    // Always include capabilities for authenticated user requesting own profile
     const includeKyc = query?.includeKyc === true;
     const includePartnership = query?.includePartnership === true;
     const includeAgent = query?.includeAgent === true;
@@ -57,11 +56,7 @@ export class ClientsService {
       throw new NotFoundException('Client profile not found');
     }
 
-    // Capabilities will be derived by FE from roles + permissions map
-    const capabilities = [];
-
     return this.mapToClientResponse(client, {
-      capabilities,
       includeKyc,
       includePartnership,
       includeAgent,
@@ -70,7 +65,6 @@ export class ClientsService {
   }
 
   async findOne(id: string, query?: ClientIncludeQueryDto): Promise<ClientResponseDto> {
-    const includeCapabilities = query?.includeCapabilities === true;
     const includeKyc = query?.includeKyc === true;
     const includePartnership = query?.includePartnership === true;
     const includeAgent = query?.includeAgent === true;
@@ -107,11 +101,7 @@ export class ClientsService {
       throw new NotFoundException('Client not found');
     }
 
-    // Fetch capabilities only if explicitly requested (will be empty for non-owner)
-    const capabilities = includeCapabilities ? [] : undefined;
-
     return this.mapToClientResponse(client, {
-      capabilities,
       includeKyc,
       includePartnership,
       includeAgent,
@@ -142,8 +132,7 @@ export class ClientsService {
       },
     });
 
-    const capabilities = [];
-    return this.mapToClientResponse(updated, { capabilities });
+    return this.mapToClientResponse(updated);
   }
 
   async getMyAgent(clientId: string): Promise<AdminSummaryDto | { message: string }> {
@@ -232,7 +221,6 @@ export class ClientsService {
   private mapToClientResponse(
     client: any,
     options?: {
-      capabilities?: string[];
       includeKyc?: boolean;
       includePartnership?: boolean;
       includeAgent?: boolean;
@@ -253,7 +241,8 @@ export class ClientsService {
       country: client.country,
       state: client.state,
       hasCompletedOnboarding: client.hasCompletedOnboarding,
-      partnerLink: client.partnerLink,
+      referralId: client.referralId,
+      agentReferralId: client.agentReferralId,
       referredByPartnerId: client.referredByPartnerId,
       closedBy: client.closedBy,
       isSuspended: client.user.isSuspended,
@@ -264,10 +253,6 @@ export class ClientsService {
     };
 
     // Add optional fields if requested
-    if (options?.capabilities !== undefined) {
-      response.capabilities = options.capabilities;
-    }
-
     if (options?.includeKyc && client.kyc) {
       response.kyc = {
         id: client.kyc.id,
@@ -309,7 +294,7 @@ export class ClientsService {
       email: client.user.email,
       phone: client.phone,
       gender: client.gender,
-      partnerLink: client.partnerLink,
+      referralId: client.referralId,
       hasCompletedOnboarding: client.hasCompletedOnboarding,
       createdAt: client.createdAt,
     };

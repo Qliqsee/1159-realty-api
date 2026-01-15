@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma.service';
 import { Partnership, PartnershipStatus, EnrollmentStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 import { formatFullName } from '../common/utils/name.utils';
+import { generatePartnerReferralId } from '../common/utils/referral-id.util';
 
 @Injectable()
 export class PartnershipService {
@@ -128,7 +129,7 @@ export class PartnershipService {
       include: {
         client: {
           select: {
-            partnerLink: true,
+            referralId: true,
           },
         },
       },
@@ -140,14 +141,14 @@ export class PartnershipService {
 
     const isSuspended = !!partnership.suspendedAt;
     const isLinkActive = partnership.status === PartnershipStatus.APPROVED && !isSuspended;
-    const partnerLink = isLinkActive && partnership.client.partnerLink
-      ? `${this.clientAppUrl}/signup?ref=${partnership.client.partnerLink}`
+    const referralId = isLinkActive && partnership.client.referralId
+      ? partnership.client.referralId
       : null;
 
     return {
       ...partnership,
       user: undefined,
-      partnerLink,
+      referralId,
       isSuspended,
       isLinkActive,
     };
@@ -280,6 +281,14 @@ export class PartnershipService {
   async approvePartnership(id: string, adminId: string): Promise<Partnership> {
     const partnership = await this.prisma.partnership.findUnique({
       where: { id },
+      include: {
+        client: {
+          select: {
+            id: true,
+            agentReferralId: true,
+          },
+        },
+      },
     });
 
     if (!partnership) {
@@ -292,8 +301,18 @@ export class PartnershipService {
       );
     }
 
-    // Generate unique partner link
-    const partnerLink = this.generatePartnerLink(partnership.clientId);
+    // Client must have an agent referral ID to become a partner
+    if (!partnership.client.agentReferralId) {
+      throw new BadRequestException(
+        'Client must have an agent referral ID to become a partner',
+      );
+    }
+
+    // Generate partner referral ID based on agent's referral ID
+    const referralId = await generatePartnerReferralId(
+      this.prisma,
+      partnership.client.agentReferralId,
+    );
 
     // Update both partnership and client
     const [updated] = await this.prisma.$transaction([
@@ -308,12 +327,12 @@ export class PartnershipService {
       this.prisma.client.update({
         where: { id: partnership.clientId },
         data: {
-          partnerLink,
+          referralId,
         },
       }),
     ]);
 
-    this.logger.log(`Partnership ${id} approved by admin ${adminId}`);
+    this.logger.log(`Partnership ${id} approved by admin ${adminId}, referral ID: ${referralId}`);
     return updated;
   }
 

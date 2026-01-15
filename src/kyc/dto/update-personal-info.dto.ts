@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsDateString, IsEnum, IsOptional, MinLength } from 'class-validator';
+import { IsString, IsDateString, IsEnum, MinLength } from 'class-validator';
 import { Gender, MaritalStatus } from '@prisma/client';
 
-export class SavePersonalStepDto {
+export class UpdatePersonalInfoDto {
   @ApiProperty({ example: 'John' })
   @IsString()
   @MinLength(2)
@@ -24,13 +24,4 @@ export class SavePersonalStepDto {
   @ApiProperty({ enum: MaritalStatus, example: MaritalStatus.SINGLE })
   @IsEnum(MaritalStatus)
   maritalStatus: MaritalStatus;
-
-  @ApiProperty({ example: 'Social Media', required: false })
-  @IsOptional()
-  @IsString()
-  referralSource?: string;
-
-  @ApiProperty({ example: 'AGT-ABC12', description: 'Agent or Partner referral ID (required)' })
-  @IsString()
-  referralId: string;
 }
