@@ -29,6 +29,7 @@ import { UpdatePropertyDto } from './dto/update-property.dto';
 import { QueryPropertiesDto } from './dto/query-properties.dto';
 import { AddInspectionDateDto } from './dto/inspection.dto';
 import { AddPaymentPlanDto } from './dto/add-payment-plan.dto';
+import { AddUnitPricingDto } from './dto/add-unit-pricing.dto';
 import { UpdatePropertyInterestDto } from './dto/update-interest.dto';
 import { PropertyStatsDto } from './dto/property-stats.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -133,6 +134,20 @@ export class PropertiesController {
     return this.propertiesService.archive(id, userId);
   }
 
+  @Patch(':id/unarchive')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
+  @ApiOperation({ summary: 'Unarchive property and set status to AVAILABLE (admin only)' })
+  @ApiResponse({ status: 200, description: 'Property unarchived successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Property not found' })
+  unarchive(@Param('id') id: string, @Req() req: Request) {
+    const userId = (req.user as any).id;
+    return this.propertiesService.unarchive(id, userId);
+  }
+
   // Inspection dates management
   @Get(':id/inspections')
   @ApiBearerAuth('JWT-auth')
@@ -188,6 +203,22 @@ export class PropertiesController {
     @Body() dto: AddPaymentPlanDto,
   ) {
     return this.propertiesService.addPaymentPlan(id, dto.durationMonths, dto.interestRate);
+  }
+
+  // Unit pricing management
+  @Post(':id/unit-pricing')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('properties', 'manage')
+  @ApiOperation({ summary: 'Add unit pricing to existing property (admin only)' })
+  @ApiResponse({ status: 201, description: 'Unit pricing added successfully' })
+  @ApiResponse({ status: 400, description: 'Unit pricing already exists' })
+  @ApiResponse({ status: 404, description: 'Property not found' })
+  addUnitPricing(
+    @Param('id') id: string,
+    @Body() dto: AddUnitPricingDto,
+  ) {
+    return this.propertiesService.addUnitPricing(id, dto.unit, dto.regularPrice, dto.prelaunchPrice);
   }
 
   // Property interests management

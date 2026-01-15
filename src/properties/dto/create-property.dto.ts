@@ -35,6 +35,11 @@ export enum MediaType {
   INSTAGRAM = 'INSTAGRAM',
 }
 
+export enum Country {
+  NIGERIA = 'NIGERIA',
+  OTHERS = 'OTHERS',
+}
+
 export class AgriculturalFeeDto {
   @ApiProperty()
   @IsNumber()
@@ -183,10 +188,9 @@ export class CreatePropertyDto {
   @IsOptional()
   requiredDocuments?: string[];
 
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  country: string;
+  @ApiProperty({ enum: Country })
+  @IsEnum(Country)
+  country: Country;
 
   @ApiProperty()
   @IsInt()

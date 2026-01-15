@@ -26,6 +26,14 @@ export class PropertiesService {
       ...propertyData
     } = createPropertyDto;
 
+    // Validate stateId exists
+    const stateExists = await this.prisma.state.findUnique({
+      where: { id: propertyData.stateId },
+    });
+    if (!stateExists) {
+      throw new BadRequestException(`State with ID ${propertyData.stateId} does not exist`);
+    }
+
     return this.prisma.property.create({
       data: {
         ...propertyData,
@@ -206,6 +214,16 @@ export class PropertiesService {
       ...propertyData
     } = updatePropertyDto;
 
+    // Validate stateId exists if it's being updated
+    if (propertyData.stateId !== undefined) {
+      const stateExists = await this.prisma.state.findUnique({
+        where: { id: propertyData.stateId },
+      });
+      if (!stateExists) {
+        throw new BadRequestException('Invalid state ID');
+      }
+    }
+
     const updateData: any = {
       ...propertyData,
       lastUpdatedBy: userId,
@@ -271,6 +289,31 @@ export class PropertiesService {
       where: { id },
       data: {
         status: 'ARCHIVED',
+        lastUpdatedBy: userId,
+      },
+      include: {
+        state: true,
+        unitPricing: true,
+        paymentPlans: true,
+        features: true,
+        media: true,
+      },
+    });
+  }
+
+  async unarchive(id: string, userId: string) {
+    const property = await this.prisma.property.findUnique({
+      where: { id },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    return this.prisma.property.update({
+      where: { id },
+      data: {
+        status: 'AVAILABLE',
         lastUpdatedBy: userId,
       },
       include: {
@@ -410,6 +453,41 @@ export class PropertiesService {
         propertyId,
         durationMonths,
         interestRate,
+      },
+    });
+  }
+
+  // Unit pricing management
+  async addUnitPricing(
+    propertyId: string,
+    unit: string,
+    regularPrice: number,
+    prelaunchPrice: number,
+  ) {
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+      include: { unitPricing: true },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    // Check if unit pricing already exists
+    const existingUnit = property.unitPricing.find(
+      (pricing) => pricing.unit === unit,
+    );
+
+    if (existingUnit) {
+      throw new BadRequestException('Unit pricing already exists for this unit');
+    }
+
+    return this.prisma.propertyUnitPricing.create({
+      data: {
+        propertyId,
+        unit,
+        regularPrice,
+        prelaunchPrice,
       },
     });
   }
