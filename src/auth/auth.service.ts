@@ -225,11 +225,6 @@ export class AuthService {
       throw new ForbiddenException('Your account has been banned');
     }
 
-    // Check if user is suspended
-    if (user.isSuspended) {
-      throw new ForbiddenException('Your account has been suspended');
-    }
-
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -512,11 +507,6 @@ export class AuthService {
       throw new ForbiddenException('Your account has been banned');
     }
 
-    // Check if user is suspended
-    if (user.isSuspended) {
-      throw new ForbiddenException('Your account has been suspended');
-    }
-
     // Determine userType
     const userType = user.admin ? 'admin' : user.client ? 'client' : null;
 
@@ -589,11 +579,6 @@ export class AuthService {
       // Check if user is banned
       if (user.isBanned) {
         throw new ForbiddenException('Your account has been banned');
-      }
-
-      // Check if user is suspended
-      if (user.isSuspended) {
-        throw new ForbiddenException('Your account has been suspended');
       }
 
       const userType = user.admin ? 'admin' : user.client ? 'client' : null;

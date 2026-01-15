@@ -20,8 +20,14 @@ export class SuspendedAgentGuard implements CanActivate {
 
     const userData = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { isSuspended: true },
+      select: { isSuspended: true, isBanned: true },
     });
+
+    if (userData?.isBanned) {
+      throw new ForbiddenException(
+        'Banned agents cannot perform lead operations',
+      );
+    }
 
     if (userData?.isSuspended) {
       throw new ForbiddenException(

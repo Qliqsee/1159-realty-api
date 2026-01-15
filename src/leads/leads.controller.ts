@@ -41,7 +41,7 @@ export class LeadsController {
   @RequirePermission('leads', 'create')
   @ApiOperation({ summary: 'Create a new lead (auto-reserves for 1 week)' })
   @ApiResponse({ status: 201, description: 'Lead created successfully' })
-  @ApiResponse({ status: 403, description: 'Suspended agents cannot create leads' })
+  @ApiResponse({ status: 403, description: 'Suspended/banned agents cannot create leads' })
   create(@Body() createLeadDto: CreateLeadDto, @Request() req) {
     return this.leadsService.create(createLeadDto, req.user.id);
   }
@@ -102,10 +102,11 @@ export class LeadsController {
   }
 
   @Put(':id')
-  @UseGuards(PermissionsGuard)
+  @UseGuards(PermissionsGuard, SuspendedAgentGuard)
   @RequirePermission('leads', 'update_mines')
   @ApiOperation({ summary: 'Update lead details' })
   @ApiResponse({ status: 200, description: 'Lead updated successfully' })
+  @ApiResponse({ status: 403, description: 'Suspended/banned agents cannot update leads' })
   @ApiResponse({ status: 404, description: 'Lead not found' })
   update(@Param('id') id: string, @Body() updateLeadDto: UpdateLeadDto) {
     return this.leadsService.update(id, updateLeadDto);
@@ -127,7 +128,7 @@ export class LeadsController {
   @ApiOperation({ summary: 'Reserve a lead (48-hour reservation, max 3 leads per agent)' })
   @ApiResponse({ status: 200, description: 'Lead reserved successfully' })
   @ApiResponse({ status: 400, description: 'Max 3 leads or already reserved' })
-  @ApiResponse({ status: 403, description: 'Suspended agents cannot reserve' })
+  @ApiResponse({ status: 403, description: 'Suspended/banned agents cannot reserve' })
   reserve(@Param('id') id: string, @Request() req) {
     return this.leadsService.reserve(id, req.user.id);
   }
@@ -143,11 +144,12 @@ export class LeadsController {
   }
 
   @Post(':id/close')
-  @UseGuards(PermissionsGuard)
+  @UseGuards(PermissionsGuard, SuspendedAgentGuard)
   @RequirePermission('leads', 'update_mines')
   @ApiOperation({ summary: 'Close lead by linking to existing client' })
   @ApiResponse({ status: 200, description: 'Lead closed and linked to client' })
   @ApiResponse({ status: 400, description: 'Already closed or duplicate email' })
+  @ApiResponse({ status: 403, description: 'Suspended/banned agents cannot close leads' })
   @ApiResponse({ status: 404, description: 'Client email not found in system' })
   close(
     @Param('id') id: string,
@@ -158,10 +160,11 @@ export class LeadsController {
   }
 
   @Post(':id/feedback')
-  @UseGuards(PermissionsGuard)
+  @UseGuards(PermissionsGuard, SuspendedAgentGuard)
   @RequirePermission('leads', 'update_mines')
   @ApiOperation({ summary: 'Add feedback to a lead' })
   @ApiResponse({ status: 201, description: 'Feedback added successfully' })
+  @ApiResponse({ status: 403, description: 'Suspended/banned agents cannot add feedback' })
   addFeedback(
     @Param('id') id: string,
     @Body() addFeedbackDto: AddFeedbackDto,

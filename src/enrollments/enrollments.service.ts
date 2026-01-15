@@ -73,20 +73,17 @@ export class EnrollmentsService {
       throw new BadRequestException('Agent ID is required');
     }
 
-    // Validate agent exists and is not suspended
+    // Validate agent exists
     const agent = await this.prisma.admin.findUnique({
       where: { id: finalAgentId },
-      include: {
-        user: { select: { isSuspended: true, isBanned: true } },
-      },
     });
 
     if (!agent) {
       throw new NotFoundException('Agent not found');
     }
 
-    if (agent.user.isSuspended || agent.user.isBanned || !agent.canOnboardClients) {
-      throw new BadRequestException('Agent is suspended and cannot create enrollments');
+    if (!agent.canOnboardClients) {
+      throw new BadRequestException('Agent is not authorized to create enrollments');
     }
 
     // Validate client if provided

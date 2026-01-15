@@ -53,11 +53,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new ForbiddenException('Your account has been banned');
     }
 
-    // Check if user is suspended
-    if (user.isSuspended) {
-      throw new ForbiddenException('Your account has been suspended');
-    }
-
     // Use roles from JWT payload - no DB query needed
     const roles = (payload.roles || []).map((roleName: string) => ({ name: roleName }));
 
