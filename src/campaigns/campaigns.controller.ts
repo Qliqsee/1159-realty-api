@@ -17,6 +17,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import { CampaignsService } from './campaigns.service';
 import { CreateSegmentDto } from './dto/create-segment.dto';
@@ -93,7 +94,7 @@ export class CampaignsController {
   @ApiOperation({
     summary: 'Get campaign statistics (Admin/Manager)',
     description:
-      'Returns total segments, total syncs, segments this month, and syncs this month',
+      'Returns total contacts in Brevo and total segments',
   })
   @ApiResponse({
     status: 200,
@@ -121,26 +122,7 @@ export class CampaignsController {
   }
 
   @Put('segments/:id')
-  @ApiOperation({
-    summary: 'Update segment metadata (Admin/Manager)',
-    description:
-      'Update segment name and description only. Segment criteria cannot be changed. Cannot update segments with PROCESSING status. Changes are synced to Brevo automatically.',
-  })
-  @ApiParam({ name: 'id', description: 'Segment ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Segment updated successfully and synced to Brevo',
-    type: SegmentResponseDto,
-  })
-  @ApiResponse({ status: 404, description: 'Segment not found' })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request - Segment is still processing or invalid data',
-  })
-  @ApiResponse({
-    status: 500,
-    description: 'Failed to update segment in Brevo',
-  })
+  @ApiExcludeEndpoint()
   update(
     @Param('id') id: string,
     @Body() updateSegmentDto: UpdateSegmentDto,
@@ -190,26 +172,7 @@ export class CampaignsController {
   }
 
   @Post('segments/:id/sync')
-  @ApiOperation({
-    summary: 'Manually sync/re-sync segment users to Brevo (Admin/Manager)',
-    description:
-      'Manually query users matching segment criteria and sync them to the associated Brevo list. Useful for re-syncing after segment was created or if initial sync failed.',
-  })
-  @ApiParam({ name: 'id', description: 'Segment ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Segment synced successfully to Brevo',
-    type: SyncSegmentResponseDto,
-  })
-  @ApiResponse({ status: 404, description: 'Segment not found' })
-  @ApiResponse({
-    status: 400,
-    description: 'Segment is not linked to a Brevo list',
-  })
-  @ApiResponse({
-    status: 500,
-    description: 'Failed to sync segment to Brevo',
-  })
+  @ApiExcludeEndpoint()
   sync(
     @Param('id') id: string,
     @Request() req,

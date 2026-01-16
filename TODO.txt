@@ -1,7 +1,0 @@
-Update other services to use adminId/clientId from req.user
-- Schedules service
-- Leads service
-- Properties service
-- Enrollments service
-- Disbursements service
-- Appointments service (uses clientId)

@@ -1,10 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { IsString, IsOptional, MinLength } from 'class-validator';
 
 export class UpdateSegmentDto {
   @ApiProperty({
     description: 'Name of the segment',
-    example: 'Lagos Male Property Buyers',
+    example: 'Male only',
     required: false,
   })
   @IsOptional()
@@ -14,7 +14,7 @@ export class UpdateSegmentDto {
 
   @ApiProperty({
     description: 'Description of the segment',
-    example: 'All male users who have enrolled in properties located in Lagos',
+    example: 'All male users',
     required: false,
   })
   @IsOptional()

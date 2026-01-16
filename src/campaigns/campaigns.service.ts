@@ -621,38 +621,14 @@ export class CampaignsService {
   }
 
   async getSegmentStats(): Promise<SegmentStatsDto> {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const [
-      totalSegments,
-      totalSyncs,
-      segmentsThisMonth,
-      syncsThisMonth,
-    ] = await Promise.all([
+    const [totalContacts, totalSegments] = await Promise.all([
+      this.brevoService.getTotalContactsCount(),
       this.prisma.segment.count(),
-      this.prisma.segmentExport.count(),
-      this.prisma.segment.count({
-        where: {
-          createdAt: {
-            gte: startOfMonth,
-          },
-        },
-      }),
-      this.prisma.segmentExport.count({
-        where: {
-          exportedAt: {
-            gte: startOfMonth,
-          },
-        },
-      }),
     ]);
 
     return {
+      totalContacts,
       totalSegments,
-      totalSyncs,
-      segmentsThisMonth,
-      syncsThisMonth,
     };
   }
 

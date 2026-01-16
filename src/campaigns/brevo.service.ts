@@ -77,9 +77,12 @@ export class BrevoService {
 
   async createList(name: string, description?: string): Promise<string> {
     try {
+      // Get or create "Campaign Segments" folder
+      const folderId = await this.getOrCreateCampaignFolder();
+
       const body = {
         name,
-        folderId: 1, // Default folder
+        folderId,
       };
 
       const response = await this.makeBrevoRequest(
@@ -96,6 +99,39 @@ export class BrevoService {
     }
   }
 
+  private async getOrCreateCampaignFolder(): Promise<number> {
+    try {
+      // Get all folders
+      const response = await this.makeBrevoRequest('/contacts/folders', 'GET');
+      const folders = response.folders || [];
+
+      // Look for "Campaign Segments" folder
+      const campaignFolder = folders.find(
+        (folder: any) => folder.name === 'Campaign Segments',
+      );
+
+      if (campaignFolder) {
+        return campaignFolder.id;
+      }
+
+      // Create folder if it doesn't exist
+      const createResponse = await this.makeBrevoRequest(
+        '/contacts/folders',
+        'POST',
+        { name: 'Campaign Segments' },
+      );
+
+      this.logger.log(
+        `Created Campaign Segments folder with ID: ${createResponse.id}`,
+      );
+      return createResponse.id;
+    } catch (error) {
+      this.logger.error(`Failed to get/create campaign folder: ${error.message}`);
+      // Fallback to default folder
+      return 1;
+    }
+  }
+
   async updateList(
     listId: string,
     name: string,
@@ -107,9 +143,18 @@ export class BrevoService {
       };
 
       await this.makeBrevoRequest(`/contacts/lists/${listId}`, 'PUT', body);
-      this.logger.log(`Updated Brevo list: ${listId}`);
+      this.logger.log(`Updated Brevo list ${listId} with name: ${name}`);
     } catch (error) {
-      this.logger.error(`Failed to update Brevo list: ${error.message}`);
+      this.logger.error(
+        `Failed to update Brevo list ${listId}: ${error.message}`,
+      );
+      // If list doesn't exist, log warning but don't throw error
+      if (error.status === 404) {
+        this.logger.warn(
+          `Brevo list ${listId} not found, segment may have been deleted from Brevo`,
+        );
+        return;
+      }
       throw error;
     }
   }
@@ -247,6 +292,16 @@ export class BrevoService {
       }
       this.logger.error(`Failed to delete Brevo contact: ${error.message}`);
       throw error;
+    }
+  }
+
+  async getTotalContactsCount(): Promise<number> {
+    try {
+      const response = await this.makeBrevoRequest('/contacts?limit=1', 'GET');
+      return response.count || 0;
+    } catch (error) {
+      this.logger.error(`Failed to get total contacts count: ${error.message}`);
+      return 0;
     }
   }
 }
