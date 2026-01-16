@@ -18,9 +18,20 @@ export class AppointmentsService {
 
   async book(
     bookAppointmentDto: BookAppointmentDto,
-    clientId: string,
+    userId: string,
   ): Promise<AppointmentResponseDto> {
     const { scheduleId } = bookAppointmentDto;
+
+    // Get client record from user ID
+    const client = await this.prisma.client.findUnique({
+      where: { userId },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client profile not found');
+    }
+
+    const clientId = client.id;
 
     // Validate schedule exists
     const schedule = await this.prisma.schedule.findUnique({
@@ -204,14 +215,23 @@ export class AppointmentsService {
     };
   }
 
-  async findAllForClient(clientId: string, query: QueryAppointmentsDto): Promise<{
+  async findAllForClient(userId: string, query: QueryAppointmentsDto): Promise<{
     data: AppointmentResponseDto[];
     total: number;
     page: number;
     limit: number;
   }> {
+    // Get client record from user ID
+    const client = await this.prisma.client.findUnique({
+      where: { userId },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client profile not found');
+    }
+
     // Force clientId filter for clients
-    const clientQuery = { ...query, userId: clientId };
+    const clientQuery = { ...query, userId: client.id };
     return this.findAll(clientQuery);
   }
 
@@ -247,7 +267,72 @@ export class AppointmentsService {
     return this.formatAppointmentResponse(appointment);
   }
 
-  async cancel(id: string, clientId: string, isAdmin: boolean = false): Promise<AppointmentResponseDto> {
+  async findUserAppointmentForProperty(
+    userId: string,
+    propertyId: string,
+  ): Promise<AppointmentResponseDto | null> {
+    // Get client record from user ID
+    const client = await this.prisma.client.findUnique({
+      where: { userId },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Client profile not found');
+    }
+
+    // Find the user's appointment for this property
+    const appointment = await this.prisma.appointment.findFirst({
+      where: {
+        clientId: client.id,
+        propertyId,
+        status: 'BOOKED',
+      },
+      include: {
+        schedule: true,
+        property: {
+          select: {
+            name: true,
+          },
+        },
+        client: {
+          select: {
+            firstName: true,
+            lastName: true,
+            otherName: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!appointment) {
+      return null;
+    }
+
+    return this.formatAppointmentResponse(appointment);
+  }
+
+  async cancel(id: string, userId: string, isAdmin: boolean = false): Promise<AppointmentResponseDto> {
+    // Get client record from user ID if not admin
+    let clientId: string | undefined;
+    if (!isAdmin) {
+      const client = await this.prisma.client.findUnique({
+        where: { userId },
+      });
+
+      if (!client) {
+        throw new NotFoundException('Client profile not found');
+      }
+      clientId = client.id;
+    }
+
     const appointment = await this.prisma.appointment.findUnique({
       where: { id },
       include: {

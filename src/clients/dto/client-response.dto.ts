@@ -5,6 +5,7 @@ import {
   PartnershipSummaryDto,
   PaginationMetaDto
 } from '../../common/dto';
+import { TrafficSource } from '../../common/enums';
 
 export class ClientResponseDto {
   @ApiProperty({ description: 'Client ID', example: 'uuid' })
@@ -34,8 +35,8 @@ export class ClientResponseDto {
   @ApiPropertyOptional({ description: 'Gender', example: 'FEMALE' })
   gender?: string;
 
-  @ApiPropertyOptional({ description: 'Referral source', example: 'Facebook' })
-  referralSource?: string;
+  @ApiPropertyOptional({ description: 'Referral source', enum: TrafficSource, example: TrafficSource.INSTAGRAM })
+  referralSource?: TrafficSource;
 
   @ApiPropertyOptional({ description: 'Country', example: 'Nigeria' })
   country?: string;

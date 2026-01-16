@@ -1,0 +1,15 @@
+JWT Enhancement - Add adminId and clientId to tokens
+COMPLETED: Updated JWT payload to include adminId and clientId
+COMPLETED: Updated auth.service.ts generateTokens method
+COMPLETED: Updated all generateTokens calls (signup, login, google auth, refresh)
+COMPLETED: Updated jwt.strategy.ts to expose adminId and clientId in req.user
+COMPLETED: Updated campaigns module to use req.user.adminId directly
+COMPLETED: Removed unnecessary DB queries in campaigns.service.ts
+
+REMAINING: Update other services to use adminId/clientId from req.user
+- Schedules service
+- Leads service
+- Properties service
+- Enrollments service
+- Disbursements service
+- Appointments service (uses clientId)

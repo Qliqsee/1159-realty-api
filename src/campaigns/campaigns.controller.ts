@@ -27,6 +27,8 @@ import { SegmentPreviewQueryDto } from './dto/segment-preview-query.dto';
 import { SegmentPreviewResponseDto } from './dto/segment-preview-response.dto';
 import { SyncSegmentResponseDto } from './dto/sync-segment-response.dto';
 import { SegmentStatsDto } from './dto/segment-stats.dto';
+import { BrevoContactsQueryDto } from './dto/brevo-contacts-query.dto';
+import { BrevoContactsResponseDto } from './dto/brevo-contact-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
@@ -63,7 +65,7 @@ export class CampaignsController {
     @Body() createSegmentDto: CreateSegmentDto,
     @Request() req,
   ): Promise<SegmentResponseDto> {
-    return this.campaignsService.createSegment(createSegmentDto, req.user.id);
+    return this.campaignsService.createSegment(createSegmentDto, req.user.adminId);
   }
 
   @Get('segments')
@@ -116,9 +118,9 @@ export class CampaignsController {
 
   @Put('segments/:id')
   @ApiOperation({
-    summary: 'Update segment (Admin/Manager)',
+    summary: 'Update segment metadata (Admin/Manager)',
     description:
-      'Update segment criteria and details. Changes are synced to Brevo automatically.',
+      'Update segment name and description only. Segment criteria cannot be changed. Cannot update segments with PROCESSING status. Changes are synced to Brevo automatically.',
   })
   @ApiParam({ name: 'id', description: 'Segment ID' })
   @ApiResponse({
@@ -129,7 +131,7 @@ export class CampaignsController {
   @ApiResponse({ status: 404, description: 'Segment not found' })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - Invalid criteria',
+    description: 'Bad request - Segment is still processing or invalid data',
   })
   @ApiResponse({
     status: 500,
@@ -146,7 +148,7 @@ export class CampaignsController {
   @ApiOperation({
     summary: 'Delete segment (Admin/Manager)',
     description:
-      'Delete segment from database and remove associated list from Brevo',
+      'Delete segment from database and remove associated list from Brevo. Cannot delete segments with PROCESSING status.',
   })
   @ApiParam({ name: 'id', description: 'Segment ID' })
   @ApiResponse({
@@ -154,6 +156,10 @@ export class CampaignsController {
     description: 'Segment deleted successfully',
   })
   @ApiResponse({ status: 404, description: 'Segment not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Segment is still processing',
+  })
   async remove(@Param('id') id: string): Promise<{ message: string }> {
     await this.campaignsService.deleteSegment(id);
     return { message: 'Segment deleted successfully' };
@@ -204,6 +210,56 @@ export class CampaignsController {
     @Param('id') id: string,
     @Request() req,
   ): Promise<SyncSegmentResponseDto> {
-    return this.campaignsService.syncSegmentToBrevo(id, req.user.id);
+    return this.campaignsService.syncSegmentToBrevo(id, req.user.adminId);
+  }
+
+  @Get('contacts')
+  @ApiOperation({
+    summary: 'Get all contacts from Brevo (Admin/Manager)',
+    description:
+      'Retrieve all contacts from Brevo with pagination, search by email, and optional filter by list ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Contacts retrieved successfully from Brevo',
+    type: BrevoContactsResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Failed to retrieve contacts from Brevo',
+  })
+  getAllContacts(
+    @Query() query: BrevoContactsQueryDto,
+  ): Promise<BrevoContactsResponseDto> {
+    return this.campaignsService.getAllBrevoContacts(query);
+  }
+
+  @Delete('contacts/:identifier')
+  @ApiOperation({
+    summary: 'Delete contact from Brevo (Admin/Manager)',
+    description:
+      'Delete a contact from Brevo by email or ID. This removes the contact from all lists and segments automatically.',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'Contact email or Brevo contact ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Contact deleted successfully from Brevo',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Contact not found',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Failed to delete contact from Brevo',
+  })
+  async deleteContact(
+    @Param('identifier') identifier: string,
+  ): Promise<{ message: string }> {
+    await this.campaignsService.deleteBrevoContact(identifier);
+    return { message: 'Contact deleted successfully from Brevo' };
   }
 }

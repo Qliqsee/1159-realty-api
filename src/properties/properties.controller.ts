@@ -27,7 +27,6 @@ import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { QueryPropertiesDto } from './dto/query-properties.dto';
-import { AddInspectionDateDto } from './dto/inspection.dto';
 import { AddPaymentPlanDto } from './dto/add-payment-plan.dto';
 import { AddUnitPricingDto } from './dto/add-unit-pricing.dto';
 import { UpdatePropertyInterestDto } from './dto/update-interest.dto';
@@ -146,47 +145,6 @@ export class PropertiesController {
   unarchive(@Param('id') id: string, @Req() req: Request) {
     const userId = (req.user as any).id;
     return this.propertiesService.unarchive(id, userId);
-  }
-
-  // Inspection dates management
-  @Get(':id/inspections')
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermission('properties', 'manage')
-  @ApiOperation({ summary: 'Get property inspection dates (admin only)' })
-  @ApiResponse({ status: 200, description: 'Inspection dates retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Property not found' })
-  getInspectionDates(@Param('id') id: string) {
-    return this.propertiesService.getInspectionDates(id);
-  }
-
-  @Post(':id/inspections')
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermission('properties', 'manage')
-  @ApiOperation({ summary: 'Add inspection date to property (admin only)' })
-  @ApiResponse({ status: 201, description: 'Inspection date added successfully' })
-  @ApiResponse({ status: 400, description: 'Inspection date already exists' })
-  @ApiResponse({ status: 404, description: 'Property not found' })
-  addInspectionDate(
-    @Param('id') id: string,
-    @Body() dto: AddInspectionDateDto,
-  ) {
-    return this.propertiesService.addInspectionDate(id, new Date(dto.inspectionDate));
-  }
-
-  @Delete(':id/inspections/:inspectionDate')
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermission('properties', 'manage')
-  @ApiOperation({ summary: 'Remove inspection date from property (admin only)' })
-  @ApiResponse({ status: 200, description: 'Inspection date removed successfully' })
-  @ApiResponse({ status: 404, description: 'Property not found' })
-  removeInspectionDate(
-    @Param('id') id: string,
-    @Param('inspectionDate') inspectionDate: string,
-  ) {
-    return this.propertiesService.removeInspectionDate(id, new Date(inspectionDate));
   }
 
   // Payment plans management

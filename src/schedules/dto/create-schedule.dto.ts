@@ -3,6 +3,14 @@ import { IsNotEmpty, IsString, IsDateString, IsOptional } from 'class-validator'
 
 export class CreateScheduleDto {
   @ApiProperty({
+    description: 'Title of the schedule',
+    example: 'Property Inspection'
+  })
+  @IsNotEmpty()
+  @IsString()
+  title: string;
+
+  @ApiProperty({
     description: 'Property ID for the schedule',
     example: 'uuid'
   })

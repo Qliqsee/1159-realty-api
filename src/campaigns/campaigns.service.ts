@@ -17,6 +17,8 @@ import { SegmentPreviewQueryDto } from './dto/segment-preview-query.dto';
 import { SegmentPreviewResponseDto } from './dto/segment-preview-response.dto';
 import { SyncSegmentResponseDto } from './dto/sync-segment-response.dto';
 import { SegmentStatsDto } from './dto/segment-stats.dto';
+import { BrevoContactsQueryDto } from './dto/brevo-contacts-query.dto';
+import { BrevoContactsResponseDto } from './dto/brevo-contact-response.dto';
 import { Prisma } from '@prisma/client';
 import { formatFullName } from '../common/utils/name.utils';
 
@@ -31,11 +33,12 @@ export class CampaignsService {
 
   async createSegment(
     createSegmentDto: CreateSegmentDto,
-    userId: string,
+    adminId: string,
   ): Promise<SegmentResponseDto> {
     const {
       name,
       description,
+      matchType,
       gender = [],
       properties = [],
       countries = [],
@@ -43,6 +46,8 @@ export class CampaignsService {
       trafficSources = [],
       agentIds = [],
       partnerIds = [],
+      minTotalSpent,
+      maxTotalSpent,
     } = createSegmentDto;
 
     // Validate at least one criteria is provided
@@ -53,10 +58,23 @@ export class CampaignsService {
       !states.length &&
       !trafficSources.length &&
       !agentIds.length &&
-      !partnerIds.length
+      !partnerIds.length &&
+      minTotalSpent === undefined &&
+      maxTotalSpent === undefined
     ) {
       throw new BadRequestException(
         'At least one filter criteria must be provided',
+      );
+    }
+
+    // Validate spending range
+    if (
+      minTotalSpent !== undefined &&
+      maxTotalSpent !== undefined &&
+      minTotalSpent > maxTotalSpent
+    ) {
+      throw new BadRequestException(
+        'minTotalSpent cannot be greater than maxTotalSpent',
       );
     }
 
@@ -104,72 +122,93 @@ export class CampaignsService {
       }
     }
 
-    let brevoListId: string | null = null;
-
-    try {
-      // Create Brevo list
-      brevoListId = await this.brevoService.createList(name, description);
-    } catch (error) {
-      this.logger.error(`Failed to create Brevo list: ${error.message}`);
-      throw new HttpException(
-        'Failed to create segment in Brevo',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+    // Validate state IDs exist
+    if (states.length > 0) {
+      const validStates = await this.prisma.state.count({
+        where: { id: { in: states } },
+      });
+      if (validStates !== states.length) {
+        throw new BadRequestException('One or more state IDs are invalid');
+      }
     }
 
-    try {
-      // Create segment in database
-      const segment = await this.prisma.segment.create({
-        data: {
-          name,
-          description,
-          gender,
-          properties,
-          countries,
-          states,
-          trafficSources,
-          agentIds,
-          partnerIds,
-          brevoListId,
-          createdBy: userId,
-        },
-        include: {
-          creator: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              otherName: true,
-              user: {
-                select: {
-                  email: true,
-                },
+    // Create segment in database with PROCESSING status first
+    const segment = await this.prisma.segment.create({
+      data: {
+        name,
+        description,
+        matchType,
+        status: 'PROCESSING',
+        gender,
+        properties,
+        countries,
+        states,
+        trafficSources,
+        agentIds,
+        partnerIds,
+        minTotalSpent,
+        maxTotalSpent,
+        createdBy: adminId,
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
+            user: {
+              select: {
+                email: true,
               },
             },
           },
         },
-      });
+      },
+    });
 
-      return this.mapSegmentToResponse(segment);
+    // Try to create Brevo list
+    let brevoListId: string | null = null;
+    let finalStatus: 'CREATED' | 'FAILED' = 'CREATED';
+
+    try {
+      brevoListId = await this.brevoService.createList(name, description);
     } catch (error) {
-      // Rollback Brevo list if database creation fails
-      if (brevoListId) {
-        try {
-          await this.brevoService.deleteList(brevoListId);
-        } catch (deleteError) {
-          this.logger.error(
-            `Failed to rollback Brevo list: ${deleteError.message}`,
-          );
-        }
-      }
-      throw error;
+      this.logger.error(`Failed to create Brevo list: ${error.message}`);
+      finalStatus = 'FAILED';
     }
+
+    // Update segment with final status and brevoListId
+    const updatedSegment = await this.prisma.segment.update({
+      where: { id: segment.id },
+      data: {
+        status: finalStatus,
+        brevoListId,
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            otherName: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return await this.mapSegmentToResponse(updatedSegment);
   }
 
   async findAllSegments(
     query: SegmentListQueryDto,
   ): Promise<PaginatedSegmentResponseDto> {
-    const { search, page = 1, limit = 10, createdBy } = query;
+    const { search, page = 1, limit = 10, createdBy, status } = query;
 
     const where: Prisma.SegmentWhereInput = {};
 
@@ -182,6 +221,10 @@ export class CampaignsService {
 
     if (createdBy) {
       where.createdBy = createdBy;
+    }
+
+    if (status) {
+      where.status = status;
     }
 
     const [segments, total] = await Promise.all([
@@ -210,7 +253,7 @@ export class CampaignsService {
     ]);
 
     return {
-      data: segments.map((segment) => this.mapSegmentToResponse(segment)),
+      data: await Promise.all(segments.map((segment) => this.mapSegmentToResponse(segment))),
       total,
       page,
       limit,
@@ -242,7 +285,7 @@ export class CampaignsService {
       throw new NotFoundException('Segment not found');
     }
 
-    return this.mapSegmentToResponse(segment);
+    return await this.mapSegmentToResponse(segment);
   }
 
   async updateSegment(
@@ -257,69 +300,22 @@ export class CampaignsService {
       throw new NotFoundException('Segment not found');
     }
 
-    const {
-      name,
-      description,
-      gender,
-      properties,
-      countries,
-      states,
-      trafficSources,
-      agentIds,
-      partnerIds,
-    } = updateSegmentDto;
-
-    // Validate property IDs if provided
-    if (properties && properties.length > 0) {
-      const validProperties = await this.prisma.property.count({
-        where: { id: { in: properties } },
-      });
-      if (validProperties !== properties.length) {
-        throw new BadRequestException('One or more property IDs are invalid');
-      }
+    // Cannot update segment if it's still processing
+    if (segment.status === 'PROCESSING') {
+      throw new BadRequestException(
+        'Cannot update segment while it is still processing',
+      );
     }
 
-    // Validate agent IDs if provided
-    if (agentIds && agentIds.length > 0) {
-      const validAgents = await this.prisma.user.count({
-        where: {
-          id: { in: agentIds },
-          userRoles: {
-            some: {
-              role: {
-                name: 'agent',
-              },
-            },
-          },
-        },
-      });
-      if (validAgents !== agentIds.length) {
-        throw new BadRequestException('One or more agent IDs are invalid');
-      }
-    }
+    const { name, description } = updateSegmentDto;
 
-    // Validate partner IDs if provided
-    if (partnerIds && partnerIds.length > 0) {
-      const validPartners = await this.prisma.client.count({
-        where: {
-          id: { in: partnerIds },
-          partnership: {
-            status: 'APPROVED',
-          },
-        },
-      });
-      if (validPartners !== partnerIds.length) {
-        throw new BadRequestException('One or more partner IDs are invalid');
-      }
-    }
-
-    // Update Brevo list if name changed
-    if (name && segment.brevoListId) {
+    // Update Brevo list if name or description changed
+    if ((name || description !== undefined) && segment.brevoListId) {
       try {
         await this.brevoService.updateList(
           segment.brevoListId,
-          name,
-          description,
+          name || segment.name,
+          description !== undefined ? description : segment.description,
         );
       } catch (error) {
         this.logger.error(`Failed to update Brevo list: ${error.message}`);
@@ -335,13 +331,6 @@ export class CampaignsService {
       data: {
         ...(name && { name }),
         ...(description !== undefined && { description }),
-        ...(gender && { gender }),
-        ...(properties && { properties }),
-        ...(countries && { countries }),
-        ...(states && { states }),
-        ...(trafficSources && { trafficSources }),
-        ...(agentIds && { agentIds }),
-        ...(partnerIds && { partnerIds }),
       },
       include: {
         creator: {
@@ -360,7 +349,7 @@ export class CampaignsService {
       },
     });
 
-    return this.mapSegmentToResponse(updatedSegment);
+    return await this.mapSegmentToResponse(updatedSegment);
   }
 
   async deleteSegment(id: string): Promise<void> {
@@ -370,6 +359,13 @@ export class CampaignsService {
 
     if (!segment) {
       throw new NotFoundException('Segment not found');
+    }
+
+    // Cannot delete segment if it's still processing
+    if (segment.status === 'PROCESSING') {
+      throw new BadRequestException(
+        'Cannot delete segment while it is still processing',
+      );
     }
 
     // Delete from Brevo
@@ -404,34 +400,59 @@ export class CampaignsService {
 
     const where = this.buildSegmentQuery(segment);
 
-    const [clients, total] = await Promise.all([
-      this.prisma.client.findMany({
-        where,
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          otherName: true,
-          phone: true,
-          gender: true,
-          country: true,
-          state: {
-            select: {
-              name: true,
-            },
-          },
-          referralSource: true,
-          user: {
-            select: {
-              email: true,
-            },
+    // Get all matching client IDs first
+    const allMatchingClients = await this.prisma.client.findMany({
+      where,
+      select: { id: true },
+    });
+
+    let filteredClientIds = allMatchingClients.map((c) => c.id);
+
+    // Apply spending filter if specified
+    if (segment.minTotalSpent !== undefined || segment.maxTotalSpent !== undefined) {
+      const minSpent = segment.minTotalSpent?.toNumber();
+      const maxSpent = segment.maxTotalSpent?.toNumber();
+      filteredClientIds = await this.filterClientsBySpending(
+        filteredClientIds,
+        minSpent,
+        maxSpent,
+      );
+    }
+
+    const total = filteredClientIds.length;
+
+    // Apply pagination
+    const paginatedClientIds = filteredClientIds.slice(
+      (page - 1) * limit,
+      page * limit,
+    );
+
+    // Fetch full client data for paginated results
+    const clients = await this.prisma.client.findMany({
+      where: {
+        id: { in: paginatedClientIds },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        otherName: true,
+        phone: true,
+        gender: true,
+        country: true,
+        state: {
+          select: {
+            name: true,
           },
         },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.client.count({ where }),
-    ]);
+        referralSource: true,
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
 
     return {
       data: clients.map((client) => ({
@@ -442,7 +463,7 @@ export class CampaignsService {
         gender: client.gender || '',
         country: client.country || '',
         state: client.state?.name || '',
-        referralSource: client.referralSource,
+        referralSource: client.referralSource as any,
       })),
       total,
       page,
@@ -453,7 +474,7 @@ export class CampaignsService {
 
   async syncSegmentToBrevo(
     id: string,
-    userId: string,
+    adminId: string,
   ): Promise<SyncSegmentResponseDto> {
     const segment = await this.prisma.segment.findUnique({
       where: { id },
@@ -469,9 +490,30 @@ export class CampaignsService {
 
     const where = this.buildSegmentQuery(segment);
 
-    // Get all matching clients
-    const clients = await this.prisma.client.findMany({
+    // Get all matching client IDs first
+    const allMatchingClients = await this.prisma.client.findMany({
       where,
+      select: { id: true },
+    });
+
+    let filteredClientIds = allMatchingClients.map((c) => c.id);
+
+    // Apply spending filter if specified
+    if (segment.minTotalSpent !== undefined || segment.maxTotalSpent !== undefined) {
+      const minSpent = segment.minTotalSpent?.toNumber();
+      const maxSpent = segment.maxTotalSpent?.toNumber();
+      filteredClientIds = await this.filterClientsBySpending(
+        filteredClientIds,
+        minSpent,
+        maxSpent,
+      );
+    }
+
+    // Get full client data for filtered clients
+    const clients = await this.prisma.client.findMany({
+      where: {
+        id: { in: filteredClientIds },
+      },
       select: {
         firstName: true,
         lastName: true,
@@ -515,7 +557,7 @@ export class CampaignsService {
       data: {
         segmentId: id,
         usersCount: syncedCount,
-        exportedBy: userId,
+        exportedBy: adminId,
         status,
         errorMessage,
       },
@@ -575,6 +617,40 @@ export class CampaignsService {
     };
   }
 
+  private async filterClientsBySpending(
+    clientIds: string[],
+    minSpent?: number,
+    maxSpent?: number,
+  ): Promise<string[]> {
+    if (minSpent === undefined && maxSpent === undefined) {
+      return clientIds;
+    }
+
+    // Get total spending for each client
+    const clientSpending = await this.prisma.enrollment.groupBy({
+      by: ['clientId'],
+      where: {
+        clientId: { in: clientIds },
+      },
+      _sum: {
+        amountPaid: true,
+      },
+    });
+
+    // Filter based on spending criteria
+    const filteredClientIds = clientSpending
+      .filter((spending) => {
+        const totalSpent = spending._sum.amountPaid?.toNumber() || 0;
+        const meetsMin = minSpent === undefined || totalSpent >= minSpent;
+        const meetsMax = maxSpent === undefined || totalSpent <= maxSpent;
+        return meetsMin && meetsMax;
+      })
+      .map((spending) => spending.clientId)
+      .filter((id): id is string => id !== null);
+
+    return filteredClientIds;
+  }
+
   private buildSegmentQuery(segment: any): Prisma.ClientWhereInput {
     const conditions: Prisma.ClientWhereInput[] = [];
 
@@ -613,7 +689,7 @@ export class CampaignsService {
     if (segment.states && segment.states.length > 0) {
       conditions.push({
         stateId: {
-          in: segment.states.map(Number),
+          in: segment.states,
         },
       });
     }
@@ -658,9 +734,16 @@ export class CampaignsService {
       });
     }
 
-    // Combine all conditions with AND logic
+    // Combine all conditions based on matchType
     if (conditions.length === 0) {
       return {};
+    }
+
+    // Use OR logic if matchType is 'ANY', otherwise use AND logic
+    if (segment.matchType === 'ANY') {
+      return {
+        OR: conditions,
+      };
     }
 
     return {
@@ -668,11 +751,39 @@ export class CampaignsService {
     };
   }
 
-  private mapSegmentToResponse(segment: any): SegmentResponseDto {
+  private async calculateClientsCount(segment: any): Promise<number> {
+    const where = this.buildSegmentQuery(segment);
+
+    // Get all matching client IDs first
+    const allMatchingClients = await this.prisma.client.findMany({
+      where,
+      select: { id: true },
+    });
+
+    let filteredClientIds = allMatchingClients.map((c) => c.id);
+
+    // Apply spending filter if specified
+    if (segment.minTotalSpent !== undefined || segment.maxTotalSpent !== undefined) {
+      const minSpent = segment.minTotalSpent?.toNumber?.() || segment.minTotalSpent;
+      const maxSpent = segment.maxTotalSpent?.toNumber?.() || segment.maxTotalSpent;
+      filteredClientIds = await this.filterClientsBySpending(
+        filteredClientIds,
+        minSpent,
+        maxSpent,
+      );
+    }
+
+    return filteredClientIds.length;
+  }
+
+  private async mapSegmentToResponse(segment: any): Promise<SegmentResponseDto> {
+    const clientsCount = await this.calculateClientsCount(segment);
     return {
       id: segment.id,
       name: segment.name,
       description: segment.description,
+      matchType: segment.matchType,
+      status: segment.status,
       gender: segment.gender,
       properties: segment.properties,
       countries: segment.countries,
@@ -680,7 +791,10 @@ export class CampaignsService {
       trafficSources: segment.trafficSources,
       agentIds: segment.agentIds,
       partnerIds: segment.partnerIds,
+      minTotalSpent: segment.minTotalSpent?.toNumber(),
+      maxTotalSpent: segment.maxTotalSpent?.toNumber(),
       brevoListId: segment.brevoListId,
+      clientsCount,
       creator: {
         id: segment.creator.id,
         name: formatFullName(segment.creator.firstName, segment.creator.lastName, segment.creator.otherName) || '',
@@ -689,5 +803,40 @@ export class CampaignsService {
       createdAt: segment.createdAt,
       updatedAt: segment.updatedAt,
     };
+  }
+
+  async getAllBrevoContacts(
+    query: BrevoContactsQueryDto,
+  ): Promise<BrevoContactsResponseDto> {
+    const { page = 1, limit = 10, search, listId } = query;
+
+    const { contacts, count } = await this.brevoService.getAllContacts(
+      page,
+      limit,
+      search,
+      listId,
+    );
+
+    const mappedContacts = contacts.map((contact: any) => ({
+      id: contact.id?.toString() || '',
+      email: contact.email || '',
+      name: contact.attributes?.NAME || '',
+      phone: contact.attributes?.PHONE || '',
+      listIds: contact.listIds || [],
+      createdAt: contact.createdAt || '',
+      modifiedAt: contact.modifiedAt || '',
+    }));
+
+    return {
+      data: mappedContacts,
+      total: count,
+      page,
+      limit,
+      totalPages: Math.ceil(count / limit),
+    };
+  }
+
+  async deleteBrevoContact(identifier: string): Promise<void> {
+    await this.brevoService.deleteContact(identifier);
   }
 }

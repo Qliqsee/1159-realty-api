@@ -3,6 +3,15 @@ import { IsOptional, IsString, IsDateString } from 'class-validator';
 
 export class UpdateScheduleDto {
   @ApiProperty({
+    description: 'Title of the schedule',
+    example: 'Property Inspection',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiProperty({
     description: 'Date and time of the schedule',
     example: '2026-01-15T10:00:00Z',
     required: false

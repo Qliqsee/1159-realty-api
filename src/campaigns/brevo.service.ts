@@ -191,4 +191,60 @@ export class BrevoService {
       },
     };
   }
+
+  async getAllContacts(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    listId?: string,
+  ): Promise<{
+    contacts: any[];
+    count: number;
+  }> {
+    try {
+      // Brevo uses offset instead of page
+      const offset = (page - 1) * limit;
+
+      // Build query parameters
+      let endpoint = `/contacts?limit=${Math.min(limit, 50)}&offset=${offset}`;
+
+      if (listId) {
+        endpoint += `&listIds=${listId}`;
+      }
+
+      const response = await this.makeBrevoRequest(endpoint, 'GET');
+
+      let contacts = response.contacts || [];
+      let count = response.count || 0;
+
+      // Filter by email if search is provided (client-side filtering)
+      if (search) {
+        contacts = contacts.filter((contact: any) =>
+          contact.email?.toLowerCase().includes(search.toLowerCase()),
+        );
+        count = contacts.length;
+      }
+
+      this.logger.log(`Retrieved ${contacts.length} contacts from Brevo`);
+      return { contacts, count };
+    } catch (error) {
+      this.logger.error(`Failed to get contacts from Brevo: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async deleteContact(identifier: string): Promise<void> {
+    try {
+      await this.makeBrevoRequest(`/contacts/${identifier}`, 'DELETE');
+      this.logger.log(`Deleted Brevo contact: ${identifier}`);
+    } catch (error) {
+      // If contact doesn't exist, treat as success
+      if (error.status === 404) {
+        this.logger.warn(`Brevo contact ${identifier} not found, already deleted`);
+        return;
+      }
+      this.logger.error(`Failed to delete Brevo contact: ${error.message}`);
+      throw error;
+    }
+  }
 }

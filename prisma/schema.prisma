@@ -134,6 +134,12 @@ enum CaseStatus {
   REJECTED
 }
 
+enum SegmentStatus {
+  PROCESSING
+  CREATED
+  FAILED
+}
+
 enum Country {
   NIGERIA
   OTHERS
@@ -174,6 +180,18 @@ enum DisbursementStatus {
 enum DisbursementConfigMode {
   ALL_EXCEPT
   NONE_EXCEPT
+}
+
+enum TrafficSource {
+  X
+  INSTAGRAM
+  REFERRAL
+  YOUTUBE
+  TIKTOK
+  WHATSAPP
+  TELEGRAM
+  SEARCH_ENGINE
+  OTHERS
 }
 
 model User {
@@ -254,14 +272,14 @@ model Admin {
 }
 
 model Client {
-  id                     String    @id @default(uuid())
-  userId                 String    @unique
+  id                     String         @id @default(uuid())
+  userId                 String         @unique
   firstName              String?
   lastName               String?
   otherName              String?
   phone                  String?
   gender                 Gender?
-  referralSource         String?
+  referralSource         TrafficSource?
   country                Country?
   stateId                Int?
   hasCompletedOnboarding Boolean   @default(false)
@@ -624,12 +642,13 @@ model PropertyInterest {
 }
 
 model Lead {
-  id                   String     @id @default(uuid())
+  id                   String         @id @default(uuid())
   email                String
   firstName            String
   lastName             String
   phone                String?
-  status               LeadStatus @default(AVAILABLE)
+  source               TrafficSource?
+  status               LeadStatus     @default(AVAILABLE)
   reservedBy           String?
   reservationExpiresAt DateTime?
   addedBy              String
@@ -870,6 +889,7 @@ model Achievement {
 
 model Schedule {
   id         String   @id @default(uuid())
+  title      String
   propertyId String
   dateTime   DateTime
   location   String   @db.Text
@@ -1048,16 +1068,20 @@ model DisbursementConfig {
 }
 
 model Segment {
-  id              String   @id @default(uuid())
+  id              String          @id @default(uuid())
   name            String
-  description     String?  @db.Text
+  description     String?         @db.Text
+  matchType       String          @default("ALL")
+  status          SegmentStatus   @default(PROCESSING)
   gender          String[]
   properties      String[]
   countries       String[]
-  states          String[]
-  trafficSources  String[]
+  states          Int[]
+  trafficSources  TrafficSource[]
   agentIds        String[]
   partnerIds      String[]
+  minTotalSpent   Decimal?        @db.Decimal(15, 2)
+  maxTotalSpent   Decimal?        @db.Decimal(15, 2)
   brevoListId     String?
   createdBy       String
   createdAt       DateTime @default(now())
@@ -1068,6 +1092,7 @@ model Segment {
 
   @@index([createdBy])
   @@index([createdAt])
+  @@index([status])
   @@map("segments")
 }
 

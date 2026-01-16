@@ -20,7 +20,7 @@ export class SchedulesService {
     createScheduleDto: CreateScheduleDto,
     userId: string,
   ): Promise<ScheduleResponseDto> {
-    const { propertyId, dateTime, location, message } = createScheduleDto;
+    const { title, propertyId, dateTime, location, message } = createScheduleDto;
 
     // Get admin ID from user ID
     const admin = await this.prisma.admin.findUnique({
@@ -46,8 +46,25 @@ export class SchedulesService {
       throw new BadRequestException('Schedule date/time must be in the future');
     }
 
+    // Check if another active schedule exists for this property
+    const existingSchedule = await this.prisma.schedule.findFirst({
+      where: {
+        propertyId,
+        dateTime: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (existingSchedule) {
+      throw new BadRequestException(
+        'Another active schedule already exists for this property',
+      );
+    }
+
     const schedule = await this.prisma.schedule.create({
       data: {
+        title,
         propertyId,
         dateTime: scheduledDateTime,
         location,
@@ -100,10 +117,20 @@ export class SchedulesService {
     const where: Prisma.ScheduleWhereInput = {};
 
     if (search) {
-      where.location = {
-        contains: search,
-        mode: 'insensitive',
-      };
+      where.OR = [
+        {
+          title: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          location: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ];
     }
 
     if (propertyId) {
@@ -216,7 +243,7 @@ export class SchedulesService {
     // Optional: Check if user is authorized to update (creator or admin)
     // This would typically be handled by guards, but adding as additional check
 
-    const { dateTime, location, message } = updateScheduleDto;
+    const { title, dateTime, location, message } = updateScheduleDto;
 
     // Validate dateTime is in the future if provided
     if (dateTime) {
@@ -224,11 +251,31 @@ export class SchedulesService {
       if (scheduledDateTime <= new Date()) {
         throw new BadRequestException('Schedule date/time must be in the future');
       }
+
+      // Check if another active schedule exists for this property
+      const existingSchedule = await this.prisma.schedule.findFirst({
+        where: {
+          propertyId: schedule.propertyId,
+          dateTime: {
+            gt: new Date(),
+          },
+          id: {
+            not: id,
+          },
+        },
+      });
+
+      if (existingSchedule) {
+        throw new BadRequestException(
+          'Another active schedule already exists for this property',
+        );
+      }
     }
 
     const updated = await this.prisma.schedule.update({
       where: { id },
       data: {
+        ...(title && { title }),
         ...(dateTime && { dateTime: new Date(dateTime) }),
         ...(location && { location }),
         ...(message !== undefined && { message }),
@@ -293,6 +340,7 @@ export class SchedulesService {
   private formatScheduleResponse(schedule: any): ScheduleResponseDto {
     return {
       id: schedule.id,
+      title: schedule.title,
       propertyId: schedule.propertyId,
       propertyName: schedule.property?.name,
       dateTime: schedule.dateTime,

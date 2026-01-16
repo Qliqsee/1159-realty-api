@@ -6,7 +6,14 @@ import {
   ArrayMinSize,
   MinLength,
   ValidateIf,
+  IsEnum,
+  IsUUID,
+  IsInt,
+  IsNumber,
+  Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { TrafficSource, Gender, Country, MatchType } from '../../common/enums';
 
 export class CreateSegmentDto {
   @ApiProperty({
@@ -27,15 +34,25 @@ export class CreateSegmentDto {
   description?: string;
 
   @ApiProperty({
+    description: 'Criteria matching logic: ALL (users must match all criteria) or ANY (users can match any criteria)',
+    example: MatchType.ALL,
+    enum: MatchType,
+    default: MatchType.ALL,
+  })
+  @IsEnum(MatchType)
+  matchType: MatchType = MatchType.ALL;
+
+  @ApiProperty({
     description: 'Filter by gender',
-    example: ['MALE', 'FEMALE'],
+    example: [Gender.MALE, Gender.FEMALE],
     required: false,
-    type: [String],
+    enum: Gender,
+    isArray: true,
   })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
-  gender?: string[];
+  @IsEnum(Gender, { each: true })
+  gender?: Gender[];
 
   @ApiProperty({
     description: 'Filter by property IDs (users enrolled in these properties)',
@@ -45,41 +62,44 @@ export class CreateSegmentDto {
   })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsUUID('4', { each: true })
   properties?: string[];
 
   @ApiProperty({
     description: 'Filter by countries',
-    example: ['Nigeria', 'Ghana'],
+    example: [Country.NIGERIA, Country.OTHERS],
     required: false,
-    type: [String],
+    enum: Country,
+    isArray: true,
   })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
-  countries?: string[];
+  @IsEnum(Country, { each: true })
+  countries?: Country[];
 
   @ApiProperty({
-    description: 'Filter by states',
-    example: ['Lagos', 'Abuja'],
+    description: 'Filter by state IDs',
+    example: [1, 2, 3],
     required: false,
-    type: [String],
+    type: [Number],
   })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
-  states?: string[];
+  @IsInt({ each: true })
+  @Type(() => Number)
+  states?: number[];
 
   @ApiProperty({
     description: 'Filter by traffic sources',
-    example: ['Google Ads', 'Facebook', 'Instagram'],
+    example: [TrafficSource.INSTAGRAM, TrafficSource.REFERRAL],
     required: false,
-    type: [String],
+    enum: TrafficSource,
+    isArray: true,
   })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
-  trafficSources?: string[];
+  @IsEnum(TrafficSource, { each: true })
+  trafficSources?: TrafficSource[];
 
   @ApiProperty({
     description: 'Filter by agent IDs',
@@ -89,7 +109,7 @@ export class CreateSegmentDto {
   })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsUUID('4', { each: true })
   agentIds?: string[];
 
   @ApiProperty({
@@ -100,8 +120,32 @@ export class CreateSegmentDto {
   })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsUUID('4', { each: true })
   partnerIds?: string[];
+
+  @ApiProperty({
+    description: 'Filter by minimum total amount spent (in enrollments)',
+    example: 5000000,
+    required: false,
+    type: Number,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  minTotalSpent?: number;
+
+  @ApiProperty({
+    description: 'Filter by maximum total amount spent (in enrollments)',
+    example: 50000000,
+    required: false,
+    type: Number,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  maxTotalSpent?: number;
 
   @ValidateIf((o: CreateSegmentDto) => {
     return (
@@ -111,7 +155,9 @@ export class CreateSegmentDto {
       !o.states?.length &&
       !o.trafficSources?.length &&
       !o.agentIds?.length &&
-      !o.partnerIds?.length
+      !o.partnerIds?.length &&
+      o.minTotalSpent === undefined &&
+      o.maxTotalSpent === undefined
     );
   })
   @ArrayMinSize(1, {

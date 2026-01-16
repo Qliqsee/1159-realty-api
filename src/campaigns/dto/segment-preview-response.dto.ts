@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { TrafficSource } from '../../common/enums';
 
 class PreviewUserDto {
   @ApiProperty({ example: 'uuid' })
@@ -22,8 +23,8 @@ class PreviewUserDto {
   @ApiProperty({ example: 'Lagos' })
   state: string;
 
-  @ApiProperty({ example: 'Google Ads', required: false })
-  referralSource?: string;
+  @ApiProperty({ example: TrafficSource.INSTAGRAM, enum: TrafficSource, required: false })
+  referralSource?: TrafficSource | null;
 }
 
 export class SegmentPreviewResponseDto {

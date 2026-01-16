@@ -4,6 +4,9 @@ export class ScheduleResponseDto {
   @ApiProperty({ description: 'Schedule ID' })
   id: string;
 
+  @ApiProperty({ description: 'Title of the schedule' })
+  title: string;
+
   @ApiProperty({ description: 'Property ID' })
   propertyId: string;
 

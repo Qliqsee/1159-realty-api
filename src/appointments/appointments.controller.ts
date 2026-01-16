@@ -106,6 +106,33 @@ export class AppointmentsController {
     return this.appointmentsService.cancel(id, req.user.id, false);
   }
 
+  @Get('property/:propertyId')
+  @UseGuards(PermissionsGuard)
+  @ApiOperation({
+    summary: 'Get my appointment for a specific property (Client/Partner)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Appointment retrieved successfully or null if no appointment',
+    type: AppointmentResponseDto,
+    schema: {
+      oneOf: [
+        { $ref: '#/components/schemas/AppointmentResponseDto' },
+        { type: 'null' },
+      ],
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Client profile not found' })
+  findMyAppointmentForProperty(
+    @Param('propertyId') propertyId: string,
+    @Request() req,
+  ): Promise<AppointmentResponseDto | null> {
+    return this.appointmentsService.findUserAppointmentForProperty(
+      req.user.id,
+      propertyId,
+    );
+  }
+
   // Admin endpoints
   @Get()
   @UseGuards(PermissionsGuard)

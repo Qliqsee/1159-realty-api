@@ -1,12 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsOptional, IsString, IsInt, Min, IsEnum } from 'class-validator';
-import { SegmentStatus } from '../../common/enums';
+import { IsOptional, IsString, IsInt, Min } from 'class-validator';
 
-export class SegmentListQueryDto {
+export class BrevoContactsQueryDto {
   @ApiProperty({
     required: false,
-    description: 'Search by segment name or description',
+    description: 'Search by email',
   })
   @IsOptional()
   @IsString()
@@ -26,7 +25,7 @@ export class SegmentListQueryDto {
 
   @ApiProperty({
     required: false,
-    description: 'Number of items per page',
+    description: 'Number of items per page (max 50)',
     example: 10,
     default: 10,
   })
@@ -38,18 +37,9 @@ export class SegmentListQueryDto {
 
   @ApiProperty({
     required: false,
-    description: 'Filter by creator ID',
+    description: 'Filter by Brevo list ID',
   })
   @IsOptional()
   @IsString()
-  createdBy?: string;
-
-  @ApiProperty({
-    required: false,
-    description: 'Filter by status',
-    enum: SegmentStatus,
-  })
-  @IsOptional()
-  @IsEnum(SegmentStatus)
-  status?: SegmentStatus;
+  listId?: string;
 }

@@ -57,6 +57,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const roles = (payload.roles || []).map((roleName: string) => ({ name: roleName }));
 
     // Return user info with roles from token
+    // Include adminId and clientId from JWT payload (if available) for backward compatibility with old tokens
     return {
       id: payload.sub,
       userId: payload.sub,
@@ -64,6 +65,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userType: payload.userType,
       admin: user.admin || null,
       client: user.client || null,
+      adminId: payload.adminId || user.admin?.id || null, // Use from JWT or fallback to DB query
+      clientId: payload.clientId || user.client?.id || null, // Use from JWT or fallback to DB query
       roles,
     };
   }

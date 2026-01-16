@@ -84,8 +84,15 @@ export class AuthService {
     });
     const roles = userWithRoles?.userRoles.map(ur => ur.role.name) || [];
 
-    // Generate tokens
-    const tokens = await this.generateTokens(result.user.id, result.user.email, 'client', roles);
+    // Generate tokens with clientId
+    const tokens = await this.generateTokens(
+      result.user.id,
+      result.user.email,
+      'client',
+      roles,
+      undefined, // adminId
+      result.client.id, // clientId
+    );
 
     // Fetch client profile using ClientsService
     const clientProfile = await this.clientsService.findByUserId(result.user.id);
@@ -169,8 +176,15 @@ export class AuthService {
     });
     const roles = userWithRoles?.userRoles.map(ur => ur.role.name) || [];
 
-    // Generate tokens
-    const tokens = await this.generateTokens(result.user.id, result.user.email, 'admin', roles);
+    // Generate tokens with adminId
+    const tokens = await this.generateTokens(
+      result.user.id,
+      result.user.email,
+      'admin',
+      roles,
+      result.admin.id, // adminId
+      undefined, // clientId
+    );
 
     // Fetch admin profile using AdminsService
     const adminProfile = await this.adminsService.findByUserId(result.user.id);
@@ -257,8 +271,15 @@ export class AuthService {
     });
     const roles = userWithRoles?.userRoles.map(ur => ur.role.name) || [];
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email, userType, roles);
+    // Generate tokens with adminId and clientId
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      userType,
+      roles,
+      user.admin?.id, // adminId
+      user.client?.id, // clientId
+    );
 
     // Fetch user profile using appropriate service
     const userProfile = userType === 'client'
@@ -529,8 +550,15 @@ export class AuthService {
     });
     const roles = userWithRoles?.userRoles.map(ur => ur.role.name) || [];
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email, userType, roles);
+    // Generate tokens with adminId and clientId
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      userType,
+      roles,
+      user.admin?.id, // adminId
+      user.client?.id, // clientId
+    );
 
     // Fetch user profile using appropriate service
     const userProfile = userType === 'client'
@@ -590,7 +618,15 @@ export class AuthService {
       // Fetch fresh roles from DB
       const roles = user.userRoles.map(ur => ur.role.name);
 
-      const tokens = await this.generateTokens(user.id, user.email, userType, roles);
+      // Generate tokens with adminId and clientId
+      const tokens = await this.generateTokens(
+        user.id,
+        user.email,
+        userType,
+        roles,
+        user.admin?.id, // adminId
+        user.client?.id, // clientId
+      );
 
       // Fetch user profile using appropriate service
       const userProfile = userType === 'client'
@@ -613,13 +649,28 @@ export class AuthService {
     }
   }
 
-  private async generateTokens(userId: string, email: string, userType: 'admin' | 'client', roles: string[]) {
-    const payload = {
+  private async generateTokens(
+    userId: string,
+    email: string,
+    userType: 'admin' | 'client',
+    roles: string[],
+    adminId?: string,
+    clientId?: string,
+  ) {
+    const payload: any = {
       sub: userId,
       email,
       userType,
       roles,
     };
+
+    // Add adminId and clientId if available (for backward compatibility, only add if defined)
+    if (adminId) {
+      payload.adminId = adminId;
+    }
+    if (clientId) {
+      payload.clientId = clientId;
+    }
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {

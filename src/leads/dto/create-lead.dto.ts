@@ -1,5 +1,6 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { TrafficSource } from '../../common/enums';
 
 export class CreateLeadDto {
   @ApiProperty({
@@ -34,4 +35,14 @@ export class CreateLeadDto {
   @IsString()
   @IsOptional()
   phone?: string;
+
+  @ApiProperty({
+    enum: TrafficSource,
+    example: TrafficSource.INSTAGRAM,
+    description: 'Traffic source',
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(TrafficSource)
+  source?: TrafficSource;
 }

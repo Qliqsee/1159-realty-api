@@ -6,8 +6,10 @@ import {
   IsOptional,
   IsString,
   ValidateNested,
+  IsEnum,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { TrafficSource } from '../../common/enums';
 
 export class LeadItemDto {
   @ApiProperty({
@@ -51,6 +53,16 @@ export class LeadItemDto {
   @IsEmail()
   @IsOptional()
   agentEmail?: string;
+
+  @ApiProperty({
+    enum: TrafficSource,
+    example: TrafficSource.INSTAGRAM,
+    description: 'Traffic source',
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(TrafficSource)
+  source?: TrafficSource;
 }
 
 export class BatchCreateLeadsDto {
