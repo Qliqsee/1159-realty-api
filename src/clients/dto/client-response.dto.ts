@@ -6,6 +6,7 @@ import {
   PaginationMetaDto
 } from '../../common/dto';
 import { TrafficSource } from '../../common/enums';
+import { TrafficSource as PrismaTrafficSource } from '@prisma/client';
 
 export class ClientResponseDto {
   @ApiProperty({ description: 'Client ID', example: 'uuid' })
@@ -36,7 +37,7 @@ export class ClientResponseDto {
   gender?: string;
 
   @ApiPropertyOptional({ description: 'Referral source', enum: TrafficSource, example: TrafficSource.INSTAGRAM })
-  referralSource?: TrafficSource;
+  referralSource?: PrismaTrafficSource;
 
   @ApiPropertyOptional({ description: 'Country', example: 'Nigeria' })
   country?: string;

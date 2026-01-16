@@ -1073,15 +1073,7 @@ model Segment {
   description     String?         @db.Text
   matchType       String          @default("ALL")
   status          SegmentStatus   @default(PROCESSING)
-  gender          String[]
-  properties      String[]
-  countries       String[]
-  states          Int[]
-  trafficSources  TrafficSource[]
-  agentIds        String[]
-  partnerIds      String[]
-  minTotalSpent   Decimal?        @db.Decimal(15, 2)
-  maxTotalSpent   Decimal?        @db.Decimal(15, 2)
+  conditions      Json
   brevoListId     String?
   createdBy       String
   createdAt       DateTime @default(now())

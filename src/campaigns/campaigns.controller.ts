@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -39,17 +40,19 @@ import { RequirePermission } from '../common/decorators/require-permission.decor
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermission('campaigns', 'manage')
 export class CampaignsController {
+  private readonly logger = new Logger(CampaignsController.name);
+
   constructor(private readonly campaignsService: CampaignsService) {}
 
   @Post('segments')
   @ApiOperation({
     summary: 'Create a new segment (Admin/Manager)',
     description:
-      'Creates a new user segment based on criteria and automatically syncs to Brevo. At least one filter criteria must be provided.',
+      'Creates a new user segment based on criteria with PROCESSING status. Contacts are synced to Brevo in the background. Status updates to CREATED when sync completes or FAILED on error. At least one filter criteria must be provided.',
   })
   @ApiResponse({
     status: 201,
-    description: 'Segment created successfully and synced to Brevo',
+    description: 'Segment created with PROCESSING status. Background sync initiated.',
     type: SegmentResponseDto,
   })
   @ApiResponse({
@@ -65,7 +68,8 @@ export class CampaignsController {
     @Body() createSegmentDto: CreateSegmentDto,
     @Request() req,
   ): Promise<SegmentResponseDto> {
-    return this.campaignsService.createSegment(createSegmentDto, req.user.adminId);
+    const adminId = req.user.adminId || req.user.admin?.id;
+    return this.campaignsService.createSegment(createSegmentDto, adminId);
   }
 
   @Get('segments')
@@ -187,9 +191,9 @@ export class CampaignsController {
 
   @Post('segments/:id/sync')
   @ApiOperation({
-    summary: 'Sync segment users to Brevo (Admin/Manager)',
+    summary: 'Manually sync/re-sync segment users to Brevo (Admin/Manager)',
     description:
-      'Query users matching segment criteria and sync them to the associated Brevo list with email and phone',
+      'Manually query users matching segment criteria and sync them to the associated Brevo list. Useful for re-syncing after segment was created or if initial sync failed.',
   })
   @ApiParam({ name: 'id', description: 'Segment ID' })
   @ApiResponse({
@@ -210,7 +214,8 @@ export class CampaignsController {
     @Param('id') id: string,
     @Request() req,
   ): Promise<SyncSegmentResponseDto> {
-    return this.campaignsService.syncSegmentToBrevo(id, req.user.adminId);
+    const adminId = req.user.adminId || req.user.admin?.id;
+    return this.campaignsService.syncSegmentToBrevo(id, adminId);
   }
 
   @Get('contacts')

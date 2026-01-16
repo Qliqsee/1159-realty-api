@@ -235,7 +235,9 @@ export class BrevoService {
 
   async deleteContact(identifier: string): Promise<void> {
     try {
-      await this.makeBrevoRequest(`/contacts/${identifier}`, 'DELETE');
+      // URL encode the identifier (especially important for emails with @ symbol)
+      const encodedIdentifier = encodeURIComponent(identifier);
+      await this.makeBrevoRequest(`/contacts/${encodedIdentifier}`, 'DELETE');
       this.logger.log(`Deleted Brevo contact: ${identifier}`);
     } catch (error) {
       // If contact doesn't exist, treat as success

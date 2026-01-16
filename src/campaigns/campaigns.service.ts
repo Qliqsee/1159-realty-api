@@ -35,6 +35,22 @@ export class CampaignsService {
     createSegmentDto: CreateSegmentDto,
     adminId: string,
   ): Promise<SegmentResponseDto> {
+    // Validate adminId exists
+    if (!adminId) {
+      throw new BadRequestException('Only admin users can create segments');
+    }
+
+    // Verify admin exists in database
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin) {
+      throw new BadRequestException(
+        `Admin profile not found for adminId: ${adminId}. Please logout and login again to refresh your authentication token.`,
+      );
+    }
+
     const {
       name,
       description,
@@ -63,7 +79,7 @@ export class CampaignsService {
       maxTotalSpent === undefined
     ) {
       throw new BadRequestException(
-        'At least one filter criteria must be provided',
+        'At least one filter criteria must be provided in conditions',
       );
     }
 
@@ -132,6 +148,19 @@ export class CampaignsService {
       }
     }
 
+    // Build conditions object for storage
+    const conditions = {
+      gender,
+      properties,
+      countries,
+      states,
+      trafficSources,
+      agentIds,
+      partnerIds,
+      minTotalSpent,
+      maxTotalSpent,
+    };
+
     // Create segment in database with PROCESSING status first
     const segment = await this.prisma.segment.create({
       data: {
@@ -139,15 +168,7 @@ export class CampaignsService {
         description,
         matchType,
         status: 'PROCESSING',
-        gender,
-        properties,
-        countries,
-        states,
-        trafficSources,
-        agentIds,
-        partnerIds,
-        minTotalSpent,
-        maxTotalSpent,
+        conditions: conditions as any,
         createdBy: adminId,
       },
       include: {
@@ -169,20 +190,26 @@ export class CampaignsService {
 
     // Try to create Brevo list
     let brevoListId: string | null = null;
-    let finalStatus: 'CREATED' | 'FAILED' = 'CREATED';
 
     try {
       brevoListId = await this.brevoService.createList(name, description);
     } catch (error) {
       this.logger.error(`Failed to create Brevo list: ${error.message}`);
-      finalStatus = 'FAILED';
+      // Update segment to FAILED status
+      await this.prisma.segment.update({
+        where: { id: segment.id },
+        data: { status: 'FAILED' },
+      });
+      throw new HttpException(
+        'Failed to create segment in Brevo',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
 
-    // Update segment with final status and brevoListId
+    // Update segment with brevoListId (keep PROCESSING status)
     const updatedSegment = await this.prisma.segment.update({
       where: { id: segment.id },
       data: {
-        status: finalStatus,
         brevoListId,
       },
       include: {
@@ -200,6 +227,11 @@ export class CampaignsService {
           },
         },
       },
+    });
+
+    // Fire background process to sync contacts
+    this.syncSegmentInBackground(updatedSegment.id, brevoListId).catch((error) => {
+      this.logger.error(`Background sync failed for segment ${updatedSegment.id}: ${error.message}`);
     });
 
     return await this.mapSegmentToResponse(updatedSegment);
@@ -409,9 +441,10 @@ export class CampaignsService {
     let filteredClientIds = allMatchingClients.map((c) => c.id);
 
     // Apply spending filter if specified
-    if (segment.minTotalSpent !== undefined || segment.maxTotalSpent !== undefined) {
-      const minSpent = segment.minTotalSpent?.toNumber();
-      const maxSpent = segment.maxTotalSpent?.toNumber();
+    const segmentConditions: any = segment.conditions || {};
+    if (segmentConditions.minTotalSpent !== undefined || segmentConditions.maxTotalSpent !== undefined) {
+      const minSpent = segmentConditions.minTotalSpent;
+      const maxSpent = segmentConditions.maxTotalSpent;
       filteredClientIds = await this.filterClientsBySpending(
         filteredClientIds,
         minSpent,
@@ -476,6 +509,11 @@ export class CampaignsService {
     id: string,
     adminId: string,
   ): Promise<SyncSegmentResponseDto> {
+    // Validate adminId exists
+    if (!adminId) {
+      throw new BadRequestException('Only admin users can sync segments');
+    }
+
     const segment = await this.prisma.segment.findUnique({
       where: { id },
     });
@@ -499,9 +537,10 @@ export class CampaignsService {
     let filteredClientIds = allMatchingClients.map((c) => c.id);
 
     // Apply spending filter if specified
-    if (segment.minTotalSpent !== undefined || segment.maxTotalSpent !== undefined) {
-      const minSpent = segment.minTotalSpent?.toNumber();
-      const maxSpent = segment.maxTotalSpent?.toNumber();
+    const segmentConditions: any = segment.conditions || {};
+    if (segmentConditions.minTotalSpent !== undefined || segmentConditions.maxTotalSpent !== undefined) {
+      const minSpent = segmentConditions.minTotalSpent;
+      const maxSpent = segmentConditions.maxTotalSpent;
       filteredClientIds = await this.filterClientsBySpending(
         filteredClientIds,
         minSpent,
@@ -653,23 +692,24 @@ export class CampaignsService {
 
   private buildSegmentQuery(segment: any): Prisma.ClientWhereInput {
     const conditions: Prisma.ClientWhereInput[] = [];
+    const segmentConditions: any = segment.conditions || {};
 
     // Filter by gender
-    if (segment.gender && segment.gender.length > 0) {
+    if (segmentConditions.gender && segmentConditions.gender.length > 0) {
       conditions.push({
         gender: {
-          in: segment.gender,
+          in: segmentConditions.gender,
         },
       });
     }
 
     // Filter by properties (users enrolled in these properties)
-    if (segment.properties && segment.properties.length > 0) {
+    if (segmentConditions.properties && segmentConditions.properties.length > 0) {
       conditions.push({
         enrollmentsAsClient: {
           some: {
             propertyId: {
-              in: segment.properties,
+              in: segmentConditions.properties,
             },
           },
         },
@@ -677,48 +717,48 @@ export class CampaignsService {
     }
 
     // Filter by countries
-    if (segment.countries && segment.countries.length > 0) {
+    if (segmentConditions.countries && segmentConditions.countries.length > 0) {
       conditions.push({
         country: {
-          in: segment.countries,
+          in: segmentConditions.countries,
         },
       });
     }
 
     // Filter by states
-    if (segment.states && segment.states.length > 0) {
+    if (segmentConditions.states && segmentConditions.states.length > 0) {
       conditions.push({
         stateId: {
-          in: segment.states,
+          in: segmentConditions.states,
         },
       });
     }
 
     // Filter by traffic sources
-    if (segment.trafficSources && segment.trafficSources.length > 0) {
+    if (segmentConditions.trafficSources && segmentConditions.trafficSources.length > 0) {
       conditions.push({
         referralSource: {
-          in: segment.trafficSources,
+          in: segmentConditions.trafficSources,
         },
       });
     }
 
     // Filter by agents (users who have enrollments with these agents or leads closed by these agents)
-    if (segment.agentIds && segment.agentIds.length > 0) {
+    if (segmentConditions.agentIds && segmentConditions.agentIds.length > 0) {
       conditions.push({
         OR: [
           {
             enrollmentsAsClient: {
               some: {
                 agentId: {
-                  in: segment.agentIds,
+                  in: segmentConditions.agentIds,
                 },
               },
             },
           },
           {
             closedBy: {
-              in: segment.agentIds,
+              in: segmentConditions.agentIds,
             },
           },
         ],
@@ -726,10 +766,10 @@ export class CampaignsService {
     }
 
     // Filter by partners
-    if (segment.partnerIds && segment.partnerIds.length > 0) {
+    if (segmentConditions.partnerIds && segmentConditions.partnerIds.length > 0) {
       conditions.push({
         referredByPartnerId: {
-          in: segment.partnerIds,
+          in: segmentConditions.partnerIds,
         },
       });
     }
@@ -784,15 +824,7 @@ export class CampaignsService {
       description: segment.description,
       matchType: segment.matchType,
       status: segment.status,
-      gender: segment.gender,
-      properties: segment.properties,
-      countries: segment.countries,
-      states: segment.states,
-      trafficSources: segment.trafficSources,
-      agentIds: segment.agentIds,
-      partnerIds: segment.partnerIds,
-      minTotalSpent: segment.minTotalSpent?.toNumber(),
-      maxTotalSpent: segment.maxTotalSpent?.toNumber(),
+      conditions: segment.conditions || {},
       brevoListId: segment.brevoListId,
       clientsCount,
       creator: {
@@ -838,5 +870,104 @@ export class CampaignsService {
 
   async deleteBrevoContact(identifier: string): Promise<void> {
     await this.brevoService.deleteContact(identifier);
+  }
+
+  /**
+   * Background process to sync contacts to Brevo list after segment creation
+   */
+  private async syncSegmentInBackground(
+    segmentId: string,
+    brevoListId: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(`Starting background sync for segment ${segmentId}`);
+
+      // Fetch the segment
+      const segment = await this.prisma.segment.findUnique({
+        where: { id: segmentId },
+      });
+
+      if (!segment) {
+        throw new Error('Segment not found');
+      }
+
+      // Build query to get matching clients
+      const where = this.buildSegmentQuery(segment);
+
+      // Get all matching client IDs first
+      const allMatchingClients = await this.prisma.client.findMany({
+        where,
+        select: { id: true },
+      });
+
+      let filteredClientIds = allMatchingClients.map((c) => c.id);
+
+      // Apply spending filter if specified
+      const segmentConditions: any = segment.conditions || {};
+      if (segmentConditions.minTotalSpent !== undefined || segmentConditions.maxTotalSpent !== undefined) {
+        const minSpent = segmentConditions.minTotalSpent;
+        const maxSpent = segmentConditions.maxTotalSpent;
+        filteredClientIds = await this.filterClientsBySpending(
+          filteredClientIds,
+          minSpent,
+          maxSpent,
+        );
+      }
+
+      this.logger.log(`Found ${filteredClientIds.length} clients matching segment ${segmentId}`);
+
+      // Get full client data for filtered clients
+      const clients = await this.prisma.client.findMany({
+        where: {
+          id: { in: filteredClientIds },
+        },
+        select: {
+          firstName: true,
+          lastName: true,
+          otherName: true,
+          phone: true,
+          user: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      });
+
+      // Format contacts for Brevo
+      const contacts = clients.map((client) =>
+        this.brevoService.formatContactForBrevo({
+          email: client.user?.email || '',
+          name: formatFullName(client.firstName, client.lastName, client.otherName),
+          phone: client.phone,
+        }),
+      );
+
+      // Sync to Brevo
+      const syncedCount = await this.brevoService.syncContactsToList(
+        brevoListId,
+        contacts,
+      );
+
+      this.logger.log(`Successfully synced ${syncedCount} contacts to Brevo list ${brevoListId}`);
+
+      // Update segment status to CREATED
+      await this.prisma.segment.update({
+        where: { id: segmentId },
+        data: { status: 'CREATED' },
+      });
+
+      this.logger.log(`Segment ${segmentId} status updated to CREATED`);
+    } catch (error) {
+      this.logger.error(`Background sync failed for segment ${segmentId}: ${error.message}`);
+
+      // Update segment status to FAILED
+      await this.prisma.segment.update({
+        where: { id: segmentId },
+        data: { status: 'FAILED' },
+      });
+
+      throw error;
+    }
   }
 }
