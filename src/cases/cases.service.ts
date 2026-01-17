@@ -16,13 +16,13 @@ export class CasesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCaseDto: CreateCaseDto) {
-    if (createCaseDto.userId) {
+    if (createCaseDto.clientId) {
       const client = await this.prisma.client.findUnique({
-        where: { id: createCaseDto.userId },
+        where: { id: createCaseDto.clientId },
       });
       if (!client) {
         throw new NotFoundException(
-          `Client with ID ${createCaseDto.userId} not found`,
+          `Client with ID ${createCaseDto.clientId} not found`,
         );
       }
     }
@@ -31,7 +31,7 @@ export class CasesService {
       data: {
         name: createCaseDto.name,
         title: createCaseDto.title,
-        clientId: createCaseDto.userId,
+        clientId: createCaseDto.clientId,
         propertyId: createCaseDto.propertyId,
       },
       include: {
@@ -55,7 +55,7 @@ export class CasesService {
   }
 
   async findAll(query: CaseQueryDto) {
-    const { page = 1, limit = 20, search, status, userId, propertyId } = query;
+    const { page = 1, limit = 20, search, status, clientId, propertyId } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.CaseWhereInput = {};
@@ -71,8 +71,8 @@ export class CasesService {
       where.status = status;
     }
 
-    if (userId) {
-      where.clientId = userId;
+    if (clientId) {
+      where.clientId = clientId;
     }
 
     if (propertyId) {
@@ -163,20 +163,25 @@ export class CasesService {
   async update(id: string, updateCaseDto: UpdateCaseDto) {
     await this.findOne(id);
 
-    if (updateCaseDto.userId) {
+    if (updateCaseDto.clientId) {
       const client = await this.prisma.client.findUnique({
-        where: { id: updateCaseDto.userId },
+        where: { id: updateCaseDto.clientId },
       });
       if (!client) {
         throw new NotFoundException(
-          `Client with ID ${updateCaseDto.userId} not found`,
+          `Client with ID ${updateCaseDto.clientId} not found`,
         );
       }
     }
 
     const updatedCase = await this.prisma.case.update({
       where: { id },
-      data: updateCaseDto,
+      data: {
+        name: updateCaseDto.name,
+        title: updateCaseDto.title,
+        clientId: updateCaseDto.clientId,
+        propertyId: updateCaseDto.propertyId,
+      },
       include: {
         client: {
           select: {

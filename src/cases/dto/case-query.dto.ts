@@ -51,12 +51,12 @@ export class CaseQueryDto {
   status?: CaseStatus;
 
   @ApiProperty({
-    description: 'Filter by user ID',
+    description: 'Filter by client ID',
     required: false,
   })
   @IsString()
   @IsOptional()
-  userId?: string;
+  clientId?: string;
 
   @ApiProperty({
     description: 'Filter by property ID',

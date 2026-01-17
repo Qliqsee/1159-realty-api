@@ -20,12 +20,12 @@ export class CreateCaseDto {
 
   @ApiProperty({
     example: 'uuid-here',
-    description: 'User ID (client)',
+    description: 'Client ID',
     required: false,
   })
   @IsUUID()
   @IsOptional()
-  userId?: string;
+  clientId?: string;
 
   @ApiProperty({
     example: 'uuid-here',
