@@ -1,15 +1,14 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateCaseDto } from './dto/create-case.dto';
 import { UpdateCaseDto } from './dto/update-case.dto';
 import { UpdateCaseStatusDto } from './dto/update-case-status.dto';
 import { CaseQueryDto } from './dto/case-query.dto';
+import { MyCasesQueryDto } from './dto/my-cases-query.dto';
 import { Prisma } from '@prisma/client';
-import { formatFullName } from '../common/utils/name.utils';
 
 @Injectable()
 export class CasesService {
@@ -256,12 +255,12 @@ export class CasesService {
     };
   }
 
-  async getMyCases(userId: string, query: CaseQueryDto) {
+  async getMyCases(clientId: string, query: MyCasesQueryDto) {
     const { page = 1, limit = 20, search, status } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.CaseWhereInput = {
-      clientId: userId,
+      clientId: clientId,
     };
 
     if (search) {
@@ -303,49 +302,6 @@ export class CasesService {
         limit,
         totalPages: Math.ceil(total / limit),
       },
-    };
-  }
-
-  async getMyCaseStats(caseId: string, userId: string) {
-    const caseItem = await this.prisma.case.findFirst({
-      where: {
-        id: caseId,
-        clientId: userId,
-      },
-      include: {
-        requirements: {
-          include: {
-            submittedDocuments: {
-              where: {
-                clientId: userId,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!caseItem) {
-      throw new NotFoundException(`Case with ID ${caseId} not found`);
-    }
-
-    let totalCompleted = 0;
-    let totalPending = 0;
-    let totalRejected = 0;
-
-    caseItem.requirements.forEach((req) => {
-      req.submittedDocuments.forEach((doc) => {
-        if (doc.status === 'APPROVED') totalCompleted++;
-        else if (doc.status === 'PENDING') totalPending++;
-        else if (doc.status === 'REJECTED') totalRejected++;
-      });
-    });
-
-    return {
-      totalRequirements: caseItem.requirements.length,
-      totalCompleted,
-      totalPending,
-      totalRejected,
     };
   }
 }

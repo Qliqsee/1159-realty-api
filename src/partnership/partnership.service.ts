@@ -15,12 +15,14 @@ import { generatePartnerReferralId } from '../common/utils/referral-id.util';
 export class PartnershipService {
   private readonly logger = new Logger(PartnershipService.name);
   private readonly clientAppUrl: string;
+  private readonly rejectionCooldownDays: number;
 
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
   ) {
     this.clientAppUrl = this.configService.get<string>('CLIENT_APP_URL') || 'https://app.example.com';
+    this.rejectionCooldownDays = this.configService.get<number>('PARTNERSHIP_REJECTION_COOLDOWN_DAYS') || 30;
   }
 
   private generatePartnerLink(userId: string): string {
@@ -117,7 +119,14 @@ export class PartnershipService {
   async getMyPartnership(userId: string): Promise<any> {
     const client = await this.prisma.client.findUnique({
       where: { userId },
-      select: { id: true },
+      select: {
+        id: true,
+        user: {
+          select: {
+            isSuspended: true,
+          },
+        },
+      },
     });
 
     if (!client) {
@@ -139,9 +148,7 @@ export class PartnershipService {
       return null;
     }
 
-    const isSuspended = !!partnership.suspendedAt;
-    const isLinkActive = partnership.status === PartnershipStatus.APPROVED && !isSuspended;
-    const referralId = isLinkActive && partnership.client.referralId
+    const referralId = partnership.status === PartnershipStatus.APPROVED && partnership.client.referralId
       ? partnership.client.referralId
       : null;
 
@@ -149,8 +156,6 @@ export class PartnershipService {
       ...partnership,
       user: undefined,
       referralId,
-      isSuspended,
-      isLinkActive,
     };
   }
 
@@ -186,6 +191,7 @@ export class PartnershipService {
           client: {
             select: {
               id: true,
+              userId: true,
               firstName: true,
               lastName: true,
               otherName: true,
@@ -210,19 +216,23 @@ export class PartnershipService {
     ]);
 
     // Format the data to match DTO expectations
-    const formattedData = data.map((partnership) => ({
-      ...partnership,
-      client: partnership.client ? {
-        id: partnership.client.id,
-        name: formatFullName(partnership.client.firstName, partnership.client.lastName, partnership.client.otherName),
-        user: partnership.client.user,
-      } : undefined,
-      reviewer: partnership.reviewer ? {
-        id: partnership.reviewer.id,
-        name: formatFullName(partnership.reviewer.firstName, partnership.reviewer.lastName, partnership.reviewer.otherName),
-        user: partnership.reviewer.user,
-      } : undefined,
-    }));
+    const formattedData = data.map((partnership) => {
+      const { clientId, ...partnershipWithoutClientId } = partnership;
+      return {
+        ...partnershipWithoutClientId,
+        client: partnership.client ? {
+          id: partnership.client.id,
+          userId: partnership.client.userId,
+          name: formatFullName(partnership.client.firstName, partnership.client.lastName, partnership.client.otherName),
+          email: partnership.client.user.email,
+        } : undefined,
+        reviewer: partnership.reviewer ? {
+          id: partnership.reviewer.id,
+          name: formatFullName(partnership.reviewer.firstName, partnership.reviewer.lastName, partnership.reviewer.otherName),
+          user: partnership.reviewer.user,
+        } : undefined,
+      };
+    });
 
     return {
       data: formattedData,
@@ -240,6 +250,7 @@ export class PartnershipService {
         client: {
           select: {
             id: true,
+            userId: true,
             firstName: true,
             lastName: true,
             otherName: true,
@@ -263,12 +274,14 @@ export class PartnershipService {
     }
 
     // Format the data to match DTO expectations
+    const { clientId, ...partnershipWithoutClientId } = partnership;
     return {
-      ...partnership,
+      ...partnershipWithoutClientId,
       client: partnership.client ? {
         id: partnership.client.id,
+        userId: partnership.client.userId,
         name: formatFullName(partnership.client.firstName, partnership.client.lastName, partnership.client.otherName),
-        user: partnership.client.user,
+        email: partnership.client.user.email,
       } : undefined,
       reviewer: partnership.reviewer ? {
         id: partnership.reviewer.id,
@@ -285,6 +298,7 @@ export class PartnershipService {
         client: {
           select: {
             id: true,
+            userId: true,
             referredByAgentId: true,
             referredByAgent: {
               select: {
@@ -319,7 +333,16 @@ export class PartnershipService {
       partnership.client.referredByAgentId,
     );
 
-    // Update both partnership and client
+    // Get partner role
+    const partnerRole = await this.prisma.role.findUnique({
+      where: { name_appContext: { name: 'partner', appContext: 'CLIENT' } },
+    });
+
+    if (!partnerRole) {
+      throw new Error('Partner role not found in system');
+    }
+
+    // Update partnership, client, and assign partner role
     const [updated] = await this.prisma.$transaction([
       this.prisma.partnership.update({
         where: { id },
@@ -333,6 +356,19 @@ export class PartnershipService {
         where: { id: partnership.clientId },
         data: {
           referralId,
+        },
+      }),
+      this.prisma.userRole.upsert({
+        where: {
+          userId_roleId: {
+            userId: partnership.client.userId,
+            roleId: partnerRole.id,
+          },
+        },
+        update: {},
+        create: {
+          userId: partnership.client.userId,
+          roleId: partnerRole.id,
         },
       }),
     ]);
@@ -356,9 +392,9 @@ export class PartnershipService {
       );
     }
 
-    // Calculate 90-day cooldown
+    // Calculate cooldown based on configured days
     const cooldownDate = new Date();
-    cooldownDate.setDate(cooldownDate.getDate() + 90);
+    cooldownDate.setDate(cooldownDate.getDate() + this.rejectionCooldownDays);
 
     const updated = await this.prisma.partnership.update({
       where: { id },
@@ -372,60 +408,6 @@ export class PartnershipService {
     });
 
     this.logger.log(`Partnership ${id} rejected by admin ${adminId}`);
-    return updated;
-  }
-
-  async suspendPartnership(id: string, adminId: string): Promise<Partnership> {
-    const partnership = await this.prisma.partnership.findUnique({
-      where: { id },
-    });
-
-    if (!partnership) {
-      throw new NotFoundException('Partnership not found');
-    }
-
-    if (partnership.status !== PartnershipStatus.APPROVED) {
-      throw new BadRequestException('Only approved partnerships can be suspended');
-    }
-
-    if (partnership.suspendedAt) {
-      throw new BadRequestException('Partnership is already suspended');
-    }
-
-    const updated = await this.prisma.partnership.update({
-      where: { id },
-      data: {
-        suspendedAt: new Date(),
-        suspendedBy: adminId,
-      },
-    });
-
-    this.logger.log(`Partnership ${id} suspended by admin ${adminId}`);
-    return updated;
-  }
-
-  async unsuspendPartnership(id: string, adminId: string): Promise<Partnership> {
-    const partnership = await this.prisma.partnership.findUnique({
-      where: { id },
-    });
-
-    if (!partnership) {
-      throw new NotFoundException('Partnership not found');
-    }
-
-    if (!partnership.suspendedAt) {
-      throw new BadRequestException('Partnership is not suspended');
-    }
-
-    const updated = await this.prisma.partnership.update({
-      where: { id },
-      data: {
-        suspendedAt: null,
-        suspendedBy: null,
-      },
-    });
-
-    this.logger.log(`Partnership ${id} unsuspended by admin ${adminId}`);
     return updated;
   }
 

@@ -96,6 +96,11 @@ export class EnrollmentsService {
           referredByPartner: {
             include: {
               partnership: true,
+              user: {
+                select: {
+                  isSuspended: true,
+                },
+              },
             },
           },
         },
@@ -128,7 +133,7 @@ export class EnrollmentsService {
       // Auto-populate partner ID if client was referred by an approved partner
       if (client.referredByPartnerId && client.referredByPartner?.partnership?.status === 'APPROVED') {
         // Check if partner is not suspended
-        const partnerSuspended = !!client.referredByPartner.partnership.suspendedAt;
+        const partnerSuspended = !!client.referredByPartner.user.isSuspended;
         if (!partnerSuspended) {
           partnerId = client.referredByPartnerId;
         }
@@ -643,6 +648,11 @@ export class EnrollmentsService {
         referredByPartner: {
           include: {
             partnership: true,
+            user: {
+              select: {
+                isSuspended: true,
+              },
+            },
           },
         },
       },
@@ -669,7 +679,7 @@ export class EnrollmentsService {
     // Determine partner ID based on who referred the client
     let partnerId: string | null = null;
     if (client.referredByPartnerId && client.referredByPartner?.partnership?.status === 'APPROVED') {
-      const partnerSuspended = !!client.referredByPartner.partnership.suspendedAt;
+      const partnerSuspended = !!client.referredByPartner.user.isSuspended;
       if (!partnerSuspended) {
         partnerId = client.referredByPartnerId;
       }

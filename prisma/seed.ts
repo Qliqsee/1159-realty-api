@@ -145,8 +145,9 @@ async function main() {
   // 4. Seed role-resource-actions mappings
   let mappingCount = 0;
   for (const [roleName, resources] of Object.entries(permissionsMap)) {
+    const appContext = clientRoles.includes(roleName) ? 'CLIENT' : 'SYSTEM';
     const role = await prisma.role.findUnique({
-      where: { name_appContext: { name: roleName, appContext: 'SYSTEM' } },
+      where: { name_appContext: { name: roleName, appContext } },
     });
 
     if (!role) continue;

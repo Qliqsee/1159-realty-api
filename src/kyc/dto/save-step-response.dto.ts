@@ -1,13 +1,18 @@
-import { ClientResponseDto } from '../../clients/dto/client-response.dto';
+import { GetPersonalInfoResponseDto } from './get-personal-info-response.dto';
+import { GetOccupationInfoResponseDto } from './get-occupation-info-response.dto';
+import { GetNextOfKinInfoResponseDto } from './get-next-of-kin-info-response.dto';
+import { GetAddressInfoResponseDto } from './get-address-info-response.dto';
+import { GetIdentityInfoResponseDto } from './get-identity-info-response.dto';
+import { GetBankInfoResponseDto } from './get-bank-info-response.dto';
 
-export class SavePersonalStepResponseDto extends ClientResponseDto {}
+export class SavePersonalStepResponseDto extends GetPersonalInfoResponseDto {}
 
-export class SaveAddressStepResponseDto extends ClientResponseDto {}
+export class SaveAddressStepResponseDto extends GetAddressInfoResponseDto {}
 
-export class SaveOccupationStepResponseDto extends ClientResponseDto {}
+export class SaveOccupationStepResponseDto extends GetOccupationInfoResponseDto {}
 
-export class SaveIdentityStepResponseDto extends ClientResponseDto {}
+export class SaveIdentityStepResponseDto extends GetIdentityInfoResponseDto {}
 
-export class SaveNextOfKinStepResponseDto extends ClientResponseDto {}
+export class SaveNextOfKinStepResponseDto extends GetNextOfKinInfoResponseDto {}
 
-export class SaveBankStepResponseDto extends ClientResponseDto {}
+export class SaveBankStepResponseDto extends GetBankInfoResponseDto {}

@@ -162,9 +162,6 @@ export class UserDetailsResponseDto {
   @ApiProperty()
   isSuspended: boolean;
 
-  @ApiPropertyOptional()
-  suspendedAt?: Date;
-
   @ApiProperty({ type: [String] })
   roles: string[];
 

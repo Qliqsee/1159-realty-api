@@ -1,33 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { KycStatus, KycStep } from '@prisma/client';
 import { ClientInfoDto } from './list-kycs.dto';
-import { RejectionReasonDto } from './get-my-kyc-response.dto';
-
-export class KycHistoryItemDto {
-  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
-  id: string;
-
-  @ApiProperty({ enum: KycStatus, example: KycStatus.SUBMITTED })
-  status: KycStatus;
-
-  @ApiProperty()
-  submittedAt: Date;
-
-  @ApiProperty({ nullable: true })
-  reviewedAt: Date | null;
-
-  @ApiProperty({ nullable: true })
-  reviewAction: string | null;
-
-  @ApiProperty({ type: ClientInfoDto, nullable: true })
-  reviewer: ClientInfoDto | null;
-
-  @ApiProperty({ nullable: true })
-  feedback: string | null;
-
-  @ApiProperty()
-  createdAt: Date;
-}
 
 export class AdminInfoDto {
   @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
@@ -80,6 +53,42 @@ export class KycDetailResponseDto {
   @ApiProperty({ required: false, nullable: true })
   bank: any;
 
+  @ApiProperty({ required: false, nullable: true })
+  personalDraft: any;
+
+  @ApiProperty({ required: false, nullable: true })
+  addressDraft: any;
+
+  @ApiProperty({ required: false, nullable: true })
+  occupationDraft: any;
+
+  @ApiProperty({ required: false, nullable: true })
+  identityDraft: any;
+
+  @ApiProperty({ required: false, nullable: true })
+  nextOfKinDraft: any;
+
+  @ApiProperty({ required: false, nullable: true })
+  bankDraft: any;
+
+  @ApiProperty({ enum: KycStatus, example: KycStatus.DRAFT })
+  personalStatus: KycStatus;
+
+  @ApiProperty({ enum: KycStatus, example: KycStatus.DRAFT })
+  addressStatus: KycStatus;
+
+  @ApiProperty({ enum: KycStatus, example: KycStatus.DRAFT })
+  occupationStatus: KycStatus;
+
+  @ApiProperty({ enum: KycStatus, example: KycStatus.DRAFT })
+  identityStatus: KycStatus;
+
+  @ApiProperty({ enum: KycStatus, example: KycStatus.DRAFT })
+  nextOfKinStatus: KycStatus;
+
+  @ApiProperty({ enum: KycStatus, example: KycStatus.DRAFT })
+  bankStatus: KycStatus;
+
   @ApiProperty({ nullable: true })
   submittedAt: Date | null;
 
@@ -91,12 +100,6 @@ export class KycDetailResponseDto {
 
   @ApiProperty({ nullable: true })
   feedback: string | null;
-
-  @ApiProperty({ type: [RejectionReasonDto] })
-  rejectionReasons: RejectionReasonDto[];
-
-  @ApiProperty({ type: [KycHistoryItemDto] })
-  history: KycHistoryItemDto[];
 
   @ApiProperty()
   createdAt: Date;

@@ -13,7 +13,4 @@ export class PartnershipSummaryDto {
 
   @ApiPropertyOptional({ example: '2024-01-16T14:20:00.000Z' })
   reviewedAt?: Date;
-
-  @ApiPropertyOptional({ example: '2024-02-01T09:15:00.000Z' })
-  suspendedAt?: Date;
 }

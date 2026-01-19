@@ -5,9 +5,6 @@ export class PartnershipResponseDto {
   @ApiProperty({ example: 'clx123abc' })
   id: string;
 
-  @ApiProperty({ example: 'client123' })
-  clientId: string;
-
   @ApiProperty({ enum: PartnershipStatus, example: PartnershipStatus.AWAITING_APPROVAL })
   status: PartnershipStatus;
 
@@ -26,17 +23,8 @@ export class PartnershipResponseDto {
   @ApiPropertyOptional({ example: '2024-04-09T10:00:00.000Z', description: '90 days after rejection' })
   rejectionCooldown?: Date;
 
-  @ApiPropertyOptional({ example: '2024-01-09T10:00:00.000Z' })
-  suspendedAt?: Date;
-
   @ApiPropertyOptional({ example: 'AGT-ABC12-P001', description: 'Partner referral ID' })
   referralId?: string;
-
-  @ApiPropertyOptional({ example: true })
-  isSuspended?: boolean;
-
-  @ApiPropertyOptional({ example: true })
-  isLinkActive?: boolean;
 
   @ApiProperty({ example: '2024-01-08T10:00:00.000Z' })
   createdAt: Date;
@@ -49,17 +37,15 @@ export class PartnershipWithUserDto extends PartnershipResponseDto {
   @ApiProperty({
     example: {
       id: 'client123',
+      userId: 'user123',
       name: 'John Doe',
-      user: {
-        email: 'client@example.com',
-      },
+      email: 'client@example.com',
     },
   })
   client: {
     id: string;
+    userId: string;
     name: string;
-    user: {
-      email: string;
-    };
+    email: string;
   };
 }

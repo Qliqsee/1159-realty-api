@@ -683,7 +683,6 @@ export class UsersService {
       partnership: this.getPartnershipInfo(user),
       enrollments,
       isSuspended: user.isSuspended,
-      suspendedAt: user.suspendedAt,
       roles: user.userRoles?.map((ur: any) => ur.role.name) || [],
       totalEnrollments: enrollmentCounts.total,
       totalPaid: totalSpent,
@@ -1100,11 +1099,25 @@ export class UsersService {
             role: true,
           },
         },
+        admin: true,
+        client: {
+          include: {
+            partnership: true,
+          },
+        },
       },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    // Only partners and admins can be suspended
+    const isAdmin = !!user.admin;
+    const isPartner = user.client?.partnership?.status === 'APPROVED';
+
+    if (!isAdmin && !isPartner) {
+      throw new ForbiddenException('Only partners and admins can be suspended');
     }
 
     // Check ban hierarchy (same rules for suspend)
@@ -1127,11 +1140,25 @@ export class UsersService {
             role: true,
           },
         },
+        admin: true,
+        client: {
+          include: {
+            partnership: true,
+          },
+        },
       },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    // Only partners and admins can be suspended
+    const isAdmin = !!user.admin;
+    const isPartner = user.client?.partnership?.status === 'APPROVED';
+
+    if (!isAdmin && !isPartner) {
+      throw new ForbiddenException('Only partners and admins can be suspended');
     }
 
     // Check ban hierarchy (same rules for unsuspend)

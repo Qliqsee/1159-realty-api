@@ -138,7 +138,7 @@ export class ClientsService {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: {
-        closedByAgent: {
+        referredByAgent: {
           include: {
             user: true,
           },
@@ -150,11 +150,11 @@ export class ClientsService {
       throw new NotFoundException('Client not found');
     }
 
-    if (!client.closedByAgent) {
+    if (!client.referredByAgent) {
       return { message: 'No agent assigned to this client' };
     }
 
-    return this.mapToAdminSummary(client.closedByAgent);
+    return this.mapToAdminSummary(client.referredByAgent);
   }
 
   async getMyPartner(clientId: string, query?: ClientIncludeQueryDto): Promise<ClientResponseDto | { message: string }> {
@@ -344,7 +344,6 @@ export class ClientsService {
         status: client.partnership.status,
         appliedAt: client.partnership.appliedAt,
         reviewedAt: client.partnership.reviewedAt,
-        suspendedAt: client.partnership.suspendedAt,
       };
     }
 

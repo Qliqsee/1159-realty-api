@@ -470,5 +470,9 @@
     "appointments": ["view_all", "view_detail"],
     "users": ["view_all", "view_detail"],
     "commissions": []
+  },
+
+  "partner": {
+    "partnership": ["apply", "view_own", "view_clients"]
   }
 }

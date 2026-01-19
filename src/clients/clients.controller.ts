@@ -77,7 +77,7 @@ export class ClientsController {
   }
 
   @Get('my-agent')
-  @ApiOperation({ summary: 'Get agent who closed the client lead if applicable' })
+  @ApiOperation({ summary: 'Get agent who referred this client if applicable' })
   @ApiStandardResponse(200, 'Agent information retrieved successfully', AdminSummaryDto)
   @ApiUnauthorizedResponse()
   @ApiNotFoundResponse('Client')

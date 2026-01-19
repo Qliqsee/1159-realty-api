@@ -21,7 +21,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailVerifiedGuard } from '../common/guards/email-verified.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { KycCompletionGuard } from '../common/guards/kyc-completion.guard';
-import { RequirePermissions } from '../common/decorators/permissions.decorator';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import {
   ApplyPartnershipResponseDto,
 } from './dto/apply-partnership.dto';
@@ -38,10 +38,6 @@ import {
   ListPartnershipsResponseDto,
 } from './dto/list-partnerships.dto';
 import {
-  SuspendPartnershipResponseDto,
-  UnsuspendPartnershipResponseDto,
-} from './dto/suspend-partnership.dto';
-import {
   ListPartnerClientsQueryDto,
 } from './dto/list-partner-clients.dto';
 import {
@@ -54,7 +50,7 @@ import {
 
 @ApiTags('Partnership')
 @Controller('partnership')
-@UseGuards(JwtAuthGuard, EmailVerifiedGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth('JWT-auth')
 export class PartnershipController {
   constructor(private readonly partnershipService: PartnershipService) {}
@@ -63,7 +59,7 @@ export class PartnershipController {
 
   @Post('apply')
   @UseGuards(KycCompletionGuard)
-  @RequirePermissions('partnership:apply')
+  @RequirePermission('partnership', 'apply')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Apply for partnership (requires approved KYC)' })
   @ApiResponse({
@@ -86,7 +82,7 @@ export class PartnershipController {
   }
 
   @Get('me')
-  @RequirePermissions('partnership:view_own')
+  @RequirePermission('partnership', 'view_own')
   @ApiOperation({ summary: 'Get my partnership status' })
   @ApiResponse({
     status: 200,
@@ -98,10 +94,67 @@ export class PartnershipController {
     return this.partnershipService.getMyPartnership(req.user.userId);
   }
 
+  // Partner Endpoints
+
+  @Get('my-clients')
+  @RequirePermission('partnership', 'view_clients')
+  @ApiOperation({ summary: 'Get clients onboarded by partner (Partner only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of clients with pagination',
+    type: ListPartnerClientsResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getPartnerClients(
+    @Query() query: ListPartnerClientsQueryDto,
+    @Req() req,
+  ): Promise<ListPartnerClientsResponseDto> {
+    return this.partnershipService.getPartnerClients(
+      req.user.clientId,
+      query.search,
+      query.enrollmentStatus,
+      query.page ? parseInt(query.page) : 1,
+      query.limit ? parseInt(query.limit) : 20,
+    );
+  }
+
+  @Get('my-clients/:clientId')
+  @RequirePermission('partnership', 'view_clients')
+  @ApiOperation({ summary: 'Get client details with enrollments and commissions (Partner only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Client details retrieved',
+    type: PartnerClientDetailDto,
+  })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getPartnerClientDetail(
+    @Param('clientId') clientId: string,
+    @Req() req,
+  ): Promise<PartnerClientDetailDto> {
+    return this.partnershipService.getPartnerClientDetail(req.user.clientId, clientId);
+  }
+
+  @Get('dashboard')
+  @RequirePermission('partnership', 'view_clients')
+  @ApiOperation({ summary: 'Get partner dashboard with stats and revenue (Partner only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard data retrieved',
+    type: PartnerDashboardDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getPartnerDashboard(@Req() req): Promise<PartnerDashboardDto> {
+    return this.partnershipService.getPartnerDashboard(req.user.clientId);
+  }
+
   // Admin Endpoints
 
   @Get()
-  @RequirePermissions('partnership:view_all')
+  @RequirePermission('partnership', 'view_all')
   @ApiOperation({ summary: 'List all partnerships with filters (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -122,7 +175,7 @@ export class PartnershipController {
   }
 
   @Get(':id')
-  @RequirePermissions('partnership:view_all')
+  @RequirePermission('partnership', 'view_all')
   @ApiOperation({ summary: 'Get partnership by ID (Admin only)' })
   @ApiResponse({
     status: 200,
@@ -137,7 +190,8 @@ export class PartnershipController {
   }
 
   @Patch(':id/approve')
-  @RequirePermissions('partnership:review')
+  @UseGuards(EmailVerifiedGuard)
+  @RequirePermission('partnership', 'review')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Approve partnership application (Admin only)' })
   @ApiResponse({
@@ -155,7 +209,7 @@ export class PartnershipController {
   ): Promise<ApprovePartnershipResponseDto> {
     const partnership = await this.partnershipService.approvePartnership(
       id,
-      req.user.userId,
+      req.user.adminId,
     );
     return {
       message: 'Partnership approved successfully',
@@ -165,7 +219,8 @@ export class PartnershipController {
   }
 
   @Patch(':id/reject')
-  @RequirePermissions('partnership:review')
+  @UseGuards(EmailVerifiedGuard)
+  @RequirePermission('partnership', 'review')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reject partnership application (Admin only)' })
   @ApiResponse({
@@ -183,7 +238,7 @@ export class PartnershipController {
   ): Promise<RejectPartnershipResponseDto> {
     const partnership = await this.partnershipService.rejectPartnership(
       id,
-      req.user.userId,
+      req.user.adminId,
     );
     return {
       message: 'Partnership rejected successfully',
@@ -191,119 +246,5 @@ export class PartnershipController {
       status: partnership.status,
       rejectionCooldown: partnership.rejectionCooldown,
     };
-  }
-
-  @Patch(':id/suspend')
-  @RequirePermissions('partnership:suspend')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Suspend approved partnership (Admin only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Partnership suspended successfully',
-    type: SuspendPartnershipResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Only approved partnerships can be suspended or already suspended' })
-  @ApiResponse({ status: 404, description: 'Partnership not found' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async suspendPartnership(
-    @Param('id') id: string,
-    @Req() req,
-  ): Promise<SuspendPartnershipResponseDto> {
-    const partnership = await this.partnershipService.suspendPartnership(
-      id,
-      req.user.userId,
-    );
-    return {
-      message: 'Partnership suspended successfully',
-      partnershipId: partnership.id,
-      status: partnership.status,
-      suspendedAt: partnership.suspendedAt,
-    };
-  }
-
-  @Patch(':id/unsuspend')
-  @RequirePermissions('partnership:suspend')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Unsuspend partnership (Admin only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Partnership unsuspended successfully',
-    type: UnsuspendPartnershipResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Partnership is not suspended' })
-  @ApiResponse({ status: 404, description: 'Partnership not found' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async unsuspendPartnership(
-    @Param('id') id: string,
-    @Req() req,
-  ): Promise<UnsuspendPartnershipResponseDto> {
-    const partnership = await this.partnershipService.unsuspendPartnership(
-      id,
-      req.user.userId,
-    );
-    return {
-      message: 'Partnership unsuspended successfully',
-      partnershipId: partnership.id,
-      status: partnership.status,
-    };
-  }
-
-  // Partner Endpoints
-
-  @Get('my-clients')
-  @RequirePermissions('partnership:view_clients')
-  @ApiOperation({ summary: 'Get clients onboarded by partner (Partner only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'List of clients with pagination',
-    type: ListPartnerClientsResponseDto,
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getPartnerClients(
-    @Query() query: ListPartnerClientsQueryDto,
-    @Req() req,
-  ): Promise<ListPartnerClientsResponseDto> {
-    return this.partnershipService.getPartnerClients(
-      req.user.userId,
-      query.search,
-      query.enrollmentStatus,
-      query.page ? parseInt(query.page) : 1,
-      query.limit ? parseInt(query.limit) : 20,
-    );
-  }
-
-  @Get('my-clients/:clientId')
-  @RequirePermissions('partnership:view_clients')
-  @ApiOperation({ summary: 'Get client details with enrollments and commissions (Partner only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Client details retrieved',
-    type: PartnerClientDetailDto,
-  })
-  @ApiResponse({ status: 404, description: 'Client not found' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getPartnerClientDetail(
-    @Param('clientId') clientId: string,
-    @Req() req,
-  ): Promise<PartnerClientDetailDto> {
-    return this.partnershipService.getPartnerClientDetail(req.user.userId, clientId);
-  }
-
-  @Get('dashboard')
-  @RequirePermissions('partnership:view_clients')
-  @ApiOperation({ summary: 'Get partner dashboard with stats and revenue (Partner only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Dashboard data retrieved',
-    type: PartnerDashboardDto,
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getPartnerDashboard(@Req() req): Promise<PartnerDashboardDto> {
-    return this.partnershipService.getPartnerDashboard(req.user.userId);
   }
 }

@@ -252,7 +252,6 @@ model Admin {
   referredClients          Client[]              @relation("ReferredByAgent")
   closedClients            Client[]              @relation("ClosedByAgent")
   partnershipsReviewed     Partnership[]         @relation("PartnershipReviewedBy")
-  partnershipsSuspended    Partnership[]         @relation("PartnershipSuspendedBy")
   enrollmentsAsAgent       Enrollment[]          @relation("EnrollmentAgent")
   enrollmentsCreated       Enrollment[]          @relation("EnrollmentCreatedBy")
   enrollmentsCancelled     Enrollment[]          @relation("EnrollmentCancelledBy")
@@ -427,6 +426,13 @@ model Kyc {
   nextOfKinDraft  Json?
   bankDraft       Json?
 
+  personalStatus   KycStatus @default(DRAFT)
+  addressStatus    KycStatus @default(DRAFT)
+  occupationStatus KycStatus @default(DRAFT)
+  identityStatus   KycStatus @default(DRAFT)
+  nextOfKinStatus  KycStatus @default(DRAFT)
+  bankStatus       KycStatus @default(DRAFT)
+
   submittedAt     DateTime?
   lastSubmittedAt DateTime?
   reviewedAt      DateTime?
@@ -472,6 +478,13 @@ model KycHistory {
   identity   Json?
   nextOfKin  Json?
   bank       Json?
+
+  personalStatus   KycStatus @default(DRAFT)
+  addressStatus    KycStatus @default(DRAFT)
+  occupationStatus KycStatus @default(DRAFT)
+  identityStatus   KycStatus @default(DRAFT)
+  nextOfKinStatus  KycStatus @default(DRAFT)
+  bankStatus       KycStatus @default(DRAFT)
 
   submittedAt      DateTime
   reviewedAt       DateTime?
@@ -712,14 +725,11 @@ model Partnership {
   reviewedBy        String?
   rejectedAt        DateTime?
   rejectionCooldown DateTime?
-  suspendedAt       DateTime?
-  suspendedBy       String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  reviewer  Admin? @relation("PartnershipReviewedBy", fields: [reviewedBy], references: [id])
-  suspender Admin? @relation("PartnershipSuspendedBy", fields: [suspendedBy], references: [id])
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  reviewer Admin? @relation("PartnershipReviewedBy", fields: [reviewedBy], references: [id])
 
   @@map("partnerships")
 }

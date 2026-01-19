@@ -597,7 +597,6 @@ export class AdminsService {
         status: client.partnership.status,
         appliedAt: client.partnership.appliedAt,
         reviewedAt: client.partnership.reviewedAt,
-        suspendedAt: client.partnership.suspendedAt,
       };
     }
 

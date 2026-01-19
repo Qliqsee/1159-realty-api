@@ -41,12 +41,12 @@ export class ListKycsQueryDto {
   @Min(1)
   page?: number = 1;
 
-  @ApiProperty({ required: false, default: 20, minimum: 1 })
+  @ApiProperty({ required: false, default: 10, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  limit?: number = 20;
+  limit?: number = 10;
 }
 
 export class ClientInfoDto {
@@ -78,6 +78,15 @@ export class KycListItemDto {
 
   @ApiProperty({ enum: KycStatus, example: KycStatus.SUBMITTED })
   status: KycStatus;
+
+  @ApiProperty({ required: false, nullable: true, description: 'Client personal information from onboarding' })
+  personal: {
+    firstName?: string;
+    lastName?: string;
+    dob?: string;
+    gender?: string;
+    maritalStatus?: string;
+  } | null;
 
   @ApiProperty({ nullable: true })
   submittedAt: Date | null;
